@@ -291,5 +291,122 @@ def run_server(host: str = "localhost", port: int = 8080) -> None:
     logger.info("Features: Thread-safe storage, Multi-client support")
     uvicorn.run(app, host=host, port=port, log_level="info")
 
+def run_stdio_server() -> None:
+    """Run as a stdio MCP server (not recommended for production)"""
+    import asyncio
+    import json
+    import sys
+    from mcp.server import Server
+    from mcp.server.stdio import stdio_server
+    from mcp.types import (
+        Tool,
+        TextContent,
+        CallToolResult,
+        ListToolsResult,
+    )
+    
+    logger.warning("Running in STDIO mode - this may have file locking issues")
+    
+    # Create MCP server
+    server = Server("memgraph")
+    
+    @server.list_tools()
+    async def list_tools() -> ListToolsResult:
+        return ListToolsResult(
+            tools=[
+                Tool(
+                    name="read_graph",
+                    description="Read the entire knowledge graph",
+                    inputSchema={"type": "object", "properties": {}}
+                ),
+                Tool(
+                    name="search_nodes", 
+                    description="Search for nodes in the knowledge graph",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "Search query"}
+                        },
+                        "required": ["query"]
+                    }
+                ),
+                Tool(
+                    name="create_entities",
+                    description="Create new entities", 
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "entities": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "entityType": {"type": "string"},
+                                        "observations": {"type": "array", "items": {"type": "string"}}
+                                    },
+                                    "required": ["name", "entityType", "observations"]
+                                }
+                            }
+                        },
+                        "required": ["entities"]
+                    }
+                ),
+                Tool(
+                    name="create_relations",
+                    description="Create new relations",
+                    inputSchema={
+                        "type": "object", 
+                        "properties": {
+                            "relations": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "from": {"type": "string"},
+                                        "to": {"type": "string"},
+                                        "relationType": {"type": "string"}
+                                    },
+                                    "required": ["from", "to", "relationType"]
+                                }
+                            }
+                        },
+                        "required": ["relations"]
+                    }
+                )
+            ]
+        )
+    
+    @server.call_tool()
+    async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
+        try:
+            if name == "read_graph":
+                result = await knowledge_client.read_graph()
+                return CallToolResult(content=[TextContent(type="text", text=json.dumps(result, indent=2))])
+            elif name == "search_nodes":
+                result = await knowledge_client.search_nodes(arguments["query"])
+                return CallToolResult(content=[TextContent(type="text", text=json.dumps(result, indent=2))])
+            elif name == "create_entities":
+                await knowledge_client.create_entities(arguments["entities"])
+                return CallToolResult(content=[TextContent(type="text", text="Entities created successfully")])
+            elif name == "create_relations":
+                await knowledge_client.create_relations(arguments["relations"])
+                return CallToolResult(content=[TextContent(type="text", text="Relations created successfully")])
+            else:
+                raise ValueError(f"Unknown tool: {name}")
+        except Exception as e:
+            logger.error(f"Tool error: {e}")
+            return CallToolResult(content=[TextContent(type="text", text=f"Error: {str(e)}")], isError=True)
+    
+    # Run the server
+    async def main():
+        async with stdio_server() as (read_stream, write_stream):
+            await server.run(read_stream, write_stream, server.create_initialization_options())
+    
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("STDIO server stopped")
+
 if __name__ == "__main__":
     run_server()
