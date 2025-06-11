@@ -2,7 +2,7 @@
 MCP HTTP Server for Knowledge Graph
 
 Provides both MCP protocol support and HTTP REST endpoints for knowledge graph data.
-Serves the D3.js visualization client as static files.
+Integrates with thread-safe knowledge graph storage to prevent multi-client issues.
 """
 
 import json
@@ -15,48 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-# Knowledge graph data storage (in production, this would connect to actual MCP tools)
-SAMPLE_KNOWLEDGE_GRAPH = {
-    "entities": [
-        {
-            "name": "Hiromi",
-            "entityType": "person",
-            "observations": ["User's wife"]
-        },
-        {
-            "name": "Bob", 
-            "entityType": "person",
-            "observations": ["The person I'm talking with"]
-        },
-        {
-            "name": "Zabob Project",
-            "entityType": "project",
-            "observations": [
-                "AI MCP-based agent to make Houdini accessible to AIs for assistance",
-                "Has database of Python modules and routines available within Houdini",
-                "Has database of all node types and parameters that ship with Houdini",
-                "Currently transitioning from setup phase to delivering real data",
-                "Uses MCP (Model Context Protocol) architecture"
-            ]
-        },
-        {
-            "name": "Knowledge Graph Visualization System",
-            "entityType": "visualization tool", 
-            "observations": [
-                "Interactive D3.js-based knowledge graph visualization",
-                "HTTP-based architecture for unlimited scalability",
-                "Real-time data updates without page refresh",
-                "Full-text search across all content"
-            ]
-        }
-    ],
-    "relations": [
-        {"from": "Bob", "to": "Hiromi", "relationType": "is married to"},
-        {"from": "Hiromi", "to": "Bob", "relationType": "is married to"},
-        {"from": "Bob", "to": "Zabob Project", "relationType": "created"},
-        {"from": "Knowledge Graph Visualization System", "to": "Zabob Project", "relationType": "visualizes"}
-    ]
-}
+from .knowledge import knowledge_client
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -65,8 +24,8 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(
     title="Knowledge Graph MCP Server",
-    description="HTTP interface for knowledge graph visualization",
-    version="0.1.0"
+    description="HTTP interface for knowledge graph visualization with thread-safe multi-client support",
+    version="0.2.0"
 )
 
 # Enable CORS for local development
@@ -93,13 +52,13 @@ async def root() -> HTMLResponse:
     <html>
         <head><title>Knowledge Graph</title></head>
         <body>
-            <h1>Knowledge Graph MCP Server</h1>
-            <p>Web client not found. Check that memgraph/web/index.html exists.</p>
+            <h1>Knowledge Graph MCP Server v0.2.0</h1>
+            <p><strong>Thread-Safe Multi-Client Support Enabled</strong></p>
             <p>API endpoints:</p>
             <ul>
                 <li><a href="/api/knowledge-graph">/api/knowledge-graph</a> - Full graph data</li>
-                <li><a href="/api/entities">/api/entities</a> - All entities</li>
                 <li><a href="/api/search?q=test">/api/search?q=test</a> - Search</li>
+                <li><a href="/health">/health</a> - Health check</li>
                 <li><a href="/docs">/docs</a> - API documentation</li>
             </ul>
         </body>
@@ -108,89 +67,138 @@ async def root() -> HTMLResponse:
 
 @app.get("/api/knowledge-graph")
 async def get_knowledge_graph() -> Dict[str, Any]:
-    """Get the complete knowledge graph data"""
-    # Transform to the format expected by the D3 visualization
-    nodes = []
-    for entity in SAMPLE_KNOWLEDGE_GRAPH["entities"]:
-        # Map entity types to visualization groups
-        group = "person" if entity["entityType"] == "person" else \
-               "project" if entity["entityType"] == "project" else \
-               "technology"
+    """Get the complete knowledge graph data with thread-safe access"""
+    try:
+        graph_data = await knowledge_client.read_graph()
         
-        nodes.append({
-            "id": entity["name"],
-            "group": group,
-            "type": entity["entityType"],
-            "observations": entity["observations"]
-        })
-    
-    links = []
-    for relation in SAMPLE_KNOWLEDGE_GRAPH["relations"]:
-        links.append({
-            "source": relation["from"],
-            "target": relation["to"],
-            "relation": relation["relationType"]
-        })
-    
-    return {
-        "nodes": nodes,
-        "links": links,
-        "stats": {
-            "entityCount": len(nodes),
-            "relationCount": len(links)
+        # Transform to D3 visualization format
+        nodes = []
+        for entity in graph_data["entities"]:
+            # Map entity types to visualization groups
+            group = "person" if entity["entityType"] == "person" else \
+                   "project" if entity["entityType"] == "project" else \
+                   "development" if "development" in entity["entityType"].lower() else \
+                   "strategy" if "strategy" in entity["entityType"].lower() or "plan" in entity["entityType"].lower() else \
+                   "debug" if "debug" in entity["entityType"].lower() or "investigation" in entity["entityType"].lower() else \
+                   "technology"
+            
+            nodes.append({
+                "id": entity["name"],
+                "group": group,
+                "type": entity["entityType"],
+                "observations": entity["observations"]
+            })
+        
+        links = []
+        for relation in graph_data["relations"]:
+            links.append({
+                "source": relation["from_entity"],
+                "target": relation["to"],
+                "relation": relation["relationType"]
+            })
+        
+        return {
+            "nodes": nodes,
+            "links": links,
+            "stats": {
+                "entityCount": len(nodes),
+                "relationCount": len(links),
+                "dataSource": "thread-safe file storage"
+            }
         }
-    }
+    except Exception as e:
+        logger.error(f"Error reading knowledge graph: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read knowledge graph: {str(e)}")
 
 @app.get("/api/entities")
 async def get_entities() -> List[Dict[str, Any]]:
-    """Get all entities"""
-    return SAMPLE_KNOWLEDGE_GRAPH["entities"]
+    """Get all entities with thread-safe access"""
+    try:
+        graph_data = await knowledge_client.read_graph()
+        return graph_data["entities"]
+    except Exception as e:
+        logger.error(f"Error reading entities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read entities: {str(e)}")
 
 @app.get("/api/search")
 async def search_knowledge_graph(q: str) -> List[Dict[str, Any]]:
-    """Search across all entities and observations"""
+    """Search across all entities and observations with thread-safe access"""
     if not q or len(q.strip()) < 2:
         return []
     
-    query = q.lower().strip()
-    results = []
-    
-    for entity in SAMPLE_KNOWLEDGE_GRAPH["entities"]:
-        # Search entity name
-        if query in entity["name"].lower():
-            results.append({
-                "entity": entity["name"],
-                "type": "name",
-                "content": entity["name"],
-                "entityType": entity["entityType"],
-                "score": 10
-            })
+    try:
+        search_results = await knowledge_client.search_nodes(q.strip())
         
-        # Search observations
-        for i, obs in enumerate(entity["observations"]):
-            if query in obs.lower():
+        # Transform to search result format
+        results = []
+        query = q.lower().strip()
+        
+        for entity in search_results["entities"]:
+            # Search entity name
+            if query in entity["name"].lower():
                 results.append({
                     "entity": entity["name"],
-                    "type": "observation", 
-                    "content": obs,
+                    "type": "name",
+                    "content": entity["name"],
                     "entityType": entity["entityType"],
-                    "observationIndex": i,
-                    "score": 5
+                    "score": 10
                 })
-    
-    # Sort by score (descending)
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return results[:20]  # Limit results
+            
+            # Search observations
+            for i, obs in enumerate(entity["observations"]):
+                if query in obs.lower():
+                    results.append({
+                        "entity": entity["name"],
+                        "type": "observation", 
+                        "content": obs,
+                        "entityType": entity["entityType"],
+                        "observationIndex": i,
+                        "score": 5
+                    })
+        
+        # Sort by score (descending)
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:20]  # Limit results
+        
+    except Exception as e:
+        logger.error(f"Error searching knowledge graph: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+@app.post("/api/entities")
+async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, str]:
+    """Create new entities with thread-safe access"""
+    try:
+        await knowledge_client.create_entities(entities)
+        return {"status": "success", "message": f"Created {len(entities)} entities"}
+    except Exception as e:
+        logger.error(f"Error creating entities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create entities: {str(e)}")
+
+@app.post("/api/relations") 
+async def create_relations(relations: List[Dict[str, Any]]) -> Dict[str, str]:
+    """Create new relations with thread-safe access"""
+    try:
+        await knowledge_client.create_relations(relations)
+        return {"status": "success", "message": f"Created {len(relations)} relations"}
+    except Exception as e:
+        logger.error(f"Error creating relations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create relations: {str(e)}")
 
 @app.get("/health")
 async def health_check() -> Dict[str, str]:
     """Health check endpoint"""
-    return {"status": "healthy", "service": "knowledge-graph-mcp"}
+    return {
+        "status": "healthy", 
+        "service": "knowledge-graph-mcp",
+        "version": "0.2.0",
+        "features": ["thread-safe storage", "multi-client support"]
+    }
 
 def run_server(host: str = "localhost", port: int = 8080) -> None:
     """Run the server with uvicorn"""
     import uvicorn
-    logger.info(f"Starting Knowledge Graph MCP Server on {host}:{port}")
+    logger.info(f"Starting Knowledge Graph MCP Server v0.2.0 on {host}:{port}")
+    logger.info("Features: Thread-safe storage, Multi-client support")
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 if __name__ == "__main__":
