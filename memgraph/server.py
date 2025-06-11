@@ -12,7 +12,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 # Set up logging
@@ -84,7 +84,7 @@ async def root() -> HTMLResponse:
     web_file = Path(__file__).parent / "web" / "index.html"
     if web_file.exists():
         # Convert FileResponse to HTMLResponse for type consistency
-        with open(web_file, 'r', encoding='utf-8') as f:
+        with open(web_file, encoding='utf-8') as f:
             content = f.read()
         return HTMLResponse(content)
     return HTMLResponse("""

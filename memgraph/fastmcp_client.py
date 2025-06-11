@@ -15,7 +15,7 @@ from typing import Any
 class FastMCPKnowledgeClient:
     """
     Knowledge graph client using FastMCP client API.
-    
+
     This replaces all the custom MCP protocol implementations with a proper
     client library that handles the protocol details.
     """
@@ -34,10 +34,10 @@ class FastMCPKnowledgeClient:
                 # TODO: Replace with actual FastMCP client call
                 # result = await self.client.call_tool("read_graph", {})
                 # return self._format_for_api(result)
-                
+
                 # For now, return a placeholder indicating this is the preferred approach
                 return self._get_fastmcp_status()
-                
+
             except Exception as e:
                 print(f"FastMCP read_graph failed: {e}")
                 return self._get_fastmcp_error(str(e))
@@ -49,11 +49,11 @@ class FastMCPKnowledgeClient:
                 # TODO: Replace with actual FastMCP client call
                 # result = await self.client.call_tool("search_nodes", {"query": query})
                 # return self._format_for_api(result)
-                
+
                 # For now, do local search on the status data
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
-                
+
             except Exception as e:
                 print(f"FastMCP search_nodes failed: {e}")
                 return {"entities": [], "relations": []}
