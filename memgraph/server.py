@@ -15,7 +15,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .knowledge import knowledge_client
+# Try to use direct MCP integration first, fallback to file-based
+try:
+    from .mcp_client import mcp_knowledge_client as knowledge_client
+    logger.info("Using direct MCP integration for live data")
+except ImportError:
+    from .knowledge import knowledge_client
+    logger.info("Using file-based storage as fallback")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
