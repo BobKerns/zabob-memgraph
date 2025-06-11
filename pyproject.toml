@@ -9,19 +9,25 @@ description = "MCP HTTP server for knowledge graph visualization"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "mcp>=1.0.0",
-    "pydantic>=2.0.0",
-    "jinja2>=3.1.0",
+    "fastapi>=0.115.12",
+    "uvicorn[standard]>=0.34.3",
+    "mcp>=1.9.3",
+    "pydantic>=2.11.5",
+    "jinja2>=3.1.6",
+    "psutil>=6.1.0",
+    "aiofiles>=24.1.0",
 ]
+
+[project.scripts]
+memgraph = "launcher:main"
+memgraph-launcher = "launcher:main"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "mypy>=1.5.0",
+    "pytest>=8.4.0",
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "mypy>=1.16.0",
 ]
 
 [tool.setuptools.packages.find]

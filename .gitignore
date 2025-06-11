@@ -55,7 +55,29 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# Don't store our db
+# Database files
 *.db
 *.db-shm
 *.db-wal
+
+# Memgraph runtime files
+.memgraph/
+port
+pid
+server_info.json
+
+# Backup files
+backup/
+*.backup
+
+# Docker
+.dockerignore
+
+# Development scripts (optional - remove if you want to track them)
+debug_*.py
+test_*.py
+quick_fix_*.py
+fix_types.py
+check_types.py
+import_*.py
+update_*.py

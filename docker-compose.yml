@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  memgraph:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount a volume for persistent data and configuration
+      - memgraph_data:/root/.memgraph
+      # Optional: mount local database file for development
+      # - ./knowledge_graph.db:/app/knowledge_graph.db
+    environment:
+      # Optional: override default port
+      # - PORT=8080
+      # Optional: specify data directory
+      # - MEMGRAPH_DATA_DIR=/root/.memgraph
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  memgraph_data:
+    driver: local
