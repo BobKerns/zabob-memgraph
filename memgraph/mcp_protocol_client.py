@@ -78,7 +78,7 @@ class MCPProtocolKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
     
-    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> | None  # TODO: Fix Optional[dict[str, Any]]:
+    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
         """Call an MCP tool using the protocol"""
         try:
             # Since we're running in the same process context where MCP tools are available,
