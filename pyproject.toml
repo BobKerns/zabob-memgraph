@@ -20,7 +20,7 @@ dependencies = [
 
 [project.scripts]
 zabob-memgraph = "main:main"
-zabob-memgraph-launcher = "zabob-memgraph-launcher:cli"
+#zabob-memgraph-launcher = "zabob-memgraph-launcher:cli"
 
 [project.optional-dependencies]
 dev = [
