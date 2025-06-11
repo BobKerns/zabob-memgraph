@@ -29,8 +29,10 @@ class SubprocessMCPKnowledgeClient:
                 # Method 1: Try calling as a subprocess python script
                 result = await self._call_mcp_function("read_graph", {})
                 if result:
-                    num_entities = len(result.get('entities', []))
-                    print(f"Successfully read {num_entities} entities via subprocess MCP")
+                    num_entities = len(result.get("entities", []))
+                    print(
+                        f"Successfully read {num_entities} entities via subprocess MCP"
+                    )
                     return self._format_for_api(result)
                 else:
                     return self._get_connection_error()
@@ -56,11 +58,13 @@ class SubprocessMCPKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
 
-    async def _call_mcp_function(self, function_name: str, args: dict[str, Any]) -> dict[str, Any] | None:
+    async def _call_mcp_function(
+        self, function_name: str, args: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Call an MCP function via subprocess"""
         try:
             # Create a Python script that imports and calls the MCP function
-            script = f'''
+            script = f"""
 import sys
 import json
 
@@ -83,13 +87,15 @@ except ImportError as e:
     print(json.dumps({{"error": "MCP function not available", "details": str(e)}}), file=sys.stderr)
 except Exception as e:
     print(json.dumps({{"error": "MCP function failed", "details": str(e)}}), file=sys.stderr)
-'''
+"""
 
             # Run the script as a subprocess
             process = await asyncio.create_subprocess_exec(
-                sys.executable, "-c", script,
+                sys.executable,
+                "-c",
+                script,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             stdout, stderr = await process.communicate()
@@ -116,18 +122,22 @@ except Exception as e:
         relations = []
 
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
@@ -148,7 +158,8 @@ except Exception as e:
 
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 
@@ -164,11 +175,11 @@ except Exception as e:
                     "observations": [
                         "MCP functions not accessible via subprocess",
                         "Need to configure proper MCP stdio service",
-                        "Consider using Docker or dedicated MCP server approach"
-                    ]
+                        "Consider using Docker or dedicated MCP server approach",
+                    ],
                 }
             ],
-            "relations": []
+            "relations": [],
         }
 
 

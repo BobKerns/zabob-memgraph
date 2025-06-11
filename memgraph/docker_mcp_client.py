@@ -36,17 +36,23 @@ class DockerMCPKnowledgeClient:
                         text_content = content[0].get("text", "{}")
                         try:
                             parsed_result = json.loads(text_content)
-                            num_entities = len(parsed_result.get('entities', []))
-                            print(f"Successfully read {num_entities} entities from Docker MCP")
+                            num_entities = len(parsed_result.get("entities", []))
+                            print(
+                                f"Successfully read {num_entities} entities from Docker MCP"
+                            )
                             return self._format_for_api(parsed_result)
                         except json.JSONDecodeError:
-                            print(f"Failed to parse Docker MCP response: {text_content}")
+                            print(
+                                f"Failed to parse Docker MCP response: {text_content}"
+                            )
                             return self._get_docker_error("Invalid JSON response")
                     else:
                         return self._get_docker_error("Empty response from Docker MCP")
                 else:
                     if result:
-                        error_msg = result.get("error", {}).get("message", "Unknown error")
+                        error_msg = result.get("error", {}).get(
+                            "message", "Unknown error"
+                        )
                     else:
                         error_msg = "No response"
                     return self._get_docker_error(f"Docker MCP error: {error_msg}")
@@ -68,7 +74,9 @@ class DockerMCPKnowledgeClient:
                             parsed_result = json.loads(text_content)
                             return self._format_for_api(parsed_result)
                         except json.JSONDecodeError:
-                            print(f"Failed to parse Docker search response: {text_content}")
+                            print(
+                                f"Failed to parse Docker search response: {text_content}"
+                            )
                             # Fallback to local search
                             full_graph = await self.read_graph()
                             return self._local_search(full_graph, query)
@@ -84,7 +92,9 @@ class DockerMCPKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
 
-    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    async def _call_mcp_tool(
+        self, tool_name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Call an MCP tool using Docker container with MCP protocol"""
         try:
             self._request_id += 1
@@ -105,7 +115,7 @@ class DockerMCPKnowledgeClient:
                 *self.container_command,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             # Send the MCP request
@@ -130,14 +140,20 @@ class DockerMCPKnowledgeClient:
                             "content": [{"type": "text", "text": response_text}]
                         }
                 else:
-                    return {"error": {"message": "Empty response from Docker container"}}
+                    return {
+                        "error": {"message": "Empty response from Docker container"}
+                    }
             else:
                 if stderr:
                     error_msg = stderr.decode()
                     print(f"Docker MCP stderr: {error_msg}")
                     return {"error": {"message": error_msg}}
                 else:
-                    return {"error": {"message": f"Docker process failed with code {process.returncode}"}}
+                    return {
+                        "error": {
+                            "message": f"Docker process failed with code {process.returncode}"
+                        }
+                    }
 
         except Exception as e:
             print(f"Docker MCP tool call failed: {e}")
@@ -149,18 +165,22 @@ class DockerMCPKnowledgeClient:
         relations = []
 
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
@@ -181,7 +201,8 @@ class DockerMCPKnowledgeClient:
 
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 
@@ -198,8 +219,8 @@ class DockerMCPKnowledgeClient:
                         f"Docker MCP error: {error_msg}",
                         "Attempting to connect to MCP memory Docker container",
                         f"Container command: {' '.join(self.container_command)}",
-                        "Ensure Docker is running and mcp/memory image is available"
-                    ]
+                        "Ensure Docker is running and mcp/memory image is available",
+                    ],
                 },
                 {
                     "name": "Docker Setup",
@@ -207,17 +228,17 @@ class DockerMCPKnowledgeClient:
                     "observations": [
                         "Pull the MCP memory container: docker pull mcp/memory",
                         "Ensure claude-memory volume exists with your data",
-                        "Container should respond to MCP protocol over stdin/stdout"
-                    ]
-                }
+                        "Container should respond to MCP protocol over stdin/stdout",
+                    ],
+                },
             ],
             "relations": [
                 {
                     "from_entity": "Docker MCP Status",
                     "to": "Docker Setup",
-                    "relationType": "requires"
+                    "relationType": "requires",
                 }
-            ]
+            ],
         }
 
 

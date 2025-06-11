@@ -33,8 +33,10 @@ class MCPProtocolKnowledgeClient:
                         text_content = content[0].get("text", "{}")
                         try:
                             parsed_result = json.loads(text_content)
-                            num_entities = len(parsed_result.get('entities', []))
-                            print(f"Successfully read {num_entities} entities via MCP protocol")
+                            num_entities = len(parsed_result.get("entities", []))
+                            print(
+                                f"Successfully read {num_entities} entities via MCP protocol"
+                            )
                             return self._format_for_api(parsed_result)
                         except json.JSONDecodeError:
                             print(f"Failed to parse MCP response: {text_content}")
@@ -43,7 +45,9 @@ class MCPProtocolKnowledgeClient:
                         return self._get_protocol_error("Empty response from MCP tool")
                 else:
                     if result:
-                        error_msg = result.get("content", [{}])[0].get("text", "Unknown error")
+                        error_msg = result.get("content", [{}])[0].get(
+                            "text", "Unknown error"
+                        )
                     else:
                         error_msg = "No response"
                     return self._get_protocol_error(f"MCP tool error: {error_msg}")
@@ -81,7 +85,9 @@ class MCPProtocolKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
 
-    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    async def _call_mcp_tool(
+        self, tool_name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Call an MCP tool using the protocol"""
         try:
             # Since we're running in the same process context where MCP tools are available,
@@ -92,11 +98,12 @@ class MCPProtocolKnowledgeClient:
                 try:
                     # Import and call directly - this should work in MCP context
                     import __main__
-                    if hasattr(__main__, 'read_graph'):
+
+                    if hasattr(__main__, "read_graph"):
                         result = __main__.read_graph()
                         return {
                             "isError": False,
-                            "content": [{"text": json.dumps(result)}]
+                            "content": [{"text": json.dumps(result)}],
                         }
                 except Exception as e:
                     print(f"Direct call failed: {e}")
@@ -104,11 +111,12 @@ class MCPProtocolKnowledgeClient:
             elif tool_name == "search_nodes":
                 try:
                     import __main__
-                    if hasattr(__main__, 'search_nodes'):
+
+                    if hasattr(__main__, "search_nodes"):
                         result = __main__.search_nodes(**arguments)
                         return {
                             "isError": False,
-                            "content": [{"text": json.dumps(result)}]
+                            "content": [{"text": json.dumps(result)}],
                         }
                 except Exception as e:
                     print(f"Direct search call failed: {e}")
@@ -116,15 +124,12 @@ class MCPProtocolKnowledgeClient:
             # If direct calls don't work, indicate that we need proper MCP integration
             return {
                 "isError": True,
-                "content": [{"text": "MCP tools not available in current context"}]
+                "content": [{"text": "MCP tools not available in current context"}],
             }
 
         except Exception as e:
             print(f"MCP tool call failed: {e}")
-            return {
-                "isError": True,
-                "content": [{"text": str(e)}]
-            }
+            return {"isError": True, "content": [{"text": str(e)}]}
 
     def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
@@ -132,18 +137,22 @@ class MCPProtocolKnowledgeClient:
         relations = []
 
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
@@ -164,7 +173,8 @@ class MCPProtocolKnowledgeClient:
 
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 
@@ -180,8 +190,8 @@ class MCPProtocolKnowledgeClient:
                     "observations": [
                         f"MCP protocol error: {error_msg}",
                         "Knowledge graph tools not accessible via current method",
-                        "Need to run server in proper MCP context or use stdio service"
-                    ]
+                        "Need to run server in proper MCP context or use stdio service",
+                    ],
                 }
             ],
             "relations": []

@@ -55,7 +55,8 @@ class SQLiteKnowledgeGraphDB:
     def _init_db(self) -> None:
         """Initialize the database schema"""
         with sqlite3.connect(self.db_path) as conn:
-            conn.executescript("""
+            conn.executescript(
+                """
                 CREATE TABLE IF NOT EXISTS entities (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -103,7 +104,8 @@ class SQLiteKnowledgeGraphDB:
                     INSERT INTO entities_fts(rowid, name, entity_type, observations)
                     VALUES (new.id, new.name, new.entity_type, new.observations);
                 END;
-            """)
+            """
+            )
 
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from SQLite"""
@@ -113,34 +115,42 @@ class SQLiteKnowledgeGraphDB:
                     conn.row_factory = sqlite3.Row
 
                     # Get all entities
-                    entities_cursor = conn.execute("""
+                    entities_cursor = conn.execute(
+                        """
                         SELECT name, entity_type, observations
                         FROM entities
                         ORDER BY name
-                    """)
+                    """
+                    )
 
                     entities = []
                     for row in entities_cursor:
-                        entities.append({
-                            "name": row["name"],
-                            "entityType": row["entity_type"],
-                            "observations": json.loads(row["observations"])
-                        })
+                        entities.append(
+                            {
+                                "name": row["name"],
+                                "entityType": row["entity_type"],
+                                "observations": json.loads(row["observations"]),
+                            }
+                        )
 
                     # Get all relations
-                    relations_cursor = conn.execute("""
+                    relations_cursor = conn.execute(
+                        """
                         SELECT from_entity, to_entity, relation_type
                         FROM relations
                         ORDER BY from_entity, to_entity
-                    """)
+                    """
+                    )
 
                     relations = []
                     for row in relations_cursor:
-                        relations.append({
-                            "from_entity": row["from_entity"],
-                            "to": row["to_entity"],
-                            "relationType": row["relation_type"]
-                        })
+                        relations.append(
+                            {
+                                "from_entity": row["from_entity"],
+                                "to": row["to_entity"],
+                                "relationType": row["relation_type"],
+                            }
+                        )
 
                     return {"entities": entities, "relations": relations}
 
@@ -156,43 +166,53 @@ class SQLiteKnowledgeGraphDB:
                     conn.row_factory = sqlite3.Row
 
                     # Use FTS for searching
-                    search_cursor = conn.execute("""
+                    search_cursor = conn.execute(
+                        """
                         SELECT e.name, e.entity_type, e.observations
                         FROM entities e
                         JOIN entities_fts fts ON e.id = fts.rowid
                         WHERE entities_fts MATCH ?
                         ORDER BY rank
-                    """, (query,))
+                    """,
+                        (query,),
+                    )
 
                     entities = []
                     entity_names = set()
 
                     for row in search_cursor:
                         entity_name = row["name"]
-                        entities.append({
-                            "name": entity_name,
-                            "entityType": row["entity_type"],
-                            "observations": json.loads(row["observations"])
-                        })
+                        entities.append(
+                            {
+                                "name": entity_name,
+                                "entityType": row["entity_type"],
+                                "observations": json.loads(row["observations"]),
+                            }
+                        )
                         entity_names.add(entity_name)
 
                     # Get relations for matching entities
                     if entity_names:
                         placeholders = ",".join("?" * len(entity_names))
-                        relations_cursor = conn.execute(f"""
+                        relations_cursor = conn.execute(
+                            f"""
                             SELECT from_entity, to_entity, relation_type
                             FROM relations
                             WHERE from_entity IN ({placeholders})
                                OR to_entity IN ({placeholders})
-                        """, list(entity_names) + list(entity_names))
+                        """,
+                            list(entity_names) + list(entity_names),
+                        )
 
                         relations = []
                         for row in relations_cursor:
-                            relations.append({
-                                "from_entity": row["from_entity"],
-                                "to": row["to_entity"],
-                                "relationType": row["relation_type"]
-                            })
+                            relations.append(
+                                {
+                                    "from_entity": row["from_entity"],
+                                    "to": row["to_entity"],
+                                    "relationType": row["relation_type"],
+                                }
+                            )
                     else:
                         relations = []
 
@@ -210,42 +230,52 @@ class SQLiteKnowledgeGraphDB:
                 conn.row_factory = sqlite3.Row
 
                 # Simple search in name and observations
-                search_cursor = conn.execute("""
+                search_cursor = conn.execute(
+                    """
                     SELECT name, entity_type, observations
                     FROM entities
                     WHERE name LIKE ? OR observations LIKE ?
                     ORDER BY name
-                """, (f"%{query}%", f"%{query}%"))
+                """,
+                    (f"%{query}%", f"%{query}%"),
+                )
 
                 entities = []
                 entity_names = set()
 
                 for row in search_cursor:
                     entity_name = row["name"]
-                    entities.append({
-                        "name": entity_name,
-                        "entityType": row["entity_type"],
-                        "observations": json.loads(row["observations"])
-                    })
+                    entities.append(
+                        {
+                            "name": entity_name,
+                            "entityType": row["entity_type"],
+                            "observations": json.loads(row["observations"]),
+                        }
+                    )
                     entity_names.add(entity_name)
 
                 # Get relations
                 if entity_names:
                     placeholders = ",".join("?" * len(entity_names))
-                    relations_cursor = conn.execute(f"""
+                    relations_cursor = conn.execute(
+                        f"""
                         SELECT from_entity, to_entity, relation_type
                         FROM relations
                         WHERE from_entity IN ({placeholders})
                            OR to_entity IN ({placeholders})
-                    """, list(entity_names) + list(entity_names))
+                    """,
+                        list(entity_names) + list(entity_names),
+                    )
 
                     relations = []
                     for row in relations_cursor:
-                        relations.append({
-                            "from_entity": row["from_entity"],
-                            "to": row["to_entity"],
-                            "relationType": row["relation_type"]
-                        })
+                        relations.append(
+                            {
+                                "from_entity": row["from_entity"],
+                                "to": row["to_entity"],
+                                "relationType": row["relation_type"],
+                            }
+                        )
                 else:
                     relations = []
 
@@ -273,17 +303,20 @@ class SQLiteKnowledgeGraphDB:
                     # Import entities
                     for entity in mcp_data["entities"]:
                         try:
-                            conn.execute("""
+                            conn.execute(
+                                """
                                 INSERT OR REPLACE INTO entities
                                 (name, entity_type, observations, created_at, updated_at)
                                 VALUES (?, ?, ?, ?, ?)
-                            """, (
-                                entity["name"],
-                                entity["entityType"],
-                                json.dumps(entity["observations"]),
-                                timestamp,
-                                timestamp
-                            ))
+                            """,
+                                (
+                                    entity["name"],
+                                    entity["entityType"],
+                                    json.dumps(entity["observations"]),
+                                    timestamp,
+                                    timestamp,
+                                ),
+                            )
                             imported_entities += 1
                         except Exception as e:
                             print(f"Failed to import entity {entity['name']}: {e}")
@@ -291,17 +324,20 @@ class SQLiteKnowledgeGraphDB:
                     # Import relations
                     for relation in mcp_data["relations"]:
                         try:
-                            conn.execute("""
+                            conn.execute(
+                                """
                                 INSERT OR REPLACE INTO relations
                                 (from_entity, to_entity, relation_type, created_at, updated_at)
                                 VALUES (?, ?, ?, ?, ?)
-                            """, (
-                                relation["from_entity"],
-                                relation["to"],
-                                relation["relationType"],
-                                timestamp,
-                                timestamp
-                            ))
+                            """,
+                                (
+                                    relation["from_entity"],
+                                    relation["to"],
+                                    relation["relationType"],
+                                    timestamp,
+                                    timestamp,
+                                ),
+                            )
                             imported_relations += 1
                         except Exception as e:
                             print(f"Failed to import relation {relation}: {e}")
@@ -312,7 +348,7 @@ class SQLiteKnowledgeGraphDB:
                     "status": "success",
                     "imported_entities": imported_entities,
                     "imported_relations": imported_relations,
-                    "timestamp": timestamp
+                    "timestamp": timestamp,
                 }
 
             except Exception as e:
@@ -323,13 +359,15 @@ class SQLiteKnowledgeGraphDB:
         """Get database statistics"""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT
                         (SELECT COUNT(*) FROM entities) as entity_count,
                         (SELECT COUNT(*) FROM relations) as relation_count,
                         (SELECT COUNT(DISTINCT entity_type) FROM entities) as entity_types,
                         (SELECT COUNT(DISTINCT relation_type) FROM relations) as relation_types
-                """)
+                """
+                )
 
                 stats = cursor.fetchone()
                 return {
@@ -337,7 +375,7 @@ class SQLiteKnowledgeGraphDB:
                     "relation_count": stats[1],
                     "entity_types": stats[2],
                     "relation_types": stats[3],
-                    "database_path": str(self.db_path)
+                    "database_path": str(self.db_path),
                 }
 
         except Exception as e:
@@ -352,17 +390,20 @@ class SQLiteKnowledgeGraphDB:
             with sqlite3.connect(self.db_path) as conn:
                 for entity in entities:
                     try:
-                        conn.execute("""
+                        conn.execute(
+                            """
                             INSERT OR REPLACE INTO entities
                             (name, entity_type, observations, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?)
-                        """, (
-                            entity["name"],
-                            entity["entityType"],
-                            json.dumps(entity["observations"]),
-                            timestamp,
-                            timestamp
-                        ))
+                        """,
+                            (
+                                entity["name"],
+                                entity["entityType"],
+                                json.dumps(entity["observations"]),
+                                timestamp,
+                                timestamp,
+                            ),
+                        )
                     except Exception as e:
                         print(f"Failed to create entity {entity['name']}: {e}")
 
@@ -376,17 +417,20 @@ class SQLiteKnowledgeGraphDB:
             with sqlite3.connect(self.db_path) as conn:
                 for relation in relations:
                     try:
-                        conn.execute("""
+                        conn.execute(
+                            """
                             INSERT OR REPLACE INTO relations
                             (from_entity, to_entity, relation_type, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?)
-                        """, (
-                            relation["from"],
-                            relation["to"],
-                            relation["relationType"],
-                            timestamp,
-                            timestamp
-                        ))
+                        """,
+                            (
+                                relation["from"],
+                                relation["to"],
+                                relation["relationType"],
+                                timestamp,
+                                timestamp,
+                            ),
+                        )
                     except Exception as e:
                         print(f"Failed to create relation {relation}: {e}")
 

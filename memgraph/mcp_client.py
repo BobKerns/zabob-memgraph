@@ -30,8 +30,8 @@ class SimpleMCPKnowledgeClient:
                 # Method 1: Try to get it from the global namespace
                 frame = sys._getframe(1)
                 while frame is not None:
-                    if 'read_graph' in frame.f_globals:
-                        read_graph_func = frame.f_globals['read_graph']
+                    if "read_graph" in frame.f_globals:
+                        read_graph_func = frame.f_globals["read_graph"]
                         result = read_graph_func()
                         return self._format_for_api(result)
                     frame = frame.f_back  # type: ignore[assignment]
@@ -41,7 +41,8 @@ class SimpleMCPKnowledgeClient:
                     # Import the knowledge graph functions directly
                     # This should work when running in the same process as MCP tools
                     import __main__
-                    if hasattr(__main__, 'read_graph'):
+
+                    if hasattr(__main__, "read_graph"):
                         result = __main__.read_graph()
                         return self._format_for_api(result)
                 except Exception:
@@ -49,7 +50,9 @@ class SimpleMCPKnowledgeClient:
 
                 # Method 3: Try to call the MCP functions we know exist
                 # Fall back to sample data if we can't connect
-                print("MCP functions not available in current context, using sample data")
+                print(
+                    "MCP functions not available in current context, using sample data"
+                )
                 return self._get_sample_data()
 
             except Exception as e:
@@ -61,11 +64,12 @@ class SimpleMCPKnowledgeClient:
         async with self._lock:
             try:
                 import builtins
-                if hasattr(builtins, 'search_nodes'):
+
+                if hasattr(builtins, "search_nodes"):
                     # Trying to get every static checker to agree not to complain
                     # about the function not being defined. Can't just suppress,
                     # what quiets pylance causes mypy to complain.
-                    fn_name = 'search_nodes'
+                    fn_name = "search_nodes"
                     search_nodes: Callable[..., Any] = getattr(builtins, fn_name)
                     result = search_nodes(query=query)
                     return self._format_for_api(result)
@@ -86,18 +90,22 @@ class SimpleMCPKnowledgeClient:
 
         # Handle the MCP format
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
@@ -118,7 +126,8 @@ class SimpleMCPKnowledgeClient:
 
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 

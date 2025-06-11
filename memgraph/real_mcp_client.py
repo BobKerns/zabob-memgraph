@@ -24,7 +24,9 @@ class RealMCPKnowledgeClient:
                 # Call the real read_graph function that's available in this execution context
                 # This will raise NameError if not available, which we handle below
                 result = read_graph()  # type: ignore[name-defined]
-                print(f"Successfully read {len(result.get('entities', []))} entities from MCP")
+                print(
+                    f"Successfully read {len(result.get('entities', []))} entities from MCP"
+                )
                 return self._format_for_api(result)
             except NameError:
                 print("read_graph function not available - MCP tools not in scope")
@@ -56,18 +58,22 @@ class RealMCPKnowledgeClient:
 
         # Handle the MCP format - entities and relations are in the result
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
@@ -88,7 +94,8 @@ class RealMCPKnowledgeClient:
 
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 
@@ -104,11 +111,11 @@ class RealMCPKnowledgeClient:
                     "observations": [
                         "MCP knowledge graph functions not available in current context",
                         "This indicates the server is not running in the same process as MCP tools",
-                        "Need to properly integrate MCP function access"
-                    ]
+                        "Need to properly integrate MCP function access",
+                    ],
                 }
             ],
-            "relations": []
+            "relations": [],
         }
 
 

@@ -50,10 +50,11 @@ class SimpleMCPBridge:
         try:
             # Try to call the function in the global context
             import inspect
+
             frame = inspect.currentframe()
             while frame:
-                if 'read_graph' in frame.f_globals:
-                    result = frame.f_globals['read_graph']()
+                if "read_graph" in frame.f_globals:
+                    result = frame.f_globals["read_graph"]()
                     return self._format_for_api(result)
                 frame = frame.f_back
 
@@ -73,8 +74,8 @@ class SimpleMCPBridge:
                             "SimpleMCPBridge loaded successfully",
                             "read_graph function not available in current process context",
                             "Ready to implement stdio service integration",
-                            "This represents the structure that will contain live MCP data"
-                        ]
+                            "This represents the structure that will contain live MCP data",
+                        ],
                     },
                     {
                         "name": "Next Steps",
@@ -82,8 +83,8 @@ class SimpleMCPBridge:
                         "observations": [
                             "Implement subprocess stdio call to MCP server",
                             "Use pattern: docker run -i mcp/memory for knowledge graph tools",
-                            "Parse MCP protocol responses and integrate with HTTP API"
-                        ]
+                            "Parse MCP protocol responses and integrate with HTTP API",
+                        ],
                     },
                     {
                         "name": "memgraph Progress",
@@ -92,22 +93,22 @@ class SimpleMCPBridge:
                             "✅ HTTP server with thread-safe concurrent access",
                             "✅ D3.js visualization working correctly",
                             "✅ MCP integration framework established",
-                            "🔄 Ready for stdio service integration"
-                        ]
-                    }
+                            "🔄 Ready for stdio service integration",
+                        ],
+                    },
                 ],
                 "relations": [
                     {
                         "from_entity": "Next Steps",
                         "to": "MCP Bridge Status",
-                        "relationType": "implements"
+                        "relationType": "implements",
                     },
                     {
                         "from_entity": "memgraph Progress",
                         "to": "MCP Bridge Status",
-                        "relationType": "supports"
-                    }
-                ]
+                        "relationType": "supports",
+                    },
+                ],
             }
         except Exception as e:
             print(f"Error calling read_graph: {e}")
@@ -119,18 +120,22 @@ class SimpleMCPBridge:
         relations = []
 
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
@@ -151,7 +156,8 @@ class SimpleMCPBridge:
 
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 
@@ -167,11 +173,11 @@ class SimpleMCPBridge:
                     "observations": [
                         f"Bridge error: {error_msg}",
                         "Need to implement proper MCP stdio service integration",
-                        "Current bridge approach needs refinement"
-                    ]
+                        "Current bridge approach needs refinement",
+                    ],
                 }
             ],
-            "relations": []
+            "relations": [],
         }
 
 

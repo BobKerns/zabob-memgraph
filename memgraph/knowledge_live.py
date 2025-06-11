@@ -48,13 +48,13 @@ class LiveKnowledgeGraphManager:
                 import sys
 
                 # Look for MCP tools in the current namespace
-                if 'read_graph' in globals():
-                    result = globals()['read_graph']()
+                if "read_graph" in globals():
+                    result = globals()["read_graph"]()
                     return self._transform_mcp_data(result)
 
                 # Try to find MCP tools in __main__ module
-                main_module = sys.modules.get('__main__')
-                if main_module and hasattr(main_module, 'read_graph'):
+                main_module = sys.modules.get("__main__")
+                if main_module and hasattr(main_module, "read_graph"):
                     result = main_module.read_graph()
                     return self._transform_mcp_data(result)
 
@@ -72,18 +72,22 @@ class LiveKnowledgeGraphManager:
 
         # MCP returns format: {"entities": [...], "relations": [...]}
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
@@ -94,13 +98,13 @@ class LiveKnowledgeGraphManager:
                 import sys
 
                 # Try to find search_nodes in current environment
-                if 'search_nodes' in globals():
-                    result = globals()['search_nodes'](query=query)
+                if "search_nodes" in globals():
+                    result = globals()["search_nodes"](query=query)
                     return self._transform_mcp_data(result)
 
                 # Try to find in __main__ module
-                main_module = sys.modules.get('__main__')
-                if main_module and hasattr(main_module, 'search_nodes'):
+                main_module = sys.modules.get("__main__")
+                if main_module and hasattr(main_module, "search_nodes"):
                     result = main_module.search_nodes(query=query)
                     return self._transform_mcp_data(result)
 
@@ -132,7 +136,8 @@ class LiveKnowledgeGraphManager:
         # Get relations for matching entities
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 
@@ -148,10 +153,12 @@ class LiveKnowledgeGraphManager:
                 {
                     "name": "Sample Entity",
                     "entityType": "test",
-                    "observations": ["This is test data when MCP tools are not available"]
+                    "observations": [
+                        "This is test data when MCP tools are not available"
+                    ],
                 }
             ],
-            "relations": []
+            "relations": [],
         }
 
 
@@ -183,7 +190,9 @@ class StubKnowledgeGraphManager:
 
 # Global instance - use live MCP connection if available, stub otherwise
 try:
-    knowledge_client: LiveKnowledgeGraphManager | StubKnowledgeGraphManager = LiveKnowledgeGraphManager()
+    knowledge_client: LiveKnowledgeGraphManager | StubKnowledgeGraphManager = (
+        LiveKnowledgeGraphManager()
+    )
 except Exception:
     # Fallback to stub if live connection fails
     knowledge_client = StubKnowledgeGraphManager()
