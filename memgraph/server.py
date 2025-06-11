@@ -20,50 +20,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Try different knowledge graph backends in order of preference
-# Import all available backends and select at runtime
+# SQLite backend for normal operation, FastMCP client only for external connections
 knowledge_client: Any = None
 
 try:
     from .sqlite_backend import sqlite_knowledge_db
-
+    
     knowledge_client = sqlite_knowledge_db
-    logger.info("Using SQLite database backend")
-except (ImportError, Exception):
-    try:
-        from .docker_mcp_client import docker_mcp_knowledge_client
-
-        knowledge_client = docker_mcp_knowledge_client
-        logger.info("Using Docker MCP client for live data")
-    except (ImportError, Exception):
-        try:
-            from .stdio_mcp_client import stdio_mcp_knowledge_client
-
-            knowledge_client = stdio_mcp_knowledge_client
-            logger.info("Using stdio MCP client for live data")
-        except (ImportError, NameError):
-            try:
-                from .simple_mcp_bridge import simple_mcp_bridge
-
-                knowledge_client = simple_mcp_bridge
-                logger.info("Using simple MCP bridge for live data")
-            except (ImportError, NameError):
-                try:
-                    from .real_mcp_client import real_mcp_knowledge_client
-
-                    knowledge_client = real_mcp_knowledge_client
-                    logger.info("Using real MCP integration for live data")
-                except (ImportError, NameError):
-                    try:
-                        from .mcp_client import mcp_knowledge_client
-
-                        knowledge_client = mcp_knowledge_client
-                        logger.info("Using direct MCP integration for live data")
-                    except ImportError as e:
-                        logger.error("No knowledge graph backend available")
-                        raise ImportError(
-                            "No knowledge graph backend available. "
-                            "Please ensure at least one backend is properly configured."
-                        ) from e
+    logger.info("Using SQLite database backend for direct operation")
+except ImportError as e:
+    logger.error("SQLite backend not available")
+    raise ImportError(
+        "SQLite backend required for zabob-memgraph operation. "
+        "Please ensure sqlite_backend is properly configured."
+    ) from e
 
 # Create FastAPI app
 app = FastAPI(
@@ -296,31 +266,38 @@ async def import_from_mcp() -> dict[str, Any]:
     try:
         from .sqlite_backend import sqlite_knowledge_db
 
-        # Try different MCP clients in order of preference
+        # Try to use FastMCP client for import (when available)
         mcp_client: Any = None
         client_name = "unknown"
         try:
-            from .docker_mcp_client import docker_mcp_knowledge_client
-
-            mcp_client = docker_mcp_knowledge_client
-            client_name = "Docker MCP"
+            from .fastmcp_client import fastmcp_knowledge_client
+            mcp_client = fastmcp_knowledge_client
+            client_name = "FastMCP"
+            logger.info("Using FastMCP client for import")
         except ImportError:
+            # Fall back to legacy MCP clients for import
             try:
-                from .stdio_mcp_client import stdio_mcp_knowledge_client
+                from .docker_mcp_client import docker_mcp_knowledge_client
 
-                mcp_client = stdio_mcp_knowledge_client
-                client_name = "Stdio MCP"
+                mcp_client = docker_mcp_knowledge_client
+                client_name = "Docker MCP"
             except ImportError:
                 try:
-                    from .simple_mcp_bridge import simple_mcp_bridge
+                    from .stdio_mcp_client import stdio_mcp_knowledge_client
 
-                    mcp_client = simple_mcp_bridge
-                    client_name = "Simple MCP Bridge"
+                    mcp_client = stdio_mcp_knowledge_client
+                    client_name = "Stdio MCP"
                 except ImportError:
-                    return {
-                        "status": "error",
-                        "message": "No MCP client available for import",
-                    }
+                    try:
+                        from .simple_mcp_bridge import simple_mcp_bridge
+
+                        mcp_client = simple_mcp_bridge
+                        client_name = "Simple MCP Bridge"
+                    except ImportError:
+                        return {
+                            "status": "error",
+                            "message": "No MCP client available for import",
+                        }
 
         result = await sqlite_knowledge_db.import_from_mcp(mcp_client)
 

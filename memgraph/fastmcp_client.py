@@ -6,10 +6,12 @@ Much cleaner and less error-prone than custom implementations.
 """
 
 import asyncio
+import json
 from typing import Any
 
-# Note: FastMCP client would be imported here when available
-# from fastmcp.client import MCPClient
+# Use standard MCP client for now (FastMCP coming later)
+from mcp.client.session import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 
 class FastMCPKnowledgeClient:
@@ -22,53 +24,129 @@ class FastMCPKnowledgeClient:
 
     def __init__(self, server_command: list[str] | None = None) -> None:
         self._lock = asyncio.Lock()
-        # Default to connecting to local MCP server
-        self.server_command = server_command or ["uv", "run", "mcp-server"]
-        # TODO: Initialize FastMCP client when available
-        # self.client = MCPClient(self.server_command)
+        # Default to a more realistic MCP server command
+        # You can override this when creating the client
+        self.server_command = server_command or [
+            "uv", "run", "/Users/rwk/p/zabob/mcp-server/src/zabob/mcp/server.py"
+        ]
+        # Initialize MCP client session (will connect on first use)
+        self.session: ClientSession | None = None
+        self._client_context: Any = None
+        self._connected = False
+
+    async def _ensure_connected(self) -> None:
+        """Ensure the MCP client is connected"""
+        if not self._connected and self.session is None:
+            try:
+                # Create stdio server parameters
+                server_params = StdioServerParameters(
+                    command=self.server_command[0],
+                    args=self.server_command[1:] if len(self.server_command) > 1 else []
+                )
+                # Connect using stdio client - get the session properly
+                self._client_context = stdio_client(server_params)
+                read_stream, write_stream = await self._client_context.__aenter__()
+                
+                # Create the actual session
+                from mcp.client.session import ClientSession
+                self.session = ClientSession(read_stream, write_stream)
+                await self.session.initialize()
+                
+                self._connected = True
+                print(f"✅ MCP client connected to: {' '.join(self.server_command)}")
+                
+            except Exception as e:
+                print(f"⚠️ MCP server unavailable ({e}), will use fallback data")
+                # Don't set connected=True, so we'll use fallback methods
+                raise
 
     async def read_graph(self) -> dict[str, Any]:
-        """Read the complete knowledge graph via FastMCP client"""
+        """Read the complete knowledge graph via MCP client"""
         async with self._lock:
             try:
-                # TODO: Replace with actual FastMCP client call
-                # result = await self.client.call_tool("read_graph", {})
-                # return self._format_for_api(result)
-
-                # For now, return a placeholder indicating this is the preferred approach
-                return self._get_fastmcp_status()
-
-            except Exception as e:
-                print(f"FastMCP read_graph failed: {e}")
-                return self._get_fastmcp_error(str(e))
-
-    async def search_nodes(self, query: str) -> dict[str, Any]:
-        """Search nodes via FastMCP client"""
-        async with self._lock:
-            try:
-                # TODO: Replace with actual FastMCP client call
-                # result = await self.client.call_tool("search_nodes", {"query": query})
-                # return self._format_for_api(result)
-
-                # For now, do local search on the status data
-                full_graph = await self.read_graph()
-                return self._local_search(full_graph, query)
-
-            except Exception as e:
-                print(f"FastMCP search_nodes failed: {e}")
+                await self._ensure_connected()
+                if self.session is None:
+                    raise RuntimeError("Failed to establish MCP session")
+                
+                # Call the read_graph tool
+                result = await self.session.call_tool("read_graph", {})
+                
+                # Parse the result content
+                if result.content and len(result.content) > 0:
+                    content = result.content[0]
+                    if hasattr(content, 'text'):
+                        data = json.loads(content.text)
+                        return self._format_for_api(data)
+                
                 return {"entities": [], "relations": []}
 
+            except Exception as e:
+                print(f"MCP read_graph failed: {e}")
+                # Try to fall back to SQLite backend
+                try:
+                    from .sqlite_backend import sqlite_knowledge_db
+                    print("🔄 Falling back to SQLite backend...")
+                    return await sqlite_knowledge_db.read_graph()
+                except Exception as fallback_error:
+                    print(f"SQLite fallback also failed: {fallback_error}")
+                    # Return error status as last resort
+                    return self._get_fastmcp_error(str(e))
+
+    async def search_nodes(self, query: str) -> dict[str, Any]:
+        """Search nodes via MCP client"""
+        async with self._lock:
+            try:
+                await self._ensure_connected()
+                if self.session is None:
+                    raise RuntimeError("Failed to establish MCP session")
+                
+                result = await self.session.call_tool("search_nodes", {"query": query})
+                
+                # Parse the result content
+                if result.content and len(result.content) > 0:
+                    content = result.content[0]
+                    if hasattr(content, 'text'):
+                        data = json.loads(content.text)
+                        return self._format_for_api(data)
+                
+                return {"entities": [], "relations": []}
+
+            except Exception as e:
+                print(f"MCP search_nodes failed: {e}")
+                # Try to fall back to SQLite backend
+                try:
+                    from .sqlite_backend import sqlite_knowledge_db
+                    return await sqlite_knowledge_db.search_nodes(query)
+                except Exception:
+                    return {"entities": [], "relations": []}
+
     async def create_entities(self, entities: list[dict[str, Any]]) -> None:
-        """Create entities via FastMCP client"""
-        # TODO: Replace with actual FastMCP client call
-        # await self.client.call_tool("create_entities", {"entities": entities})
-        print(f"FastMCP: Would create {len(entities)} entities")
+        """Create entities via MCP client"""
+        async with self._lock:
+            await self._ensure_connected()
+            if self.session is None:
+                raise RuntimeError("Failed to establish MCP session")
+            await self.session.call_tool("create_entities", {"entities": entities})
 
     async def create_relations(self, relations: list[dict[str, Any]]) -> None:
-        """Create relations via FastMCP client"""
-        # TODO: Replace with actual FastMCP client call
-        # await self.client.call_tool("create_relations", {"relations": relations})
-        print(f"FastMCP: Would create {len(relations)} relations")
+        """Create relations via MCP client"""
+        async with self._lock:
+            await self._ensure_connected()
+            if self.session is None:
+                raise RuntimeError("Failed to establish MCP session")
+            await self.session.call_tool("create_relations", {"relations": relations})
+
+    async def close(self) -> None:
+        """Close the MCP client connection"""
+        if self._connected and self.session is not None:
+            # Close the session first
+            await self.session.close()
+            # Then close the client context
+            if self._client_context is not None:
+                await self._client_context.__aexit__(None, None, None)
+                self._client_context = None
+            self.session = None
+            self._connected = False
 
     def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
