@@ -9,24 +9,24 @@ import asyncio
 import sqlite3
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 
 @dataclass
 class EntityRecord:
-    id: Optional[int]
+    id: int | None
     name: str
     entity_type: str
-    observations: List[str]
+    observations: list[str]
     created_at: str
     updated_at: str
 
 
 @dataclass
 class RelationRecord:
-    id: Optional[int]
+    id: int | None
     from_entity: str
     to_entity: str
     relation_type: str
@@ -97,7 +97,7 @@ class SQLiteKnowledgeGraphDB:
                 END;
             """)
     
-    async def read_graph(self) -> Dict[str, Any]:
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from SQLite"""
         async with self._lock:
             try:
@@ -140,7 +140,7 @@ class SQLiteKnowledgeGraphDB:
                 print(f"SQLite read_graph failed: {e}")
                 return {"entities": [], "relations": []}
     
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes using SQLite FTS"""
         async with self._lock:
             try:
@@ -195,7 +195,7 @@ class SQLiteKnowledgeGraphDB:
                 # Fallback to simple LIKE search
                 return await self._simple_search(query)
     
-    async def _simple_search(self, query: str) -> Dict[str, Any]:
+    async def _simple_search(self, query: str) -> dict[str, Any]:
         """Simple LIKE-based search fallback"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -247,7 +247,7 @@ class SQLiteKnowledgeGraphDB:
             print(f"Simple search failed: {e}")
             return {"entities": [], "relations": []}
     
-    async def import_from_mcp(self, mcp_client) -> Dict[str, Any]:
+    async def import_from_mcp(self, mcp_client) -> dict[str, Any]:
         """Import data from an MCP client into SQLite"""
         async with self._lock:
             try:
@@ -311,7 +311,7 @@ class SQLiteKnowledgeGraphDB:
                 print(f"MCP import failed: {e}")
                 return {"status": "error", "message": str(e)}
     
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get database statistics"""
         try:
             with sqlite3.connect(self.db_path) as conn:
