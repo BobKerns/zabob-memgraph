@@ -8,7 +8,7 @@ Integrates with thread-safe knowledge graph storage to prevent multi-client issu
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -93,7 +93,7 @@ async def root() -> HTMLResponse:
     """)
 
 @app.get("/api/knowledge-graph")
-async def get_knowledge_graph() -> Dict[str, Any]:
+async def get_knowledge_graph() -> dict[str, Any]:
     """Get the complete knowledge graph data with thread-safe access"""
     try:
         graph_data = await knowledge_client.read_graph()
@@ -138,7 +138,7 @@ async def get_knowledge_graph() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to read knowledge graph: {str(e)}")
 
 @app.get("/api/entities")
-async def get_entities() -> List[Dict[str, Any]]:
+async def get_entities() -> list[dict[str, Any]]:
     """Get all entities with thread-safe access"""
     try:
         graph_data = await knowledge_client.read_graph()
@@ -148,7 +148,7 @@ async def get_entities() -> List[Dict[str, Any]]:
         raise HTTPException(status_code=500, detail=f"Failed to read entities: {str(e)}")
 
 @app.get("/api/search")
-async def search_knowledge_graph(q: str) -> List[Dict[str, Any]]:
+async def search_knowledge_graph(q: str) -> list[dict[str, Any]]:
     """Search across all entities and observations with thread-safe access"""
     if not q or len(q.strip()) < 2:
         return []
@@ -192,7 +192,7 @@ async def search_knowledge_graph(q: str) -> List[Dict[str, Any]]:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 @app.post("/api/entities")
-async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, str]:
+async def create_entities(entities: list[dict[str, Any]]) -> dict[str, str]:
     """Create new entities with thread-safe access"""
     try:
         await knowledge_client.create_entities(entities)
@@ -202,7 +202,7 @@ async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Failed to create entities: {str(e)}")
 
 @app.post("/api/relations") 
-async def create_relations(relations: List[Dict[str, Any]]) -> Dict[str, str]:
+async def create_relations(relations: list[dict[str, Any]]) -> dict[str, str]:
     """Create new relations with thread-safe access"""
     try:
         await knowledge_client.create_relations(relations)
@@ -212,7 +212,7 @@ async def create_relations(relations: List[Dict[str, Any]]) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Failed to create relations: {str(e)}")
 
 @app.get("/health")
-async def health_check() -> Dict[str, str]:
+async def health_check() -> dict[str, str]:
     """Health check endpoint"""
     return {
         "status": "healthy", 
