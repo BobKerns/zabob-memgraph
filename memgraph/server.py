@@ -20,13 +20,17 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try to use direct MCP integration first, fallback to file-based
+# Try to use real MCP integration first, then fallback options
 try:
-    from .mcp_client import mcp_knowledge_client as knowledge_client
-    logger.info("Using direct MCP integration for live data")
-except ImportError:
-    from .knowledge import knowledge_client
-    logger.info("Using file-based storage as fallback")
+    from .real_mcp_client import real_mcp_knowledge_client as knowledge_client
+    logger.info("Using real MCP integration for live data")
+except (ImportError, NameError) as e:
+    try:
+        from .mcp_client import mcp_knowledge_client as knowledge_client
+        logger.info("Using direct MCP integration for live data")
+    except ImportError:
+        from .knowledge import knowledge_client
+        logger.info("Using file-based storage as fallback")
 
 # Create FastAPI app
 app = FastAPI(
