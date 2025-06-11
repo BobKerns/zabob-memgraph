@@ -5,13 +5,9 @@ This module integrates directly with MCP knowledge graph tools to provide
 real-time data access through HTTP API with proper multi-client support.
 """
 
-import json
 import asyncio
-import aiofiles
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Any  # TODO: Clean up imports, List, Optional
-from dataclasses import dataclass, asdict
-from datetime import datetime
 
 
 @dataclass

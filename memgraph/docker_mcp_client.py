@@ -7,8 +7,6 @@ to import real knowledge graph data.
 
 import asyncio
 import json
-import subprocess
-from pathlib import Path
 from typing import Any
 
 

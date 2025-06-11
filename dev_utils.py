@@ -10,20 +10,21 @@
 Development utility script for testing the memgraph server
 """
 
-import json
 import time
+
 import requests
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 console = Console()
 
 def test_server(base_url="http://localhost:8080"):
     """Test server endpoints and functionality"""
 
-    console.print(Panel(f"Testing Memgraph Server at {base_url}", title="🧪 Server Test"))
+    console.print(Panel(f"Testing Memgraph Server at {base_url}",
+                        title="🧪 Server Test"))
 
     # Test health endpoint
     try:
@@ -42,7 +43,8 @@ def test_server(base_url="http://localhost:8080"):
 
     # Test knowledge graph endpoint
     try:
-        response = requests.get(f"{base_url}/api/knowledge-graph", timeout=10)
+        response = requests.get(f"{base_url}/api/knowledge-graph",
+                                timeout=10)
         if response.status_code == 200:
             graph_data = response.json()
             console.print("✅ Knowledge graph endpoint working")
@@ -55,7 +57,8 @@ def test_server(base_url="http://localhost:8080"):
 
     # Test search endpoint
     try:
-        response = requests.get(f"{base_url}/api/search?q=test", timeout=5)
+        response = requests.get(f"{base_url}/api/search?q=test",
+                                timeout=5)
         if response.status_code == 200:
             search_results = response.json()
             console.print("✅ Search endpoint working")
@@ -93,7 +96,8 @@ def show_server_stats(base_url="http://localhost:8080"):
 
     try:
         # Get database stats
-        response = requests.get(f"{base_url}/api/database-stats", timeout=5)
+        response = requests.get(f"{base_url}/api/database-stats",
+                                timeout=5)
         if response.status_code == 200:
             stats = response.json()
 
@@ -101,10 +105,14 @@ def show_server_stats(base_url="http://localhost:8080"):
             table.add_column("Metric", style="cyan")
             table.add_column("Value", style="green")
 
-            table.add_row("Total Entities", str(stats.get("total_entities", "N/A")))
-            table.add_row("Total Relations", str(stats.get("total_relations", "N/A")))
-            table.add_row("Database Size", f"{stats.get('database_size_mb', 0):.2f} MB")
-            table.add_row("Backend Type", stats.get("backend_type", "Unknown"))
+            table.add_row("Total Entities",
+                          str(stats.get("total_entities", "N/A")))
+            table.add_row("Total Relations",
+                          str(stats.get("total_relations", "N/A")))
+            table.add_row("Database Size",
+                          f"{stats.get('database_size_mb', 0):.2f} MB")
+            table.add_row("Backend Type",
+                          stats.get("backend_type", "Unknown"))
 
             console.print(table)
         else:
@@ -116,7 +124,8 @@ def show_server_stats(base_url="http://localhost:8080"):
 def monitor_server(base_url="http://localhost:8080", interval=5):
     """Monitor server health continuously"""
 
-    console.print(Panel(f"Monitoring server at {base_url} (Ctrl+C to stop)", title="📡 Server Monitor"))
+    console.print(Panel(f"Monitoring server at {base_url} "
+                        "(Ctrl+C to stop)", title="📡 Server Monitor"))
 
     try:
         while True:
@@ -131,12 +140,13 @@ def monitor_server(base_url="http://localhost:8080", interval=5):
                 try:
                     response = requests.get(f"{base_url}/health", timeout=3)
                     if response.status_code == 200:
-                        health = response.json()
                         timestamp = time.strftime("%H:%M:%S")
-                        console.print(f"[green]{timestamp}[/green] ✅ Server healthy - {health.get('status', 'unknown')}")
+                        console.print(f"[green]{timestamp}[/green] ✅ Server healthy "
+                                      "- {health.get('status', 'unknown')}")
                     else:
                         timestamp = time.strftime("%H:%M:%S")
-                        console.print(f"[red]{timestamp}[/red] ❌ Server unhealthy - HTTP {response.status_code}")
+                        console.print(f"[red]{timestamp}[/red] ❌ Server unhealthy "
+                                      "- HTTP {response.status_code}")
 
                 except requests.RequestException:
                     timestamp = time.strftime("%H:%M:%S")

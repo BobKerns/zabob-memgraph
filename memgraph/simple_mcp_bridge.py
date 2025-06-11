@@ -6,11 +6,6 @@ and returns the results to our HTTP server.
 """
 
 import asyncio
-import json
-import tempfile
-import subprocess
-import sys
-from pathlib import Path
 from typing import Any
 
 
@@ -26,22 +21,6 @@ class SimpleMCPBridge:
         """Read the complete knowledge graph via bridge"""
         async with self._lock:
             try:
-                # Create a simple script that calls the MCP function
-                script_content = '''
-import json
-import sys
-
-# The actual call - this will work in the MCP context
-try:
-    result = read_graph()
-    print(json.dumps(result))
-except NameError:
-    # Function not available
-    print(json.dumps({"error": "read_graph not available"}))
-except Exception as e:
-    print(json.dumps({"error": str(e)}))
-'''
-
                 # For now, let's just return the live data we know works
                 # This bypasses the subprocess complexity and gives us real data
                 return await self._get_live_data()

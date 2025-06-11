@@ -7,7 +7,6 @@ Docker containers or other MCP servers are invoked.
 
 import asyncio
 import json
-import subprocess
 import sys
 from typing import Any  # TODO: Clean up imports, List, Optional
 
@@ -30,7 +29,8 @@ class SubprocessMCPKnowledgeClient:
                 # Method 1: Try calling as a subprocess python script
                 result = await self._call_mcp_function("read_graph", {})
                 if result:
-                    print(f"Successfully read {len(result.get('entities', []))} entities via subprocess MCP")
+                    num_entities = len(result.get('entities', []))
+                    print(f"Successfully read {num_entities} entities via subprocess MCP")
                     return self._format_for_api(result)
                 else:
                     return self._get_connection_error()

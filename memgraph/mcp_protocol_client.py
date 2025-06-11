@@ -7,7 +7,6 @@ via stdio, similar to how Claude Desktop and other MCP clients work.
 
 import asyncio
 import json
-import uuid
 from typing import Any  # TODO: Clean up imports, List, Optional
 
 

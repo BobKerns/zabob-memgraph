@@ -51,7 +51,8 @@ def setup_logging(log_level: str = "INFO") -> None:
 
 def get_config_dir() -> Path:
     """Get configuration directory from environment or default"""
-    config_dir = os.getenv('MEMGRAPH_CONFIG_DIR', str(Path.home() / '.zabob-memgraph'))
+    config_dir = os.getenv('MEMGRAPH_CONFIG_DIR',
+                        str(Path.home() / '.zabob-memgraph'))
     return Path(config_dir)
 
 
@@ -99,7 +100,7 @@ def load_config() -> dict:
 
     if config_file.exists():
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 user_config = json.load(f)
                 defaults.update(user_config)
         except Exception as e:

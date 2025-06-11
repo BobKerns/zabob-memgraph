@@ -12,8 +12,6 @@ Zabob Memgraph Migration Helper
 Helps transition from the old Makefile-based structure to the new Click-based CLI structure.
 """
 
-import os
-import shutil
 from pathlib import Path
 
 import click
@@ -42,11 +40,6 @@ def migrate(dry_run: bool):
         "launcher.py.old",
         "install.sh.old",
         "Makefile",  # After confirming dev script works
-    ]
-
-    # Files that should be renamed/updated
-    updates_needed = [
-        ("README.md", "README-old.md", "README-new.md"),
     ]
 
     console.print("\\n📋 Migration Plan:")
@@ -118,7 +111,7 @@ def test_new_structure():
 
     all_good = True
 
-    for script, test_cmd in scripts:
+    for script, _ in scripts:
         script_path = Path(script)
         if script_path.exists():
             console.print(f"✅ {script} exists")

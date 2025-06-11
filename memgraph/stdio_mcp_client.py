@@ -7,7 +7,6 @@ similar to how Docker containers and other MCP servers are invoked.
 
 import asyncio
 import json
-import uuid
 from typing import Any
 
 
@@ -84,14 +83,16 @@ if __name__ == '__main__':
         """Read the complete knowledge graph via stdio MCP"""
         async with self._lock:
             try:
-                result = await self._call_mcp_tool("read_graph", {})
+                result = await self._call_mcp_tool("read_graph",
+                                                   {})
                 if result and not result.get("error"):
                     content = result.get("content", [])
                     if content and len(content) > 0:
                         text_content = content[0].get("text", "{}")
                         try:
                             parsed_result = json.loads(text_content)
-                            print(f"Successfully read {len(parsed_result.get('entities', []))} entities via stdio MCP")
+                            num_entities = len(parsed_result.get('entities', []))
+                            print(f"Successfully read {num_entities} entities via stdio MCP")
                             return self._format_for_api(parsed_result)
                         except json.JSONDecodeError:
                             print(f"Failed to parse MCP response: {text_content}")
@@ -99,7 +100,10 @@ if __name__ == '__main__':
                     else:
                         return self._get_stdio_error("Empty response from MCP tool")
                 else:
-                    error_msg = result.get("error", {}).get("message", "Unknown error") if result else "No response"
+                    error_msg = (
+                        result.get("error", {})
+                        .get("message", "Unknown error")
+                    ) if result else "No response"
                     return self._get_stdio_error(f"MCP tool error: {error_msg}")
 
             except Exception as e:
@@ -110,7 +114,8 @@ if __name__ == '__main__':
         """Search nodes via stdio MCP"""
         async with self._lock:
             try:
-                result = await self._call_mcp_tool("search_nodes", {"query": query})
+                result = await self._call_mcp_tool("search_nodes",
+                                                   {"query": query})
                 if result and not result.get("error"):
                     content = result.get("content", [])
                     if content and len(content) > 0:
@@ -135,7 +140,10 @@ if __name__ == '__main__':
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
 
-    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    async def _call_mcp_tool(self,
+                             tool_name: str,
+                             arguments: dict[str, Any],
+                             ) -> dict[str, Any] | None:
         """Call an MCP tool using stdio protocol"""
         try:
             self._request_id += 1

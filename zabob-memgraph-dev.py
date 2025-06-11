@@ -15,20 +15,15 @@ Replaces Makefile functionality with Python/Click commands for better
 cross-platform compatibility and maintainability.
 """
 
-import json
 import os
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
-from typing import Optional
 
 import click
-import psutil
 import requests
 from rich.console import Console
-from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 console = Console()
@@ -337,7 +332,7 @@ def health(url: str):
                 if isinstance(data, dict):
                     for key, value in data.items():
                         console.print(f"   {key}: {value}")
-            except:
+            except Exception:
                 pass
         else:
             console.print(f"❌ Server unhealthy: HTTP {response.status_code}")

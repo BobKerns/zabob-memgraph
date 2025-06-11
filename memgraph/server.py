@@ -16,7 +16,6 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 # Set up logging
-import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -24,29 +23,30 @@ logger = logging.getLogger(__name__)
 try:
     from .sqlite_backend import sqlite_knowledge_db as knowledge_client
     logger.info("Using SQLite database backend")
-except (ImportError, Exception) as e:
+except (ImportError, Exception):
     try:
         from .docker_mcp_client import docker_mcp_knowledge_client as knowledge_client
         logger.info("Using Docker MCP client for live data")
-    except (ImportError, Exception) as e:
+    except (ImportError, Exception):
         try:
             from .stdio_mcp_client import stdio_mcp_knowledge_client as knowledge_client
             logger.info("Using stdio MCP client for live data")
-        except (ImportError, NameError) as e:
+        except (ImportError, NameError):
             try:
                 from .simple_mcp_bridge import simple_mcp_bridge as knowledge_client
                 logger.info("Using simple MCP bridge for live data")
-            except (ImportError, NameError) as e:
+            except (ImportError, NameError):
                 try:
                     from .real_mcp_client import real_mcp_knowledge_client as knowledge_client
                     logger.info("Using real MCP integration for live data")
-                except (ImportError, NameError) as e:
+                except (ImportError, NameError):
                     try:
                         from .mcp_client import mcp_knowledge_client as knowledge_client
                         logger.info("Using direct MCP integration for live data")
-                    except ImportError:
+                    except ImportError as e:
                         logger.error("No knowledge graph backend available")
-                        raise ImportError("No knowledge graph backend available. Please ensure at least one backend is properly configured.")
+                        raise ImportError("No knowledge graph backend available. "
+                                          "Please ensure at least one backend is properly configured.") from e
 
 # Create FastAPI app
 app = FastAPI(
@@ -135,7 +135,8 @@ async def get_knowledge_graph() -> dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Error reading knowledge graph: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to read knowledge graph: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to read knowledge graph: {str(e)}") from e
 
 @app.get("/api/entities")
 async def get_entities() -> list[dict[str, Any]]:
@@ -145,7 +146,8 @@ async def get_entities() -> list[dict[str, Any]]:
         return graph_data["entities"]
     except Exception as e:
         logger.error(f"Error reading entities: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to read entities: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to read entities: {str(e)}") from e
 
 @app.get("/api/search")
 async def search_knowledge_graph(q: str) -> list[dict[str, Any]]:
@@ -189,7 +191,8 @@ async def search_knowledge_graph(q: str) -> list[dict[str, Any]]:
 
     except Exception as e:
         logger.error(f"Error searching knowledge graph: {e}")
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Search failed: {str(e)}") from e
 
 @app.post("/api/entities")
 async def create_entities(entities: list[dict[str, Any]]) -> dict[str, str]:
@@ -199,7 +202,8 @@ async def create_entities(entities: list[dict[str, Any]]) -> dict[str, str]:
         return {"status": "success", "message": f"Created {len(entities)} entities"}
     except Exception as e:
         logger.error(f"Error creating entities: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create entities: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to create entities: {str(e)}") from e
 
 @app.post("/api/relations")
 async def create_relations(relations: list[dict[str, Any]]) -> dict[str, str]:
@@ -209,7 +213,8 @@ async def create_relations(relations: list[dict[str, Any]]) -> dict[str, str]:
         return {"status": "success", "message": f"Created {len(relations)} relations"}
     except Exception as e:
         logger.error(f"Error creating relations: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create relations: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to create relations: {str(e)}") from e
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
@@ -272,7 +277,8 @@ async def import_from_mcp() -> dict[str, Any]:
             }
     except Exception as e:
         logger.error(f"Error importing from MCP: {e}")
-        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Import failed: {str(e)}") from e
 @app.get("/api/database-stats")
 async def get_database_stats() -> dict[str, Any]:
     """Get SQLite database statistics"""
@@ -282,7 +288,8 @@ async def get_database_stats() -> dict[str, Any]:
         return stats
     except Exception as e:
         logger.error(f"Error getting database stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to get stats: {str(e)}") from e
 
 def run_server(host: str = "localhost", port: int = 8080) -> None:
     """Run the server with uvicorn"""
@@ -294,15 +301,14 @@ def run_server(host: str = "localhost", port: int = 8080) -> None:
 def run_stdio_server() -> None:
     """Run as a stdio MCP server (not recommended for production)"""
     import asyncio
-    import json
-    import sys
+
     from mcp.server import Server
     from mcp.server.stdio import stdio_server
     from mcp.types import (
-        Tool,
-        TextContent,
         CallToolResult,
         ListToolsResult,
+        TextContent,
+        Tool,
     )
 
     logger.warning("Running in STDIO mode - this may have file locking issues")
@@ -382,21 +388,27 @@ def run_stdio_server() -> None:
         try:
             if name == "read_graph":
                 result = await knowledge_client.read_graph()
-                return CallToolResult(content=[TextContent(type="text", text=json.dumps(result, indent=2))])
+                return CallToolResult(content=[TextContent(type="text",
+                                                text=json.dumps(result, indent=2))])
             elif name == "search_nodes":
                 result = await knowledge_client.search_nodes(arguments["query"])
-                return CallToolResult(content=[TextContent(type="text", text=json.dumps(result, indent=2))])
+                return CallToolResult(content=[TextContent(type="text",
+                                                text=json.dumps(result, indent=2))])
             elif name == "create_entities":
                 await knowledge_client.create_entities(arguments["entities"])
-                return CallToolResult(content=[TextContent(type="text", text="Entities created successfully")])
+                return CallToolResult(content=[TextContent(type="text",
+                                                text="Entities created successfully")])
             elif name == "create_relations":
                 await knowledge_client.create_relations(arguments["relations"])
-                return CallToolResult(content=[TextContent(type="text", text="Relations created successfully")])
+                return CallToolResult(content=[TextContent(type="text",
+                                                text="Relations created successfully")])
             else:
                 raise ValueError(f"Unknown tool: {name}")
         except Exception as e:
             logger.error(f"Tool error: {e}")
-            return CallToolResult(content=[TextContent(type="text", text=f"Error: {str(e)}")], isError=True)
+            return CallToolResult(content=[TextContent(type="text",
+                                                       text=f"Error: {str(e)}")],
+                                  isError=True)
 
     # Run the server
     async def main():
