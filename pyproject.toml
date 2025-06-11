@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "memgraph"
+name = "zabob-memgraph"
 version = "0.1.0"
-description = "MCP HTTP server for knowledge graph visualization"
+description = "Zabob Memgraph - Knowledge graph visualization and MCP server"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -19,8 +19,8 @@ dependencies = [
 ]
 
 [project.scripts]
-memgraph = "launcher:main"
-memgraph-launcher = "launcher:main"
+zabob-memgraph = "main:main"
+zabob-memgraph-launcher = "zabob-memgraph-launcher:cli"
 
 [project.optional-dependencies]
 dev = [

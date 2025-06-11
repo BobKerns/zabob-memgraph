@@ -1,16 +1,8 @@
 # Use Python 3.12 slim image
 FROM python:3.12-slim
 
-# Install system dependencies including git and git-lfs
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    git-lfs \
-    && rm -rf /var/lib/apt/lists/*
-
 # Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
+RUN pip install uv
 
 # Set working directory
 WORKDIR /app
@@ -18,16 +10,21 @@ WORKDIR /app
 # Copy project files
 COPY pyproject.toml uv.lock ./
 COPY memgraph/ ./memgraph/
-COPY launcher.py ./
+COPY main.py ./
 
 # Install dependencies
 RUN uv sync --frozen
 
-# Create memgraph directory for config and data
-RUN mkdir -p /root/.memgraph/backup
+# Create directory for configuration and data
+RUN mkdir -p /app/.zabob-memgraph
 
-# Expose default port (will be overridden by launcher)
+# Set environment variable to indicate Docker container
+ENV DOCKER_CONTAINER=1
+ENV MEMGRAPH_HOST=0.0.0.0
+ENV MEMGRAPH_PORT=8080
+
+# Expose default port
 EXPOSE 8080
 
-# Use launcher script as entrypoint
-ENTRYPOINT ["uv", "run", "launcher.py"]
+# Use main.py as entrypoint
+CMD ["uv", "run", "main.py"]

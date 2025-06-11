@@ -1,28 +1,27 @@
 version: '3.8'
 
 services:
-  memgraph:
+  zabob-memgraph:
     build: .
     ports:
       - "8080:8080"
     volumes:
       # Mount a volume for persistent data and configuration
-      - memgraph_data:/root/.memgraph
+      - zabob_memgraph_data:/app/.zabob-memgraph
       # Optional: mount local database file for development
       # - ./knowledge_graph.db:/app/knowledge_graph.db
     environment:
-      # Optional: override default port
-      # - PORT=8080
-      # Optional: specify data directory
-      # - MEMGRAPH_DATA_DIR=/root/.memgraph
+      # Container is automatically detected via DOCKER_CONTAINER env var
+      MEMGRAPH_HOST: 0.0.0.0
+      MEMGRAPH_PORT: 8080
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8080/health')\""] 
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
 volumes:
-  memgraph_data:
+  zabob_memgraph_data:
     driver: local
