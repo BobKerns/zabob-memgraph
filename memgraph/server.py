@@ -86,7 +86,6 @@ web_dir = Path(__file__).parent / "web"
 if web_dir.exists():
     app.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
 
-
 @app.get("/")
 async def root() -> HTMLResponse:
     """Serve the main visualization page"""
@@ -99,7 +98,12 @@ async def root() -> HTMLResponse:
     return HTMLResponse(
         """
     <html>
-        <head><title>Knowledge Graph</title></head>
+        <head>
+            <title>Knowledge Graph</title>
+            <link rel="icon" type="image/x-icon" href="/static/favicon.png">
+            <link rel="mask-icon" href="/static/favicon.svg" color="#000000">
+ color="#000000">
+        </head>
         <body>
             <h1>Knowledge Graph MCP Server v0.2.0</h1>
             <p><strong>Thread-Safe Multi-Client Support Enabled</strong></p>

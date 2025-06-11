@@ -1,3 +1,5 @@
+![zabob banner, AI Memory](docs/images/zabob-banner.jpg)
+
 # MIT License
 
 Copyright (c) 2025 Zabob Memgraph Contributors

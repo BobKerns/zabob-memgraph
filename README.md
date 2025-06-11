@@ -4,6 +4,12 @@
 
 A Model Context Protocol (MCP) server that provides HTTP endpoints for knowledge graph visualization and interaction. Part of the Zabob AI assistant ecosystem, designed for thread-safe multi-client support with Docker deployment.
 
+Imagine a future where your AI assistant not only can talk to you, but can remember important things, and can show you everything it remembers.
+
+![zabob](docs/images/zabob-faviicon.png) Zabob remembers this future! Give him your plans and dreams, and he will remember not just the dream, but the journey to get there, even through the darkest nullspace.
+
+![alt text](docs/images/screenshot.png)
+
 ## Features
 
 - **Thread-safe SQLite backend** - Prevents database locking issues with multiple clients

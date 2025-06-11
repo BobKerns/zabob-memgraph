@@ -2,14 +2,11 @@
 *.db filter=lfs diff=lfs merge=lfs -text
 *.sqlite filter=lfs diff=lfs merge=lfs -text
 *.sqlite3 filter=lfs diff=lfs merge=lfs -text
-
 # Backup files
 *.backup filter=lfs diff=lfs merge=lfs -text
-
 # Large data files (for future use)
 *.json.gz filter=lfs diff=lfs merge=lfs -text
 *.csv.gz filter=lfs diff=lfs merge=lfs -text
-
 # Images and media (for future use)
 *.png filter=lfs diff=lfs merge=lfs -text
 *.jpg filter=lfs diff=lfs merge=lfs -text
@@ -17,11 +14,11 @@
 *.gif filter=lfs diff=lfs merge=lfs -text
 *.ico filter=lfs diff=lfs merge=lfs -text
 *.svg filter=lfs diff=lfs merge=lfs -text
-
 # Documentation assets
 *.pdf filter=lfs diff=lfs merge=lfs -text
-
 # Archive files
 *.zip filter=lfs diff=lfs merge=lfs -text
 *.tar.gz filter=lfs diff=lfs merge=lfs -text
 *.tar.bz2 filter=lfs diff=lfs merge=lfs -text
+# Photoshop
+*.psd filter=lfs diff=lfs merge=lfs -text

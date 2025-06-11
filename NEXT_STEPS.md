@@ -1,3 +1,5 @@
+![zabob banner, AI Memory](docs/images/zabob-banner.jpg)
+
 # Next Steps for Knowledge Graph MCP Integration
 
 ## Immediate Testing
