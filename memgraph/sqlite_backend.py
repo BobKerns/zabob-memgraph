@@ -40,8 +40,16 @@ class SQLiteKnowledgeGraphDB:
     """
     
     def __init__(self, db_path: str = "knowledge_graph.db"):
-        self.db_path = Path(db_path)
+        # Ensure we use absolute path to avoid working directory issues
+        if not Path(db_path).is_absolute():
+            # Use the directory of this file as the base for relative paths
+            base_dir = Path(__file__).parent.parent  # Go up to project root
+            self.db_path = base_dir / db_path
+        else:
+            self.db_path = Path(db_path)
+        
         self._lock = asyncio.Lock()
+        print(f"SQLite database path: {self.db_path.absolute()}")
         self._init_db()
     
     def _init_db(self):
