@@ -96,14 +96,27 @@ async function loadKnowledgeGraph() {
 // Update the graph visualization
 function updateKnowledgeGraph(nodes, links) {
     // Store the data and give nodes initial positions
-    graphData.nodes = nodes.map(d => ({
-        ...d,
-        x: width/2 + (Math.random() - 0.5) * 200,  // Spread around center
-        y: height/2 + (Math.random() - 0.5) * 200,
-        vx: (Math.random() - 0.5) * 50,  // Initial velocity to break clustering
-        vy: (Math.random() - 0.5) * 50
+    // Create plain objects that D3 can modify freely
+    graphData.nodes = nodes.map(d => {
+        // Create a plain object with all properties writable
+        const node = {
+            id: d.id,
+            group: d.group,
+            type: d.type,
+            observations: d.observations,
+            x: width/2 + (Math.random() - 0.5) * 200,  // Spread around center
+            y: height/2 + (Math.random() - 0.5) * 200,
+            vx: (Math.random() - 0.5) * 50,  // Initial velocity to break clustering
+            vy: (Math.random() - 0.5) * 50
+        };
+        return node;
+    });
+    
+    graphData.links = links.map(d => ({
+        source: d.source,
+        target: d.target,
+        relation: d.relation
     }));
-    graphData.links = links.map(d => ({...d}));
     
     console.log(`Updating graph with ${nodes.length} nodes and ${links.length} links`);
     
@@ -496,6 +509,9 @@ function forceLayout() {
         d.y = height/2 + (Math.random() - 0.5) * 300;
         d.vx = (Math.random() - 0.5) * 100;
         d.vy = (Math.random() - 0.5) * 100;
+        // Clear any fixed positions
+        delete d.fx;
+        delete d.fy;
     });
     
     // Force strong restart
