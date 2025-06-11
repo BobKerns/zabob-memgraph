@@ -18,7 +18,7 @@ def run_mypy():
     """Run mypy type checking"""
     print("🔍 Running mypy type checking...")
     result = subprocess.run([
-        "mypy", 
+        "mypy",
         "--strict",
         "--python-version", "3.12",
         "memgraph/"
@@ -35,10 +35,10 @@ def run_ruff():
 
 def main():
     print("🚀 Running type checking and linting...")
-    
+
     mypy_ok = run_mypy()
     ruff_ok = run_ruff()
-    
+
     if mypy_ok and ruff_ok:
         print("✅ All checks passed!")
     else:

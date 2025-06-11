@@ -97,7 +97,7 @@ async def get_knowledge_graph() -> dict[str, Any]:
     """Get the complete knowledge graph data with thread-safe access"""
     try:
         graph_data = await knowledge_client.read_graph()
-        
+
         # Transform to D3 visualization format
         nodes = []
         for entity in graph_data["entities"]:
@@ -108,14 +108,14 @@ async def get_knowledge_graph() -> dict[str, Any]:
                    "strategy" if "strategy" in entity["entityType"].lower() or "plan" in entity["entityType"].lower() else \
                    "debug" if "debug" in entity["entityType"].lower() or "investigation" in entity["entityType"].lower() else \
                    "technology"
-            
+
             nodes.append({
                 "id": entity["name"],
                 "group": group,
                 "type": entity["entityType"],
                 "observations": entity["observations"]
             })
-        
+
         links = []
         for relation in graph_data["relations"]:
             links.append({
@@ -123,7 +123,7 @@ async def get_knowledge_graph() -> dict[str, Any]:
                 "target": relation["to"],
                 "relation": relation["relationType"]
             })
-        
+
         return {
             "nodes": nodes,
             "links": links,
@@ -152,14 +152,14 @@ async def search_knowledge_graph(q: str) -> list[dict[str, Any]]:
     """Search across all entities and observations with thread-safe access"""
     if not q or len(q.strip()) < 2:
         return []
-    
+
     try:
         search_results = await knowledge_client.search_nodes(q.strip())
-        
+
         # Transform to search result format
         results = []
         query = q.lower().strip()
-        
+
         for entity in search_results["entities"]:
             # Search entity name
             if query in entity["name"].lower():
@@ -170,23 +170,23 @@ async def search_knowledge_graph(q: str) -> list[dict[str, Any]]:
                     "entityType": entity["entityType"],
                     "score": 10
                 })
-            
+
             # Search observations
             for i, obs in enumerate(entity["observations"]):
                 if query in obs.lower():
                     results.append({
                         "entity": entity["name"],
-                        "type": "observation", 
+                        "type": "observation",
                         "content": obs,
                         "entityType": entity["entityType"],
                         "observationIndex": i,
                         "score": 5
                     })
-        
+
         # Sort by score (descending)
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:20]  # Limit results
-        
+
     except Exception as e:
         logger.error(f"Error searching knowledge graph: {e}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
@@ -201,7 +201,7 @@ async def create_entities(entities: list[dict[str, Any]]) -> dict[str, str]:
         logger.error(f"Error creating entities: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to create entities: {str(e)}")
 
-@app.post("/api/relations") 
+@app.post("/api/relations")
 async def create_relations(relations: list[dict[str, Any]]) -> dict[str, str]:
     """Create new relations with thread-safe access"""
     try:
@@ -215,7 +215,7 @@ async def create_relations(relations: list[dict[str, Any]]) -> dict[str, str]:
 async def health_check() -> dict[str, str]:
     """Health check endpoint"""
     return {
-        "status": "healthy", 
+        "status": "healthy",
         "service": "knowledge-graph-mcp",
         "version": "0.2.0",
         "features": ["thread-safe storage", "multi-client support", "sqlite backend"]
@@ -226,11 +226,11 @@ async def import_from_mcp() -> dict[str, Any]:
     """Import knowledge graph data from MCP tools into SQLite"""
     try:
         from .sqlite_backend import sqlite_knowledge_db
-        
+
         # Try different MCP clients in order of preference
         mcp_client = None
         client_name = "unknown"
-        
+
         try:
             from .docker_mcp_client import docker_mcp_knowledge_client
             mcp_client = docker_mcp_knowledge_client
@@ -250,9 +250,9 @@ async def import_from_mcp() -> dict[str, Any]:
                         "status": "error",
                         "message": "No MCP client available for import"
                     }
-        
+
         result = await sqlite_knowledge_db.import_from_mcp(mcp_client)
-        
+
         if result["status"] == "success":
             # Get updated stats
             stats = await sqlite_knowledge_db.get_stats()
@@ -304,12 +304,12 @@ def run_stdio_server() -> None:
         CallToolResult,
         ListToolsResult,
     )
-    
+
     logger.warning("Running in STDIO mode - this may have file locking issues")
-    
+
     # Create MCP server
     server = Server("memgraph")
-    
+
     @server.list_tools()
     async def list_tools() -> ListToolsResult:
         return ListToolsResult(
@@ -320,7 +320,7 @@ def run_stdio_server() -> None:
                     inputSchema={"type": "object", "properties": {}}
                 ),
                 Tool(
-                    name="search_nodes", 
+                    name="search_nodes",
                     description="Search for nodes in the knowledge graph",
                     inputSchema={
                         "type": "object",
@@ -332,7 +332,7 @@ def run_stdio_server() -> None:
                 ),
                 Tool(
                     name="create_entities",
-                    description="Create new entities", 
+                    description="Create new entities",
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -356,7 +356,7 @@ def run_stdio_server() -> None:
                     name="create_relations",
                     description="Create new relations",
                     inputSchema={
-                        "type": "object", 
+                        "type": "object",
                         "properties": {
                             "relations": {
                                 "type": "array",
@@ -376,7 +376,7 @@ def run_stdio_server() -> None:
                 )
             ]
         )
-    
+
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
         try:
@@ -397,12 +397,12 @@ def run_stdio_server() -> None:
         except Exception as e:
             logger.error(f"Tool error: {e}")
             return CallToolResult(content=[TextContent(type="text", text=f"Error: {str(e)}")], isError=True)
-    
+
     # Run the server
     async def main():
         async with stdio_server() as (read_stream, write_stream):
             await server.run(read_stream, write_stream, server.create_initialization_options())
-    
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

@@ -16,11 +16,11 @@ class MCPProtocolKnowledgeClient:
     Client that uses MCP protocol to call knowledge graph tools.
     This mimics how real MCP clients communicate with servers.
     """
-    
+
     def __init__(self):
         self._lock = asyncio.Lock()
         self._request_id = 0
-    
+
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph via MCP protocol"""
         async with self._lock:
@@ -44,13 +44,13 @@ class MCPProtocolKnowledgeClient:
                 else:
                     error_msg = result.get("content", [{}])[0].get("text", "Unknown error") if result else "No response"
                     return self._get_protocol_error(f"MCP tool error: {error_msg}")
-                    
+
             except Exception as e:
                 print(f"MCP protocol read_graph failed: {e}")
                 return self._get_protocol_error(str(e))
-    
+
     async def search_nodes(self, query: str) -> dict[str, Any]:
-        """Search nodes via MCP protocol"""  
+        """Search nodes via MCP protocol"""
         async with self._lock:
             try:
                 result = await self._call_mcp_tool("search_nodes", {"query": query})
@@ -72,18 +72,18 @@ class MCPProtocolKnowledgeClient:
                 else:
                     full_graph = await self.read_graph()
                     return self._local_search(full_graph, query)
-                    
+
             except Exception as e:
                 print(f"MCP protocol search_nodes failed: {e}")
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
-    
+
     async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
         """Call an MCP tool using the protocol"""
         try:
             # Since we're running in the same process context where MCP tools are available,
             # let's try to call them directly first, then fall back to protocol if needed
-            
+
             # Try direct function call approach
             if tool_name == "read_graph":
                 try:
@@ -97,7 +97,7 @@ class MCPProtocolKnowledgeClient:
                         }
                 except Exception as e:
                     print(f"Direct call failed: {e}")
-            
+
             elif tool_name == "search_nodes":
                 try:
                     import __main__
@@ -109,64 +109,64 @@ class MCPProtocolKnowledgeClient:
                         }
                 except Exception as e:
                     print(f"Direct search call failed: {e}")
-            
+
             # If direct calls don't work, indicate that we need proper MCP integration
             return {
                 "isError": True,
                 "content": [{"text": "MCP tools not available in current context"}]
             }
-                
+
         except Exception as e:
             print(f"MCP tool call failed: {e}")
             return {
                 "isError": True,
                 "content": [{"text": str(e)}]
             }
-    
+
     def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
-        
+
         for entity_data in mcp_result.get("entities", []):
             entities.append({
                 "name": entity_data["name"],
                 "entityType": entity_data["entityType"],
                 "observations": entity_data["observations"]
             })
-        
+
         for relation_data in mcp_result.get("relations", []):
             relations.append({
                 "from_entity": relation_data["from"],
                 "to": relation_data["to"],
                 "relationType": relation_data["relationType"]
             })
-        
+
         return {"entities": entities, "relations": relations}
-    
+
     def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
-        
+
         for entity in graph_data["entities"]:
             if query_lower in entity["name"].lower():
                 matching_entities.append(entity)
                 continue
-                
+
             for obs in entity["observations"]:
                 if query_lower in obs.lower():
                     matching_entities.append(entity)
                     break
-        
+
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
             r for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
-        
+
         return {"entities": matching_entities, "relations": matching_relations}
-    
+
     def _get_protocol_error(self, error_msg: str) -> dict[str, Any]:
         """Error data when MCP protocol fails"""
         return {
@@ -185,5 +185,5 @@ class MCPProtocolKnowledgeClient:
         }
 
 
-# Create the MCP protocol client instance  
+# Create the MCP protocol client instance
 mcp_protocol_knowledge_client = MCPProtocolKnowledgeClient()

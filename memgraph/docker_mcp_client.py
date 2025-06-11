@@ -16,17 +16,17 @@ class DockerMCPKnowledgeClient:
     """
     Client that connects to MCP memory Docker container to get real knowledge graph data.
     """
-    
+
     def __init__(self, container_command: list[str] | None = None):
         self._lock = asyncio.Lock()
         self._request_id = 0
         # Default to the memory container pattern you mentioned
         self.container_command = container_command or [
-            "docker", "run", "-i", 
-            "-v", "claude-memory:/app/dist", 
+            "docker", "run", "-i",
+            "-v", "claude-memory:/app/dist",
             "--rm", "mcp/memory"
         ]
-    
+
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from Docker MCP container"""
         async with self._lock:
@@ -48,13 +48,13 @@ class DockerMCPKnowledgeClient:
                 else:
                     error_msg = result.get("error", {}).get("message", "Unknown error") if result else "No response"
                     return self._get_docker_error(f"Docker MCP error: {error_msg}")
-                    
+
             except Exception as e:
                 print(f"Docker MCP read_graph failed: {e}")
                 return self._get_docker_error(str(e))
-    
+
     async def search_nodes(self, query: str) -> dict[str, Any]:
-        """Search nodes via Docker MCP container"""  
+        """Search nodes via Docker MCP container"""
         async with self._lock:
             try:
                 result = await self._call_mcp_tool("search_nodes", {"query": query})
@@ -76,17 +76,17 @@ class DockerMCPKnowledgeClient:
                 else:
                     full_graph = await self.read_graph()
                     return self._local_search(full_graph, query)
-                    
+
             except Exception as e:
                 print(f"Docker MCP search_nodes failed: {e}")
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
-    
+
     async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
         """Call an MCP tool using Docker container with MCP protocol"""
         try:
             self._request_id += 1
-            
+
             # MCP protocol request
             request = {
                 "jsonrpc": "2.0",
@@ -97,7 +97,7 @@ class DockerMCPKnowledgeClient:
                     "arguments": arguments
                 }
             }
-            
+
             # Start the Docker container
             process = await asyncio.create_subprocess_exec(
                 *self.container_command,
@@ -105,11 +105,11 @@ class DockerMCPKnowledgeClient:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            
+
             # Send the MCP request
             request_line = json.dumps(request) + "\n"
             stdout, stderr = await process.communicate(request_line.encode())
-            
+
             if process.returncode == 0 and stdout:
                 # Parse MCP response
                 response_text = stdout.decode().strip()
@@ -136,55 +136,55 @@ class DockerMCPKnowledgeClient:
                     return {"error": {"message": error_msg}}
                 else:
                     return {"error": {"message": f"Docker process failed with code {process.returncode}"}}
-                
+
         except Exception as e:
             print(f"Docker MCP tool call failed: {e}")
             return {"error": {"message": str(e)}}
-    
+
     def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
-        
+
         for entity_data in mcp_result.get("entities", []):
             entities.append({
                 "name": entity_data["name"],
                 "entityType": entity_data["entityType"],
                 "observations": entity_data["observations"]
             })
-        
+
         for relation_data in mcp_result.get("relations", []):
             relations.append({
                 "from_entity": relation_data["from"],
                 "to": relation_data["to"],
                 "relationType": relation_data["relationType"]
             })
-        
+
         return {"entities": entities, "relations": relations}
-    
+
     def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
-        
+
         for entity in graph_data["entities"]:
             if query_lower in entity["name"].lower():
                 matching_entities.append(entity)
                 continue
-                
+
             for obs in entity["observations"]:
                 if query_lower in obs.lower():
                     matching_entities.append(entity)
                     break
-        
+
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
             r for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
-        
+
         return {"entities": matching_entities, "relations": matching_relations}
-    
+
     def _get_docker_error(self, error_msg: str) -> dict[str, Any]:
         """Error data when Docker MCP fails"""
         return {

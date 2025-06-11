@@ -11,7 +11,7 @@
 """
 Zabob Memgraph Development Commands
 
-Replaces Makefile functionality with Python/Click commands for better 
+Replaces Makefile functionality with Python/Click commands for better
 cross-platform compatibility and maintainability.
 """
 
@@ -50,13 +50,13 @@ def dev():
 def install(force: bool):
     """Install development dependencies and setup environment"""
     console.print("🔧 Setting up development environment...")
-    
+
     # Check if uv is available
     if not shutil.which("uv"):
         console.print("❌ uv not found. Please install uv first:")
         console.print("  curl -LsSf https://astral.sh/uv/install.sh | sh")
         sys.exit(1)
-    
+
     # Install Python dependencies
     console.print("📦 Installing Python dependencies...")
     try:
@@ -65,19 +65,19 @@ def install(force: bool):
     except subprocess.CalledProcessError:
         console.print("❌ Failed to install Python dependencies")
         sys.exit(1)
-    
+
     # Check Docker
     if not shutil.which("docker"):
         console.print("⚠️  Docker not found. Docker is optional but recommended.")
         console.print("   Install from: https://docs.docker.com/get-docker/")
     else:
         console.print("✅ Docker available")
-    
+
     # Create config directory
     config_dir = Path.home() / ".zabob-memgraph"
     config_dir.mkdir(exist_ok=True)
     console.print(f"✅ Config directory: {config_dir}")
-    
+
     console.print("🎉 Development environment setup complete!")
 
 
@@ -88,23 +88,23 @@ def install(force: bool):
 def run(port: int, host: str, reload: bool):
     """Run the development server"""
     console.print(f"🚀 Starting development server on {host}:{port}")
-    
+
     if reload:
         console.print("🔄 Auto-reload enabled")
-    
+
     # Set environment variables
     env = os.environ.copy()
     env['MEMGRAPH_HOST'] = host
     env['MEMGRAPH_PORT'] = str(port)
     env['MEMGRAPH_ENV'] = 'development'
-    
+
     # Run with uvicorn for development
-    cmd = ["uv", "run", "uvicorn", "memgraph.server:app", 
+    cmd = ["uv", "run", "uvicorn", "memgraph.server:app",
            "--host", host, "--port", str(port)]
-    
+
     if reload:
         cmd.extend(["--reload", "--reload-dir", "memgraph"])
-    
+
     try:
         subprocess.run(cmd, cwd=PROJECT_DIR, env=env, check=True)
     except KeyboardInterrupt:
@@ -120,18 +120,18 @@ def run(port: int, host: str, reload: bool):
 def build(tag: str, no_cache: bool):
     """Build Docker image"""
     console.print(f"🐳 Building Docker image: {tag}")
-    
+
     if not shutil.which("docker"):
         console.print("❌ Docker not found")
         sys.exit(1)
-    
+
     cmd = ["docker", "build", "-t", tag]
-    
+
     if no_cache:
         cmd.append("--no-cache")
-    
+
     cmd.append(".")
-    
+
     try:
         with Progress(
             SpinnerColumn(),
@@ -139,29 +139,31 @@ def build(tag: str, no_cache: bool):
             console=console,
         ) as progress:
             task = progress.add_task("Building Docker image...", total=None)
-            
+
             process = subprocess.Popen(
-                cmd, 
+                cmd,
                 cwd=PROJECT_DIR,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            
+            if process.stdout is None:
+                console.print("❌ Failed to start Docker build process")
+                sys.exit(1)
             for line in process.stdout:
                 # Show important build steps
                 if any(keyword in line.lower() for keyword in ["step", "copying", "error"]):
                     console.print(f"    {line.strip()}")
-            
+
             process.wait()
             progress.remove_task(task)
-        
+
         if process.returncode == 0:
             console.print(f"✅ Docker image built successfully: {tag}")
         else:
             console.print("❌ Docker build failed")
             sys.exit(1)
-            
+
     except subprocess.CalledProcessError as e:
         console.print(f"❌ Docker build failed: {e}")
         sys.exit(1)
@@ -175,17 +177,17 @@ def docker_run(port: int, detach: bool):
     if not DOCKER_COMPOSE_FILE.exists():
         console.print("❌ docker-compose.yml not found")
         sys.exit(1)
-    
+
     console.print(f"🐳 Starting with Docker Compose on port {port}")
-    
+
     # Update port in environment
     env = os.environ.copy()
     env['MEMGRAPH_PORT'] = str(port)
-    
+
     cmd = ["docker", "compose", "up"]
     if detach:
         cmd.append("-d")
-    
+
     try:
         subprocess.run(cmd, cwd=PROJECT_DIR, env=env, check=True)
         if detach:
@@ -203,7 +205,7 @@ def docker_stop():
     """Stop Docker Compose services"""
     console.print("🛑 Stopping Docker Compose services...")
     try:
-        subprocess.run(["docker", "compose", "down"], 
+        subprocess.run(["docker", "compose", "down"],
                       cwd=PROJECT_DIR, check=True)
         console.print("✅ Services stopped")
     except subprocess.CalledProcessError as e:
@@ -215,28 +217,28 @@ def docker_stop():
 def clean():
     """Clean up build artifacts and caches"""
     console.print("🧹 Cleaning up...")
-    
+
     # Clean Python cache
     for cache_dir in PROJECT_DIR.rglob("__pycache__"):
         shutil.rmtree(cache_dir, ignore_errors=True)
         console.print(f"   Removed {cache_dir}")
-    
+
     for cache_file in PROJECT_DIR.rglob("*.pyc"):
         cache_file.unlink(missing_ok=True)
-    
+
     # Clean .pytest_cache
     pytest_cache = PROJECT_DIR / ".pytest_cache"
     if pytest_cache.exists():
         shutil.rmtree(pytest_cache)
         console.print("   Removed .pytest_cache")
-    
+
     # Clean dist/build directories
     for build_dir in ["dist", "build", "*.egg-info"]:
         for path in PROJECT_DIR.glob(build_dir):
             if path.is_dir():
                 shutil.rmtree(path)
                 console.print(f"   Removed {path}")
-    
+
     console.print("✅ Cleanup complete")
 
 
@@ -244,9 +246,9 @@ def clean():
 def test():
     """Run tests"""
     console.print("🧪 Running tests...")
-    
+
     try:
-        subprocess.run(["uv", "run", "pytest", "-v"], 
+        subprocess.run(["uv", "run", "pytest", "-v"],
                       cwd=PROJECT_DIR, check=True)
         console.print("✅ All tests passed")
     except subprocess.CalledProcessError:
@@ -258,34 +260,34 @@ def test():
 def lint():
     """Run linting and formatting checks"""
     console.print("🔍 Running linting...")
-    
+
     # Check if tools are available
     tools = []
-    
+
     # Try ruff first (modern, fast)
     if shutil.which("ruff"):
         tools.append(("ruff", ["uv", "run", "ruff", "check", "."]))
     elif shutil.which("flake8"):
         tools.append(("flake8", ["uv", "run", "flake8", "memgraph/"]))
-    
+
     if shutil.which("black"):
         tools.append(("black", ["uv", "run", "black", "--check", "."]))
-    
+
     if not tools:
         console.print("⚠️  No linting tools found. Install ruff or flake8+black")
         return
-    
+
     failed = False
     for name, cmd in tools:
         try:
             console.print(f"   Running {name}...")
-            subprocess.run(cmd, cwd=PROJECT_DIR, check=True, 
+            subprocess.run(cmd, cwd=PROJECT_DIR, check=True,
                           capture_output=True)
             console.print(f"   ✅ {name} passed")
         except subprocess.CalledProcessError:
             console.print(f"   ❌ {name} failed")
             failed = True
-    
+
     if failed:
         console.print("❌ Linting failed")
         sys.exit(1)
@@ -297,10 +299,10 @@ def lint():
 def format_code():
     """Format code with black/ruff"""
     console.print("✨ Formatting code...")
-    
+
     if shutil.which("ruff"):
         try:
-            subprocess.run(["uv", "run", "ruff", "format", "."], 
+            subprocess.run(["uv", "run", "ruff", "format", "."],
                           cwd=PROJECT_DIR, check=True)
             console.print("✅ Code formatted with ruff")
         except subprocess.CalledProcessError:
@@ -308,7 +310,7 @@ def format_code():
             sys.exit(1)
     elif shutil.which("black"):
         try:
-            subprocess.run(["uv", "run", "black", "."], 
+            subprocess.run(["uv", "run", "black", "."],
                           cwd=PROJECT_DIR, check=True)
             console.print("✅ Code formatted with black")
         except subprocess.CalledProcessError:
@@ -320,15 +322,15 @@ def format_code():
 
 @click.command()
 @click.option("--url", default="http://localhost:8080", help="Server URL to check")
-def health():
+def health(url: str):
     """Check server health"""
     console.print(f"🏥 Checking server health at {url}")
-    
+
     try:
         response = requests.get(f"{url}/health", timeout=5)
         if response.status_code == 200:
             console.print("✅ Server is healthy")
-            
+
             # Show some basic stats if available
             try:
                 data = response.json()
@@ -350,7 +352,7 @@ def logs():
     """Show Docker Compose logs"""
     console.print("📋 Showing logs...")
     try:
-        subprocess.run(["docker", "compose", "logs", "-f"], 
+        subprocess.run(["docker", "compose", "logs", "-f"],
                       cwd=PROJECT_DIR, check=True)
     except KeyboardInterrupt:
         console.print("\\n👋 Stopped following logs")

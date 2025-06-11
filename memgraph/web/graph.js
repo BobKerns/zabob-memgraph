@@ -14,7 +14,7 @@ let svg, container;
 // Color mapping for node groups
 const colorMap = {
     person: "#e74c3c",
-    project: "#2ecc71", 
+    project: "#2ecc71",
     technology: "#3498db",
     development: "#f39c12",
     strategy: "#9b59b6",
@@ -60,31 +60,31 @@ function initializeVisualization() {
 async function loadKnowledgeGraph() {
     const loadingEl = document.getElementById('loading');
     loadingEl.style.display = 'flex';
-    
+
     const startTime = performance.now();
-    
+
     try {
         const response = await fetch('/api/knowledge-graph');
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         const loadTime = Math.round(performance.now() - startTime);
-        
+
         // Initialize visualization if not done yet
         if (!svg) {
             initializeVisualization();
         }
-        
+
         // Update the visualization
         updateKnowledgeGraph(data.nodes, data.links);
-        
+
         // Update stats
         document.getElementById('loadTime').textContent = `Load: ${loadTime}ms`;
-        
+
         console.log('Knowledge graph loaded:', data.stats);
-        
+
     } catch (error) {
         console.error('Failed to load knowledge graph:', error);
         showError(`Failed to load knowledge graph: ${error.message}`);
@@ -96,7 +96,7 @@ async function loadKnowledgeGraph() {
 // Update the graph visualization
 function updateKnowledgeGraph(nodes, links) {
     console.log('Raw data from server:', { nodes: nodes.slice(0, 2), links: links.slice(0, 2) });
-    
+
     // Store the data and give nodes initial positions
     // Create completely plain objects that D3 can modify freely
     graphData.nodes = nodes.map((d, i) => {
@@ -111,7 +111,7 @@ function updateKnowledgeGraph(nodes, links) {
         node.vx = (Math.random() - 0.5) * 50;
         node.vy = (Math.random() - 0.5) * 50;
         node.index = i;
-        
+
         // Test if properties are writable
         try {
             node.x = node.x + 1;
@@ -121,10 +121,10 @@ function updateKnowledgeGraph(nodes, links) {
         } catch (e) {
             console.error('Node property not writable:', e, node);
         }
-        
+
         return node;
     });
-    
+
     graphData.links = links.map(d => {
         const link = Object.create(null);
         link.source = d.source;
@@ -132,11 +132,11 @@ function updateKnowledgeGraph(nodes, links) {
         link.relation = d.relation;
         return link;
     });
-    
+
     console.log('Processed nodes sample:', graphData.nodes.slice(0, 2));
     console.log('Processed links sample:', graphData.links.slice(0, 2));
     console.log(`Updating graph with ${nodes.length} nodes and ${links.length} links`);
-    
+
     // Calculate node degrees for sizing
     const degreeMap = {};
     graphData.nodes.forEach(n => degreeMap[n.id] = 0);
@@ -180,7 +180,7 @@ function updateKnowledgeGraph(nodes, links) {
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
-        
+
     nodeUpdate.on('click', function(event, d) {
         event.stopPropagation();
         showEntityDetails(d.id);
@@ -204,7 +204,7 @@ function updateKnowledgeGraph(nodes, links) {
         .each(function(d) {
             const text = d3.select(this);
             text.selectAll("*").remove();
-            
+
             const words = d.id.split(" ");
             if (words.length > 2) {
                 text.append("tspan")
@@ -224,11 +224,11 @@ function updateKnowledgeGraph(nodes, links) {
     try {
         console.log('Available node IDs:', graphData.nodes.map(n => n.id));
         console.log('Link source/target IDs:', graphData.links.map(l => ({ source: l.source, target: l.target })));
-        
+
         // Check for missing nodes referenced in links
         const nodeIds = new Set(graphData.nodes.map(n => n.id));
         const missingNodes = new Set();
-        
+
         graphData.links.forEach(link => {
             if (!nodeIds.has(link.source)) {
                 missingNodes.add(link.source);
@@ -237,28 +237,28 @@ function updateKnowledgeGraph(nodes, links) {
                 missingNodes.add(link.target);
             }
         });
-        
+
         if (missingNodes.size > 0) {
             console.error('Missing nodes referenced in links:', Array.from(missingNodes));
             // Filter out links that reference missing nodes
-            graphData.links = graphData.links.filter(link => 
+            graphData.links = graphData.links.filter(link =>
                 nodeIds.has(link.source) && nodeIds.has(link.target)
             );
             console.log('Filtered links to remove references to missing nodes');
             console.log('Remaining links:', graphData.links.length);
         }
-        
+
         console.log('Setting simulation nodes...');
         simulation.nodes(graphData.nodes);
-        
+
         console.log('Setting simulation links...');
         simulation.force("link").links(graphData.links);
-        
+
         console.log('Force simulation restarting with alpha 1.0');
-        
+
         // Force restart with very high alpha for strong initial layout
         simulation.alpha(1.0).alphaTarget(0.3).restart();
-        
+
         // Remove alpha target after longer settling period
         setTimeout(() => {
             console.log('Removing alphaTarget, allowing natural cooling');
@@ -268,18 +268,18 @@ function updateKnowledgeGraph(nodes, links) {
                 console.error('Error removing alphaTarget:', e);
             }
         }, 5000);
-        
+
     } catch (e) {
         console.error('Error in simulation setup:', e);
         console.error('Stack trace:', e.stack);
-        
+
         // Try a simpler approach
         console.log('Attempting simple simulation restart...');
         try {
             simulation.stop();
             simulation.nodes([]);
             simulation.force("link").links([]);
-            
+
             setTimeout(() => {
                 simulation.nodes(graphData.nodes);
                 simulation.force("link").links(graphData.links);
@@ -289,7 +289,7 @@ function updateKnowledgeGraph(nodes, links) {
             console.error('Even simple restart failed:', e2);
         }
     }
-    
+
     // Create search index
     createSearchIndex(graphData.nodes);
 
@@ -336,7 +336,7 @@ function createSearchIndex(nodes) {
             content: node.id,
             entityType: node.type
         });
-        
+
         // Add observations
         if (node.observations) {
             node.observations.forEach((obs, index) => {
@@ -354,7 +354,7 @@ function createSearchIndex(nodes) {
 
 async function performServerSearch(query) {
     if (!query.trim() || query.length < 2) return [];
-    
+
     try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         if (!response.ok) {
@@ -369,41 +369,41 @@ async function performServerSearch(query) {
 
 function highlightText(text, query) {
     if (!query.trim()) return text;
-    
+
     const terms = query.toLowerCase().split(/\s+/);
     let highlighted = text;
-    
+
     terms.forEach(term => {
         const regex = new RegExp(`(${term})`, 'gi');
         highlighted = highlighted.replace(regex, '<span class="highlight">$1</span>');
     });
-    
+
     return highlighted;
 }
 
 async function showSearchResults(query) {
     const container = document.getElementById('searchResults');
-    
+
     if (!query.trim()) {
         container.innerHTML = '';
         return;
     }
-    
+
     // Show loading
     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Searching...</div>';
-    
+
     const results = await performServerSearch(query);
-    
+
     if (results.length === 0) {
         container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No results found</div>';
         return;
     }
-    
+
     container.innerHTML = results.map(result => {
-        const snippet = result.content.length > 120 ? 
-            result.content.substring(0, 120) + '...' : 
+        const snippet = result.content.length > 120 ?
+            result.content.substring(0, 120) + '...' :
             result.content;
-            
+
         return `
             <div class="search-result" onclick="showEntityDetails('${result.entity}', ${result.observationIndex || 'null'})">
                 <div class="result-title">${highlightText(result.entity, query)}</div>
@@ -417,20 +417,20 @@ async function showSearchResults(query) {
 function showEntityDetails(entityName, highlightObservationIndex = null) {
     const entity = graphData.nodes.find(n => n.id === entityName);
     if (!entity) return;
-    
+
     const panel = document.getElementById('detailPanel');
     const title = document.getElementById('detailTitle');
     const content = document.querySelector('.detail-content');
-    
+
     title.textContent = entity.id;
-    
+
     let html = `
         <div class="detail-section">
             <h4>Type</h4>
             <div style="color: ${getNodeColor(entity.group)}; font-weight: bold;">${entity.type}</div>
         </div>
     `;
-    
+
     if (entity.observations && entity.observations.length > 0) {
         html += `
             <div class="detail-section">
@@ -443,12 +443,12 @@ function showEntityDetails(entityName, highlightObservationIndex = null) {
             </div>
         `;
     }
-    
+
     // Show connections
-    const connections = graphData.links.filter(l => 
+    const connections = graphData.links.filter(l =>
         l.source.id === entityName || l.target.id === entityName
     );
-    
+
     if (connections.length > 0) {
         html += `
             <div class="detail-section">
@@ -457,7 +457,7 @@ function showEntityDetails(entityName, highlightObservationIndex = null) {
                     const isSource = conn.source.id === entityName;
                     const otherEntity = isSource ? conn.target.id : conn.source.id;
                     const relation = isSource ? conn.relation : `← ${conn.relation}`;
-                    
+
                     return `
                         <div class="connection-item" onclick="showEntityDetails('${otherEntity}')">
                             <strong>${relation}</strong> ${otherEntity}
@@ -467,10 +467,10 @@ function showEntityDetails(entityName, highlightObservationIndex = null) {
             </div>
         `;
     }
-    
+
     content.innerHTML = html;
     panel.style.display = 'flex';
-    
+
     // Highlight the node in the graph
     highlightNode(entityName);
 }
@@ -481,7 +481,7 @@ function highlightNode(entityName) {
         .duration(300)
         .attr('stroke', d => d.id === entityName ? '#ff6b35' : '#fff')
         .attr('stroke-width', d => d.id === entityName ? 3 : 1.5);
-        
+
     // Reset after 2 seconds
     setTimeout(() => {
         svg.selectAll('.node')
@@ -497,7 +497,7 @@ function showError(message) {
     errorEl.className = 'error';
     errorEl.textContent = message;
     document.body.appendChild(errorEl);
-    
+
     setTimeout(() => {
         document.body.removeChild(errorEl);
     }, 5000);
@@ -507,7 +507,7 @@ function showError(message) {
 function toggleSearch() {
     const panel = document.getElementById('searchPanel');
     const btn = document.getElementById('searchBtn');
-    
+
     if (panel.style.display === 'none') {
         panel.style.display = 'flex';
         btn.textContent = 'Hide Search';
@@ -533,7 +533,7 @@ async function refreshData() {
 
 function fitToScreen() {
     if (graphData.nodes.length === 0) return;
-    
+
     const bounds = container.node().getBBox();
     const fullWidth = width;
     const fullHeight = height;
@@ -574,7 +574,7 @@ function toggleSimulation() {
 // Debug function to force layout restart
 function forceLayout() {
     console.log('Manually forcing layout restart');
-    
+
     // Randomize positions to break any clustering
     graphData.nodes.forEach(d => {
         d.x = width/2 + (Math.random() - 0.5) * 300;
@@ -585,10 +585,10 @@ function forceLayout() {
         delete d.fx;
         delete d.fy;
     });
-    
+
     // Force strong restart
     simulation.alpha(1.0).alphaTarget(0.3).restart();
-    
+
     setTimeout(() => {
         simulation.alphaTarget(0);
     }, 5000);

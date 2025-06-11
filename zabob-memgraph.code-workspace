@@ -1,0 +1,44 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+    ],
+    "settings": {
+        "markdownlint.config": {
+        "MD041": false,
+        "MD013": false,
+        "MD026": false,
+        "MD036": false,
+	"MD034": false,
+    },
+    "cSpell.words": [
+        "memgraph",
+        "sdist",
+        "zabob"
+    ],
+    "makefile.configureOnOpen": false,
+    "python.analysis.ignore": [
+        ".venv/"
+    ],
+    "cSpell.ignorePaths": [
+        "package-lock.json",
+        "node_modules",
+        "vscode-extension",
+        ".git/{info,lfs,logs,refs,objects}/**",
+        ".git/{index,*refs,*HEAD}",
+        ".vscode",
+        ".vscode-insiders",
+        ".venv"
+    ],
+    "cSpell.dictionaryDefinitions": [
+        {
+            "name": "zabob",
+            "path": "./.zabob.dic",
+            "scope": "workspace",
+            "description": "Zabob custom dictionary",
+            "addWords": true
+        }
+    ]
+    }
+}

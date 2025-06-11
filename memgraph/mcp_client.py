@@ -14,10 +14,9 @@ class SimpleMCPKnowledgeClient:
     Simple client that calls MCP functions directly and formats results.
     """
 
+
     def __init__(self):
         self._lock = asyncio.Lock()
-
-    async def read_graph(self) -> Dict[str, Any]:
 
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from MCP"""
@@ -56,7 +55,7 @@ class SimpleMCPKnowledgeClient:
                 print(f"MCP read_graph failed: {e}")
                 return self._get_sample_data()
 
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes using MCP"""
         async with self._lock:
             try:
@@ -74,7 +73,7 @@ class SimpleMCPKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
 
-    def _format_for_api(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
@@ -96,7 +95,7 @@ class SimpleMCPKnowledgeClient:
 
         return {"entities": entities, "relations": relations}
 
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
@@ -119,7 +118,7 @@ class SimpleMCPKnowledgeClient:
 
         return {"entities": matching_entities, "relations": matching_relations}
 
-    def _get_sample_data(self) -> Dict[str, Any]:
+    def _get_sample_data(self) -> dict[str, Any]:
         """Get sample data that matches the real structure"""
         return {
             "entities": [

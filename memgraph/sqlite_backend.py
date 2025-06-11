@@ -38,7 +38,7 @@ class SQLiteKnowledgeGraphDB:
     """
     SQLite-based knowledge graph database with MCP import functionality.
     """
-    
+
     def __init__(self, db_path: str = "knowledge_graph.db"):
         # Ensure we use absolute path to avoid working directory issues
         if not Path(db_path).is_absolute():
@@ -47,11 +47,11 @@ class SQLiteKnowledgeGraphDB:
             self.db_path = base_dir / db_path
         else:
             self.db_path = Path(db_path)
-        
+
         self._lock = asyncio.Lock()
         print(f"SQLite database path: {self.db_path.absolute()}")
         self._init_db()
-    
+
     def _init_db(self):
         """Initialize the database schema"""
         with sqlite3.connect(self.db_path) as conn:
@@ -64,7 +64,7 @@ class SQLiteKnowledgeGraphDB:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
-                
+
                 CREATE TABLE IF NOT EXISTS relations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     from_entity TEXT NOT NULL,
@@ -76,49 +76,49 @@ class SQLiteKnowledgeGraphDB:
                     FOREIGN KEY (to_entity) REFERENCES entities (name),
                     UNIQUE(from_entity, to_entity, relation_type)
                 );
-                
+
                 CREATE INDEX IF NOT EXISTS idx_entities_name ON entities (name);
                 CREATE INDEX IF NOT EXISTS idx_entities_type ON entities (entity_type);
                 CREATE INDEX IF NOT EXISTS idx_relations_from ON relations (from_entity);
                 CREATE INDEX IF NOT EXISTS idx_relations_to ON relations (to_entity);
                 CREATE INDEX IF NOT EXISTS idx_relations_type ON relations (relation_type);
-                
+
                 -- Full-text search table for observations
                 CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
                     name, entity_type, observations, content='entities'
                 );
-                
+
                 -- Triggers to keep FTS in sync
                 CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
                     INSERT INTO entities_fts(rowid, name, entity_type, observations)
                     VALUES (new.id, new.name, new.entity_type, new.observations);
                 END;
-                
+
                 CREATE TRIGGER IF NOT EXISTS entities_fts_delete AFTER DELETE ON entities BEGIN
                     DELETE FROM entities_fts WHERE rowid = old.id;
                 END;
-                
+
                 CREATE TRIGGER IF NOT EXISTS entities_fts_update AFTER UPDATE ON entities BEGIN
                     DELETE FROM entities_fts WHERE rowid = old.id;
                     INSERT INTO entities_fts(rowid, name, entity_type, observations)
                     VALUES (new.id, new.name, new.entity_type, new.observations);
                 END;
             """)
-    
+
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from SQLite"""
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
-                    
+
                     # Get all entities
                     entities_cursor = conn.execute("""
-                        SELECT name, entity_type, observations 
-                        FROM entities 
+                        SELECT name, entity_type, observations
+                        FROM entities
                         ORDER BY name
                     """)
-                    
+
                     entities = []
                     for row in entities_cursor:
                         entities.append({
@@ -126,14 +126,14 @@ class SQLiteKnowledgeGraphDB:
                             "entityType": row["entity_type"],
                             "observations": json.loads(row["observations"])
                         })
-                    
+
                     # Get all relations
                     relations_cursor = conn.execute("""
-                        SELECT from_entity, to_entity, relation_type 
-                        FROM relations 
+                        SELECT from_entity, to_entity, relation_type
+                        FROM relations
                         ORDER BY from_entity, to_entity
                     """)
-                    
+
                     relations = []
                     for row in relations_cursor:
                         relations.append({
@@ -141,20 +141,20 @@ class SQLiteKnowledgeGraphDB:
                             "to": row["to_entity"],
                             "relationType": row["relation_type"]
                         })
-                    
+
                     return {"entities": entities, "relations": relations}
-                    
+
             except Exception as e:
                 print(f"SQLite read_graph failed: {e}")
                 return {"entities": [], "relations": []}
-    
+
     async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes using SQLite FTS"""
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
-                    
+
                     # Use FTS for searching
                     search_cursor = conn.execute("""
                         SELECT e.name, e.entity_type, e.observations
@@ -163,10 +163,10 @@ class SQLiteKnowledgeGraphDB:
                         WHERE entities_fts MATCH ?
                         ORDER BY rank
                     """, (query,))
-                    
+
                     entities = []
                     entity_names = set()
-                    
+
                     for row in search_cursor:
                         entity_name = row["name"]
                         entities.append({
@@ -175,17 +175,17 @@ class SQLiteKnowledgeGraphDB:
                             "observations": json.loads(row["observations"])
                         })
                         entity_names.add(entity_name)
-                    
+
                     # Get relations for matching entities
                     if entity_names:
                         placeholders = ",".join("?" * len(entity_names))
                         relations_cursor = conn.execute(f"""
-                            SELECT from_entity, to_entity, relation_type 
-                            FROM relations 
-                            WHERE from_entity IN ({placeholders}) 
+                            SELECT from_entity, to_entity, relation_type
+                            FROM relations
+                            WHERE from_entity IN ({placeholders})
                                OR to_entity IN ({placeholders})
                         """, list(entity_names) + list(entity_names))
-                        
+
                         relations = []
                         for row in relations_cursor:
                             relations.append({
@@ -195,20 +195,20 @@ class SQLiteKnowledgeGraphDB:
                             })
                     else:
                         relations = []
-                    
+
                     return {"entities": entities, "relations": relations}
-                    
+
             except Exception as e:
                 print(f"SQLite search_nodes failed: {e}")
                 # Fallback to simple LIKE search
                 return await self._simple_search(query)
-    
+
     async def _simple_search(self, query: str) -> dict[str, Any]:
         """Simple LIKE-based search fallback"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                
+
                 # Simple search in name and observations
                 search_cursor = conn.execute("""
                     SELECT name, entity_type, observations
@@ -216,10 +216,10 @@ class SQLiteKnowledgeGraphDB:
                     WHERE name LIKE ? OR observations LIKE ?
                     ORDER BY name
                 """, (f"%{query}%", f"%{query}%"))
-                
+
                 entities = []
                 entity_names = set()
-                
+
                 for row in search_cursor:
                     entity_name = row["name"]
                     entities.append({
@@ -228,17 +228,17 @@ class SQLiteKnowledgeGraphDB:
                         "observations": json.loads(row["observations"])
                     })
                     entity_names.add(entity_name)
-                
+
                 # Get relations
                 if entity_names:
                     placeholders = ",".join("?" * len(entity_names))
                     relations_cursor = conn.execute(f"""
-                        SELECT from_entity, to_entity, relation_type 
-                        FROM relations 
-                        WHERE from_entity IN ({placeholders}) 
+                        SELECT from_entity, to_entity, relation_type
+                        FROM relations
+                        WHERE from_entity IN ({placeholders})
                            OR to_entity IN ({placeholders})
                     """, list(entity_names) + list(entity_names))
-                    
+
                     relations = []
                     for row in relations_cursor:
                         relations.append({
@@ -248,33 +248,33 @@ class SQLiteKnowledgeGraphDB:
                         })
                 else:
                     relations = []
-                
+
                 return {"entities": entities, "relations": relations}
-                
+
         except Exception as e:
             print(f"Simple search failed: {e}")
             return {"entities": [], "relations": []}
-    
+
     async def import_from_mcp(self, mcp_client) -> dict[str, Any]:
         """Import data from an MCP client into SQLite"""
         async with self._lock:
             try:
                 # Get data from MCP client
                 mcp_data = await mcp_client.read_graph()
-                
+
                 if not mcp_data.get("entities"):
                     return {"status": "error", "message": "No data from MCP client"}
-                
+
                 imported_entities = 0
                 imported_relations = 0
                 timestamp = datetime.utcnow().isoformat()
-                
+
                 with sqlite3.connect(self.db_path) as conn:
                     # Import entities
                     for entity in mcp_data["entities"]:
                         try:
                             conn.execute("""
-                                INSERT OR REPLACE INTO entities 
+                                INSERT OR REPLACE INTO entities
                                 (name, entity_type, observations, created_at, updated_at)
                                 VALUES (?, ?, ?, ?, ?)
                             """, (
@@ -287,12 +287,12 @@ class SQLiteKnowledgeGraphDB:
                             imported_entities += 1
                         except Exception as e:
                             print(f"Failed to import entity {entity['name']}: {e}")
-                    
+
                     # Import relations
                     for relation in mcp_data["relations"]:
                         try:
                             conn.execute("""
-                                INSERT OR REPLACE INTO relations 
+                                INSERT OR REPLACE INTO relations
                                 (from_entity, to_entity, relation_type, created_at, updated_at)
                                 VALUES (?, ?, ?, ?, ?)
                             """, (
@@ -305,41 +305,41 @@ class SQLiteKnowledgeGraphDB:
                             imported_relations += 1
                         except Exception as e:
                             print(f"Failed to import relation {relation}: {e}")
-                    
+
                     conn.commit()
-                
+
                 return {
                     "status": "success",
                     "imported_entities": imported_entities,
                     "imported_relations": imported_relations,
                     "timestamp": timestamp
                 }
-                
+
             except Exception as e:
                 print(f"MCP import failed: {e}")
                 return {"status": "error", "message": str(e)}
-    
+
     async def get_stats(self) -> dict[str, Any]:
         """Get database statistics"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute("""
-                    SELECT 
+                    SELECT
                         (SELECT COUNT(*) FROM entities) as entity_count,
                         (SELECT COUNT(*) FROM relations) as relation_count,
                         (SELECT COUNT(DISTINCT entity_type) FROM entities) as entity_types,
                         (SELECT COUNT(DISTINCT relation_type) FROM relations) as relation_types
                 """)
-                
+
                 stats = cursor.fetchone()
                 return {
                     "entity_count": stats[0],
-                    "relation_count": stats[1], 
+                    "relation_count": stats[1],
                     "entity_types": stats[2],
                     "relation_types": stats[3],
                     "database_path": str(self.db_path)
                 }
-                
+
         except Exception as e:
             print(f"Failed to get stats: {e}")
             return {"error": str(e)}
