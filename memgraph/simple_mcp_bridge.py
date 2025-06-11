@@ -11,7 +11,7 @@ import tempfile
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 class SimpleMCPBridge:
@@ -22,7 +22,7 @@ class SimpleMCPBridge:
     def __init__(self):
         self._lock = asyncio.Lock()
     
-    async def read_graph(self) -> Dict[str, Any]:
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph via bridge"""
         async with self._lock:
             try:
@@ -50,7 +50,7 @@ except Exception as e:
                 print(f"MCP bridge read_graph failed: {e}")
                 return self._get_bridge_error(str(e))
     
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes via bridge"""  
         async with self._lock:
             try:
@@ -62,7 +62,7 @@ except Exception as e:
                 print(f"MCP bridge search_nodes failed: {e}")
                 return {"entities": [], "relations": []}
     
-    async def _get_live_data(self) -> Dict[str, Any]:
+    async def _get_live_data(self) -> dict[str, Any]:
         """Get the actual live data from MCP (bypassing subprocess for now)"""
         # Since I can call read_graph() directly in this context, let me return
         # the actual data structure. This simulates what we'd get from a working bridge.
@@ -134,7 +134,7 @@ except Exception as e:
             print(f"Error calling read_graph: {e}")
             return self._get_bridge_error(str(e))
     
-    def _format_for_api(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
@@ -155,7 +155,7 @@ except Exception as e:
         
         return {"entities": entities, "relations": relations}
     
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search implementation"""
         query_lower = query.lower()
         matching_entities = []
@@ -178,7 +178,7 @@ except Exception as e:
         
         return {"entities": matching_entities, "relations": matching_relations}
     
-    def _get_bridge_error(self, error_msg: str) -> Dict[str, Any]:
+    def _get_bridge_error(self, error_msg: str) -> dict[str, Any]:
         """Error data when bridge fails"""
         return {
             "entities": [
