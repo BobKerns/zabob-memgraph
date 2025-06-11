@@ -8,7 +8,7 @@ similar to how Docker containers and other MCP servers are invoked.
 import asyncio
 import json
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class StdioMCPKnowledgeClient:
@@ -17,7 +17,7 @@ class StdioMCPKnowledgeClient:
     Follows the same pattern as Docker MCP containers.
     """
     
-    def __init__(self, command: List[str] = None):
+    def __init__(self, command: list[str] | None = None):
         self._lock = asyncio.Lock()
         self._request_id = 0
         # Default to calling MCP tools in current Python environment
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     handle_mcp_request()
 """]
     
-    async def read_graph(self) -> Dict[str, Any]:
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph via stdio MCP"""
         async with self._lock:
             try:
@@ -106,7 +106,7 @@ if __name__ == '__main__':
                 print(f"Stdio MCP read_graph failed: {e}")
                 return self._get_stdio_error(str(e))
     
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes via stdio MCP"""  
         async with self._lock:
             try:
@@ -135,7 +135,7 @@ if __name__ == '__main__':
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
     
-    async def _call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
         """Call an MCP tool using stdio protocol"""
         try:
             self._request_id += 1
@@ -181,7 +181,7 @@ if __name__ == '__main__':
             print(f"Stdio MCP tool call failed: {e}")
             return {"error": {"message": str(e)}}
     
-    def _format_for_api(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         
         return {"entities": entities, "relations": relations}
     
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
@@ -225,7 +225,7 @@ if __name__ == '__main__':
         
         return {"entities": matching_entities, "relations": matching_relations}
     
-    def _get_stdio_error(self, error_msg: str) -> Dict[str, Any]:
+    def _get_stdio_error(self, error_msg: str) -> dict[str, Any]:
         """Error data when stdio MCP fails"""
         return {
             "entities": [

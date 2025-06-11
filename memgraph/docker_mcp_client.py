@@ -9,6 +9,7 @@ import asyncio
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 
 class DockerMCPKnowledgeClient:
@@ -106,7 +107,7 @@ class DockerMCPKnowledgeClient:
             )
             
             # Send the MCP request
-            request_line = json.dumps(request) + "\\n"
+            request_line = json.dumps(request) + "\n"
             stdout, stderr = await process.communicate(request_line.encode())
             
             if process.returncode == 0 and stdout:
