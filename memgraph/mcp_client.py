@@ -6,7 +6,7 @@ for the HTTP API.
 """
 
 import asyncio
-from typing import Any, Dict
+from typing import Any  # TODO: Clean up imports
 
 
 class SimpleMCPKnowledgeClient:
@@ -18,13 +18,15 @@ class SimpleMCPKnowledgeClient:
         self._lock = asyncio.Lock()
 
     async def read_graph(self) -> Dict[str, Any]:
+
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from MCP"""
         async with self._lock:
             try:
                 # Try to call the real MCP read_graph function
                 # Import it at runtime to avoid circular imports
                 import sys
-                
+
                 # Method 1: Try to get it from the global namespace
                 frame = sys._getframe(1)
                 while frame:
@@ -33,7 +35,7 @@ class SimpleMCPKnowledgeClient:
                         result = read_graph_func()
                         return self._format_for_api(result)
                     frame = frame.f_back
-                
+
                 # Method 2: Try direct import from main context
                 try:
                     # Import the knowledge graph functions directly
@@ -44,12 +46,12 @@ class SimpleMCPKnowledgeClient:
                         return self._format_for_api(result)
                 except Exception:
                     pass
-                
+
                 # Method 3: Try to call the MCP functions we know exist
                 # Fall back to sample data if we can't connect
                 print("MCP functions not available in current context, using sample data")
                 return self._get_sample_data()
-                
+
             except Exception as e:
                 print(f"MCP read_graph failed: {e}")
                 return self._get_sample_data()

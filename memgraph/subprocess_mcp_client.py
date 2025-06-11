@@ -9,7 +9,7 @@ import asyncio
 import json
 import subprocess
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any  # TODO: Clean up imports, List, Optional
 
 
 class SubprocessMCPKnowledgeClient:
@@ -23,7 +23,7 @@ class SubprocessMCPKnowledgeClient:
         # We'll call the MCP tools that are available in this environment
         # For now, we can try calling them via subprocess python execution
     
-    async def read_graph(self) -> Dict[str, Any]:
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph via subprocess MCP call"""
         async with self._lock:
             try:
@@ -39,7 +39,7 @@ class SubprocessMCPKnowledgeClient:
                 print(f"Subprocess MCP read_graph failed: {e}")
                 return self._get_connection_error()
     
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes via subprocess MCP call"""  
         async with self._lock:
             try:
@@ -56,7 +56,7 @@ class SubprocessMCPKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
     
-    async def _call_mcp_function(self, function_name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _call_mcp_function(self, function_name: str, args: dict[str, Any]) -> | None  # TODO: Fix Optional[dict[str, Any]]:
         """Call an MCP function via subprocess"""
         try:
             # Create a Python script that imports and calls the MCP function
@@ -110,7 +110,7 @@ except Exception as e:
             print(f"Subprocess execution failed: {e}")
             return None
     
-    def _format_for_api(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
@@ -131,7 +131,7 @@ except Exception as e:
         
         return {"entities": entities, "relations": relations}
     
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
@@ -154,7 +154,7 @@ except Exception as e:
         
         return {"entities": matching_entities, "relations": matching_relations}
     
-    def _get_connection_error(self) -> Dict[str, Any]:
+    def _get_connection_error(self) -> dict[str, Any]:
         """Error data when subprocess MCP fails"""
         return {
             "entities": [
