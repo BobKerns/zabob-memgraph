@@ -14,7 +14,7 @@ class SimpleMCPBridge:
     Simple bridge that calls MCP functions in the proper context.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
 
     async def read_graph(self) -> dict[str, Any]:
@@ -58,7 +58,7 @@ class SimpleMCPBridge:
                 frame = frame.f_back
 
             # If not found, call it directly (this should work)
-            result = read_graph()
+            result = read_graph()  # type: ignore[name-defined]
             return self._format_for_api(result)
 
         except NameError:

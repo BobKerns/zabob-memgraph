@@ -15,7 +15,7 @@ class DockerMCPKnowledgeClient:
     Client that connects to MCP memory Docker container to get real knowledge graph data.
     """
 
-    def __init__(self, container_command: list[str] | None = None):
+    def __init__(self, container_command: list[str] | None = None) -> None:
         self._lock = asyncio.Lock()
         self._request_id = 0
         # Default to the memory container pattern you mentioned

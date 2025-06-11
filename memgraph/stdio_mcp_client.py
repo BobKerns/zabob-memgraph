@@ -16,7 +16,7 @@ class StdioMCPKnowledgeClient:
     Follows the same pattern as Docker MCP containers.
     """
 
-    def __init__(self, command: list[str] | None = None):
+    def __init__(self, command: list[str] | None = None) -> None:
         self._lock = asyncio.Lock()
         self._request_id = 0
         # Default to calling MCP tools in current Python environment

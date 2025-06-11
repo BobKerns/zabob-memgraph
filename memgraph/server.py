@@ -79,7 +79,7 @@ if web_dir.exists():
     app.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
 
 @app.get("/")
-async def root() -> HTMLResponse|FileResponse:
+async def root() -> HTMLResponse:
     """Serve the main visualization page"""
     web_file = Path(__file__).parent / "web" / "index.html"
     if web_file.exists():
@@ -155,7 +155,7 @@ async def get_entities() -> list[dict[str, Any]]:
     """Get all entities with thread-safe access"""
     try:
         graph_data = await knowledge_client.read_graph()
-        entities = graph_data.get("entities", [])
+        entities: list[dict[str, Any]] = graph_data.get("entities", [])
         return entities
     except Exception as e:
         logger.error(f"Error reading entities: {e}")
@@ -236,7 +236,7 @@ async def health_check() -> dict[str, str]:
         "status": "healthy",
         "service": "knowledge-graph-mcp",
         "version": "0.2.0",
-        "features": "thread-safe storage, multi-client support, sqlite backend"
+        "features": ["thread-safe storage", "multi-client support", "sqlite backend"]
     }
 
 @app.post("/api/import-mcp")
@@ -246,10 +246,8 @@ async def import_from_mcp() -> dict[str, Any]:
         from .sqlite_backend import sqlite_knowledge_db
 
         # Try different MCP clients in order of preference
-        mcp_client = None
-        client_name = "unknown"
-
         mcp_client: Any = None
+        client_name = "unknown"
         try:
             from .docker_mcp_client import docker_mcp_knowledge_client
             mcp_client = docker_mcp_knowledge_client

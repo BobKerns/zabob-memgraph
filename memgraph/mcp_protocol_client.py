@@ -16,7 +16,7 @@ class MCPProtocolKnowledgeClient:
     This mimics how real MCP clients communicate with servers.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
         self._request_id = 0
 

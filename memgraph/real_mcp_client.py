@@ -14,7 +14,7 @@ class RealMCPKnowledgeClient:
     Client that calls real MCP knowledge graph functions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
 
     async def read_graph(self) -> dict[str, Any]:
@@ -22,7 +22,8 @@ class RealMCPKnowledgeClient:
         async with self._lock:
             try:
                 # Call the real read_graph function that's available in this execution context
-                result = read_graph()
+                # This will raise NameError if not available, which we handle below
+                result = read_graph()  # type: ignore[name-defined]
                 print(f"Successfully read {len(result.get('entities', []))} entities from MCP")
                 return self._format_for_api(result)
             except NameError:
@@ -36,7 +37,7 @@ class RealMCPKnowledgeClient:
         """Search nodes using real MCP tools"""
         async with self._lock:
             try:
-                result = search_nodes(query=query)
+                result = search_nodes(query=query)  # type: ignore[name-defined]
                 return self._format_for_api(result)
             except NameError:
                 print("search_nodes function not available - using local search")

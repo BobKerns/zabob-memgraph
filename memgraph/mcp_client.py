@@ -15,7 +15,7 @@ class SimpleMCPKnowledgeClient:
     """
 
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
 
     async def read_graph(self) -> dict[str, Any]:
@@ -28,7 +28,7 @@ class SimpleMCPKnowledgeClient:
 
                 # Method 1: Try to get it from the global namespace
                 frame = sys._getframe(1)
-                while frame:
+                while frame is not None:
                     if 'read_graph' in frame.f_globals:
                         read_graph_func = frame.f_globals['read_graph']
                         result = read_graph_func()

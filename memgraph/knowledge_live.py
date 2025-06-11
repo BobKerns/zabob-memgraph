@@ -36,7 +36,7 @@ class LiveKnowledgeGraphManager:
     Provides read-only access to the current knowledge graph state.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
 
     async def read_graph(self) -> dict[str, Any]:
@@ -161,7 +161,7 @@ class StubKnowledgeGraphManager:
     Provides minimal functionality for testing.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
 
     async def read_graph(self) -> dict[str, Any]:
@@ -183,7 +183,7 @@ class StubKnowledgeGraphManager:
 
 # Global instance - use live MCP connection if available, stub otherwise
 try:
-    knowledge_client = LiveKnowledgeGraphManager()
+    knowledge_client: LiveKnowledgeGraphManager | StubKnowledgeGraphManager = LiveKnowledgeGraphManager()
 except Exception:
     # Fallback to stub if live connection fails
     knowledge_client = StubKnowledgeGraphManager()

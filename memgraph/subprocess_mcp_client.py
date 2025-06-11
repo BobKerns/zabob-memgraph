@@ -17,7 +17,7 @@ class SubprocessMCPKnowledgeClient:
     Similar to how Docker MCP containers are invoked.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
         # We'll call the MCP tools that are available in this environment
         # For now, we can try calling them via subprocess python execution
