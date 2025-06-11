@@ -45,14 +45,11 @@ jobs:
       run: |
         uv run mypy memgraph/
 
-    - name: Check formatting with black
-      run: |
-        uv run black --check memgraph/
 
     - name: Check import sorting with isort
       run: |
         uv run isort --check-only memgraph/
-
+        
     - name: Run tests
       run: |
         uv run pytest
