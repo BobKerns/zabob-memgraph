@@ -44,12 +44,16 @@ function initializeVisualization() {
     svg.call(zoom);
     container = svg.append("g");
 
-    // Initialize force simulation
+// Initialize force simulation
     simulation = d3.forceSimulation()
-        .force("link", d3.forceLink().id(d => d.id).distance(100))
-        .force("charge", d3.forceManyBody().strength(-300))
+        .force("link", d3.forceLink().id(d => d.id).distance(150).strength(0.8))
+        .force("charge", d3.forceManyBody().strength(-800))  // Stronger repulsion
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => Math.sqrt(d.degree) * 3 + 15));
+        .force("collision", d3.forceCollide().radius(d => Math.sqrt(d.degree) * 4 + 20).strength(0.9))
+        .force("x", d3.forceX(width / 2).strength(0.1))  // Gentle centering
+        .force("y", d3.forceY(height / 2).strength(0.1))
+        .alphaDecay(0.02)  // Slower cooling
+        .velocityDecay(0.4);  // More damping
 }
 
 // Load knowledge graph data from the server
@@ -94,12 +98,14 @@ function updateKnowledgeGraph(nodes, links) {
     // Store the data and give nodes initial positions
     graphData.nodes = nodes.map(d => ({
         ...d,
-        x: Math.random() * width,  // Random initial positions
-        y: Math.random() * height,
-        vx: 0,  // Initial velocity
-        vy: 0
+        x: width/2 + (Math.random() - 0.5) * 200,  // Spread around center
+        y: height/2 + (Math.random() - 0.5) * 200,
+        vx: (Math.random() - 0.5) * 50,  // Initial velocity to break clustering
+        vy: (Math.random() - 0.5) * 50
     }));
     graphData.links = links.map(d => ({...d}));
+    
+    console.log(`Updating graph with ${nodes.length} nodes and ${links.length} links`);
     
     // Calculate node degrees for sizing
     const degreeMap = {};
@@ -188,13 +194,16 @@ function updateKnowledgeGraph(nodes, links) {
     simulation.nodes(graphData.nodes);
     simulation.force("link").links(graphData.links);
     
-    // Force restart with higher alpha for better initial layout
-    simulation.alpha(1).alphaTarget(0.1).restart();
+    console.log('Force simulation restarting with alpha 1.0');
     
-    // Remove alpha target after initial settling
+    // Force restart with very high alpha for strong initial layout
+    simulation.alpha(1.0).alphaTarget(0.3).restart();
+    
+    // Remove alpha target after longer settling period
     setTimeout(() => {
+        console.log('Removing alphaTarget, allowing natural cooling');
         simulation.alphaTarget(0);
-    }, 3000);
+    }, 5000);
     
     // Create search index
     createSearchIndex(graphData.nodes);
@@ -227,8 +236,8 @@ function updateKnowledgeGraph(nodes, links) {
     document.getElementById('nodeCount').textContent = `Entities: ${graphData.nodes.length}`;
     document.getElementById('linkCount').textContent = `Relations: ${graphData.links.length}`;
 
-    // Auto-fit after simulation has settled
-    setTimeout(fitToScreen, 4000);
+    // Auto-fit after simulation has settled longer
+    setTimeout(fitToScreen, 6000);
 }
 
 // Search functionality
@@ -476,6 +485,29 @@ function toggleSimulation() {
         btn.textContent = 'Pause';
     }
 }
+
+// Debug function to force layout restart
+function forceLayout() {
+    console.log('Manually forcing layout restart');
+    
+    // Randomize positions to break any clustering
+    graphData.nodes.forEach(d => {
+        d.x = width/2 + (Math.random() - 0.5) * 300;
+        d.y = height/2 + (Math.random() - 0.5) * 300;
+        d.vx = (Math.random() - 0.5) * 100;
+        d.vy = (Math.random() - 0.5) * 100;
+    });
+    
+    // Force strong restart
+    simulation.alpha(1.0).alphaTarget(0.3).restart();
+    
+    setTimeout(() => {
+        simulation.alphaTarget(0);
+    }, 5000);
+}
+
+// Make it available globally for debugging
+window.forceLayout = forceLayout;
 
 // Drag handlers
 function dragstarted(event, d) {
