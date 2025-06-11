@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="graph"></div>
+    
+    <div class="controls">
+        <button onclick="fitToScreen()">Fit All</button>
+        <button onclick="resetZoom()">Reset Zoom</button>
+        <button onclick="centerGraph()">Center</button>
+        <button onclick="toggleSimulation()" id="pauseBtn">Pause</button>
+        <button onclick="toggleSearch()" id="searchBtn">Search</button>
+        <button onclick="refreshData()" id="refreshBtn">Refresh</button>
+    </div>
+    
+    <div class="stats">
+        <span id="nodeCount">Entities: 0</span>
+        <span id="linkCount">Relations: 0</span>
+        <span id="loadTime">Load: 0ms</span>
+    </div>
+    
+    <div id="searchPanel" class="search-panel" style="display: none;">
+        <div class="search-header">
+            <input type="text" id="searchInput" placeholder="Search entities, types, or observations..." />
+            <button onclick="clearSearch()">Clear</button>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+    </div>
+    
+    <div id="detailPanel" class="detail-panel" style="display: none;">
+        <div class="detail-header">
+            <h3 id="detailTitle"></h3>
+            <button onclick="closeDetail()">×</button>
+        </div>
+        <div class="detail-content"></div>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <div>Loading knowledge graph...</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="/static/graph.js"></script>
+    <script>
+        // Initialize the graph when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadKnowledgeGraph();
+        });
+    </script>
+</body>
+</html>
