@@ -1,41 +1,58 @@
+![zabob-banner,  AI Memory](zabob-banner.jpg)
+
 # Zabob Memgraph Banner Images
 
-This directory will contain banner images for the Zabob Memgraph project.
+This directory contains banner images for the Zabob Memgraph project.
 
 ## Required Images
 
 Based on the Zabob project structure, we need:
 
-1. **zabob-memgraph-banner.jpg** - Main banner for README files
+1. **zabob-holodeck-banner.jpg** - Main banner for README files
    - Should follow the visual style of `/Users/rwk/p/zabob/docs/images/zabob-banner.jpg`
    - Incorporate knowledge graph/network visualization themes
    - Include "Zabob Memgraph" branding
    - Recommended size: Similar to zabob-banner.jpg (~600KB)
 
-2. **zabob-memgraph-compact.jpg** - Compact banner for documentation pages
-   - Should follow the visual style of `/Users/rwk/p/zabob/docs/images/zabob-holodeck-text.jpg`  
+2. **zabob-banner.jpg** - Compact banner for documentation pages
+   - Should follow the visual style of `/Users/rwk/p/zabob/docs/images/zabob-holodeck-text.jpg`
    - More compact layout suitable for doc pages
    - Include "Zabob Memgraph" text overlay
    - Knowledge graph visualization theme
-   - Recommended size: Similar to zabob-holodeck-text.jpg (~1MB)
 
 ## Visual Theme Ideas
 
 For Zabob Memgraph banners, consider incorporating:
+
 - Network/graph visualization elements (nodes and connections)
 - Neural network or brain-inspired imagery
-- Data visualization aesthetics  
+- Data visualization aesthetics
 - Consistent with Zabob's futuristic/AI theme
 - Color scheme that complements the main Zabob branding
 - "Knowledge Graph" or "Memory Network" visual metaphors
 
 ## Current Status
 
-**TODO**: Banner images need to be created. The README currently references these images but they don't exist yet.
+Updated images have been supplied. Text on the holodeck hero image reads "AI Memory / Part of the Zabob Universe / Remembering the future / (so you don't have to)", in decreasing size. The banner images text reads "AI Memory", in italics. Both include bold "Zabob" on the left, next to his portrait.
 
-## References
+The backgrounds in each are variations of the same alien city scene with dramatic clouds brilliantly lit by an alien sun, from deep blues to vivid crimson.
 
-- Main Zabob banner: `/Users/rwk/p/zabob/docs/images/zabob-banner.jpg`
-- Zabob compact banner: `/Users/rwk/p/zabob/docs/images/zabob-holodeck-text.jpg`
-- Zabob main README usage example: `/Users/rwk/p/zabob/README.md`
-- Zabob docs README usage: `/Users/rwk/p/zabob/docs/user/README.md`
+### Zabob Portrait, canonical dark background
+
+![zabob.jpg](zabob.jpg)
+
+### Zabob Portrait, neutral background
+
+![zabob-neutral-bg.jpg](zabob-neutral-bg.jpg)
+
+### Zabob Holodeck reference base image
+
+![zabob-holodeck.jpg](zabob-holodeck.jpg)
+
+### Zabob Holodeck with AI memory text
+
+![zabob-holodeck-text.jpg](zabob-holodeck-text.jpg)
+
+### Zabob Banner with AI Memory
+
+![zabob-banner.jpg](zabob-banner.jpg)
