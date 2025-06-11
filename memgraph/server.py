@@ -26,23 +26,27 @@ try:
     logger.info("Using SQLite database backend")
 except (ImportError, Exception) as e:
     try:
-        from .stdio_mcp_client import stdio_mcp_knowledge_client as knowledge_client
-        logger.info("Using stdio MCP client for live data")
-    except (ImportError, NameError) as e:
+        from .docker_mcp_client import docker_mcp_knowledge_client as knowledge_client
+        logger.info("Using Docker MCP client for live data")
+    except (ImportError, Exception) as e:
         try:
-            from .simple_mcp_bridge import simple_mcp_bridge as knowledge_client
-            logger.info("Using simple MCP bridge for live data")
+            from .stdio_mcp_client import stdio_mcp_knowledge_client as knowledge_client
+            logger.info("Using stdio MCP client for live data")
         except (ImportError, NameError) as e:
             try:
-                from .real_mcp_client import real_mcp_knowledge_client as knowledge_client
-                logger.info("Using real MCP integration for live data")
+                from .simple_mcp_bridge import simple_mcp_bridge as knowledge_client
+                logger.info("Using simple MCP bridge for live data")
             except (ImportError, NameError) as e:
                 try:
-                    from .mcp_client import mcp_knowledge_client as knowledge_client
-                    logger.info("Using direct MCP integration for live data")
-                except ImportError:
-                    from .knowledge import knowledge_client
-                    logger.info("Using file-based storage as fallback")
+                    from .real_mcp_client import real_mcp_knowledge_client as knowledge_client
+                    logger.info("Using real MCP integration for live data")
+                except (ImportError, NameError) as e:
+                    try:
+                        from .mcp_client import mcp_knowledge_client as knowledge_client
+                        logger.info("Using direct MCP integration for live data")
+                    except ImportError:
+                        from .knowledge import knowledge_client
+                        logger.info("Using file-based storage as fallback")
 
 # Create FastAPI app
 app = FastAPI(
@@ -218,36 +222,59 @@ async def health_check() -> Dict[str, str]:
     }
 
 @app.post("/api/import-mcp")
-async def import_from_mcp() -> Dict[str, Any]:
+async def import_from_mcp() -> dict[str, Any]:
     """Import knowledge graph data from MCP tools into SQLite"""
     try:
-        # Try to import from stdio MCP client
-        from .stdio_mcp_client import stdio_mcp_knowledge_client
         from .sqlite_backend import sqlite_knowledge_db
         
-        result = await sqlite_knowledge_db.import_from_mcp(stdio_mcp_knowledge_client)
+        # Try different MCP clients in order of preference
+        mcp_client = None
+        client_name = "unknown"
+        
+        try:
+            from .docker_mcp_client import docker_mcp_knowledge_client
+            mcp_client = docker_mcp_knowledge_client
+            client_name = "Docker MCP"
+        except ImportError:
+            try:
+                from .stdio_mcp_client import stdio_mcp_knowledge_client
+                mcp_client = stdio_mcp_knowledge_client
+                client_name = "Stdio MCP"
+            except ImportError:
+                try:
+                    from .simple_mcp_bridge import simple_mcp_bridge
+                    mcp_client = simple_mcp_bridge
+                    client_name = "Simple MCP Bridge"
+                except ImportError:
+                    return {
+                        "status": "error",
+                        "message": "No MCP client available for import"
+                    }
+        
+        result = await sqlite_knowledge_db.import_from_mcp(mcp_client)
         
         if result["status"] == "success":
             # Get updated stats
             stats = await sqlite_knowledge_db.get_stats()
             return {
                 "status": "success",
-                "message": "MCP data imported successfully",
+                "message": f"MCP data imported successfully from {client_name}",
                 "imported_entities": result["imported_entities"],
                 "imported_relations": result["imported_relations"],
-                "database_stats": stats
+                "database_stats": stats,
+                "source_client": client_name
             }
         else:
             return {
                 "status": "error",
-                "message": result["message"]
+                "message": result["message"],
+                "source_client": client_name
             }
     except Exception as e:
         logger.error(f"Error importing from MCP: {e}")
         raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
-
 @app.get("/api/database-stats")
-async def get_database_stats() -> Dict[str, Any]:
+async def get_database_stats() -> dict[str, Any]:
     """Get SQLite database statistics"""
     try:
         from .sqlite_backend import sqlite_knowledge_db
