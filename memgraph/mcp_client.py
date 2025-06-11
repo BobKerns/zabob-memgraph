@@ -6,6 +6,7 @@ for the HTTP API.
 """
 
 import asyncio
+from collections.abc import Callable
 from typing import Any  # TODO: Clean up imports
 
 
@@ -14,10 +15,9 @@ class SimpleMCPKnowledgeClient:
     Simple client that calls MCP functions directly and formats results.
     """
 
-    def __init__(self):
-        self._lock = asyncio.Lock()
 
-    async def read_graph(self) -> Dict[str, Any]:
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
 
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from MCP"""
@@ -29,19 +29,20 @@ class SimpleMCPKnowledgeClient:
 
                 # Method 1: Try to get it from the global namespace
                 frame = sys._getframe(1)
-                while frame:
-                    if 'read_graph' in frame.f_globals:
-                        read_graph_func = frame.f_globals['read_graph']
+                while frame is not None:
+                    if "read_graph" in frame.f_globals:
+                        read_graph_func = frame.f_globals["read_graph"]
                         result = read_graph_func()
                         return self._format_for_api(result)
-                    frame = frame.f_back
+                    frame = frame.f_back  # type: ignore[assignment]
 
                 # Method 2: Try direct import from main context
                 try:
                     # Import the knowledge graph functions directly
                     # This should work when running in the same process as MCP tools
                     import __main__
-                    if hasattr(__main__, 'read_graph'):
+
+                    if hasattr(__main__, "read_graph"):
                         result = __main__.read_graph()
                         return self._format_for_api(result)
                 except Exception:
@@ -49,20 +50,28 @@ class SimpleMCPKnowledgeClient:
 
                 # Method 3: Try to call the MCP functions we know exist
                 # Fall back to sample data if we can't connect
-                print("MCP functions not available in current context, using sample data")
+                print(
+                    "MCP functions not available in current context, using sample data"
+                )
                 return self._get_sample_data()
 
             except Exception as e:
                 print(f"MCP read_graph failed: {e}")
                 return self._get_sample_data()
 
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes using MCP"""
         async with self._lock:
             try:
                 import builtins
-                if hasattr(builtins, 'search_nodes'):
-                    result = builtins.search_nodes(query=query)
+
+                if hasattr(builtins, "search_nodes"):
+                    # Trying to get every static checker to agree not to complain
+                    # about the function not being defined. Can't just suppress,
+                    # what quiets pylance causes mypy to complain.
+                    fn_name = "search_nodes"
+                    search_nodes: Callable[..., Any] = getattr(builtins, fn_name)
+                    result = search_nodes(query=query)
                     return self._format_for_api(result)
                 else:
                     # Fallback to local search
@@ -74,29 +83,33 @@ class SimpleMCPKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
 
-    def _format_for_api(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
 
         # Handle the MCP format
         for entity_data in mcp_result.get("entities", []):
-            entities.append({
-                "name": entity_data["name"],
-                "entityType": entity_data["entityType"],
-                "observations": entity_data["observations"]
-            })
+            entities.append(
+                {
+                    "name": entity_data["name"],
+                    "entityType": entity_data["entityType"],
+                    "observations": entity_data["observations"],
+                }
+            )
 
         for relation_data in mcp_result.get("relations", []):
-            relations.append({
-                "from_entity": relation_data["from"],
-                "to": relation_data["to"],
-                "relationType": relation_data["relationType"]
-            })
+            relations.append(
+                {
+                    "from_entity": relation_data["from"],
+                    "to": relation_data["to"],
+                    "relationType": relation_data["relationType"],
+                }
+            )
 
         return {"entities": entities, "relations": relations}
 
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
@@ -113,13 +126,14 @@ class SimpleMCPKnowledgeClient:
 
         entity_names = {e["name"] for e in matching_entities}
         matching_relations = [
-            r for r in graph_data["relations"]
+            r
+            for r in graph_data["relations"]
             if r["from_entity"] in entity_names or r["to"] in entity_names
         ]
 
         return {"entities": matching_entities, "relations": matching_relations}
 
-    def _get_sample_data(self) -> Dict[str, Any]:
+    def _get_sample_data(self) -> dict[str, Any]:
         """Get sample data that matches the real structure"""
         return {
             "entities": [

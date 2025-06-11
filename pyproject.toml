@@ -16,11 +16,14 @@ dependencies = [
     "jinja2>=3.1.6",
     "psutil>=6.1.0",
     "aiofiles>=24.1.0",
+    "rich>=14.0.0",
+    "requests>=2.32.4",
+    "toml>=0.10.2",
 ]
 
 [project.scripts]
 zabob-memgraph = "main:main"
-zabob-memgraph-launcher = "zabob-memgraph-launcher:cli"
+#zabob-memgraph-launcher = "zabob-memgraph-launcher:cli"
 
 [project.optional-dependencies]
 dev = [
@@ -28,6 +31,7 @@ dev = [
     "black>=25.1.0",
     "isort>=6.0.1",
     "mypy>=1.16.0",
+    "ruff>=0.11.13",
 ]
 
 [tool.setuptools.packages.find]
@@ -54,7 +58,7 @@ disallow_untyped_decorators = true
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 120
 
 [tool.ruff.lint]
 select = [
@@ -65,7 +69,9 @@ select = [
     "B",   # flake8-bugbear
     "I",   # isort
 ]
-ignore = []
+ignore = [
+    "UP036",
+    ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py

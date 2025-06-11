@@ -3,6 +3,7 @@
 ## Immediate Testing
 
 1. **Start the server**:
+
    ```bash
    cd /Users/rwk/p/memgraph
    python main.py
@@ -18,16 +19,19 @@
 ## Integration with Real Knowledge Graph Tools
 
 ### Phase 1: Connect to Existing MCP Tools
+
 - Modify `memgraph/knowledge.py` to connect to actual zabob MCP servers
 - Use the existing knowledge graph tools (`read_graph`, `search_nodes`, etc.)
 - Replace sample data with real-time data from the knowledge graph
 
 ### Phase 2: Real-time Updates
+
 - Add WebSocket support for live updates
 - Implement change notifications when knowledge graph is modified
 - Add auto-refresh functionality in the web client
 
 ### Phase 3: Advanced Features
+
 - Add entity creation/editing via the web interface
 - Implement relation management (add/remove connections)
 - Add export functionality (JSON, GraphML, etc.)
@@ -36,7 +40,7 @@
 ## Architecture Benefits Achieved
 
 ✅ **No Size Limits**: Server can handle unlimited entities and observations
-✅ **Real-time Data**: HTTP API provides current knowledge graph state  
+✅ **Real-time Data**: HTTP API provides current knowledge graph state
 ✅ **Scalable**: Clean separation between data and visualization
 ✅ **Extensible**: Easy to add new endpoints and features
 ✅ **Standards-based**: Uses HTTP/REST for broad compatibility

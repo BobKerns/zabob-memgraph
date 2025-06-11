@@ -6,20 +6,20 @@ with project mounts and access to development tools like type checkers, linters,
 """
 
 # Example usage concept:
-# 
+#
 # dev_container_mcp = MCPDevContainer()
-# 
+#
 # # Mount project and run type checking
 # result = await dev_container_mcp.run_tool(
 #     project_path="/Users/rwk/p/memgraph",
 #     tool="mypy",
 #     args=["--strict", "memgraph/"]
 # )
-# 
+#
 # # Run multiple tools in sequence
 # results = await dev_container_mcp.run_pipeline([
 #     {"tool": "mypy", "args": ["--strict", "."]},
-#     {"tool": "ruff", "args": ["check", "."]}, 
+#     {"tool": "ruff", "args": ["check", "."]},
 #     {"tool": "pytest", "args": ["tests/"]},
 # ])
 
@@ -27,7 +27,7 @@ with project mounts and access to development tools like type checkers, linters,
 Benefits of MCP Dev Container Tool:
 
 1. **Isolated Environments**: Each project gets clean container
-2. **Consistent Tooling**: Same Python/tool versions across machines  
+2. **Consistent Tooling**: Same Python/tool versions across machines
 3. **Security**: Sandboxed execution of dev tools
 4. **Parallel Execution**: Multiple containers for different tools
 5. **Tool Discovery**: Container can list available dev tools
@@ -51,7 +51,7 @@ container_configs = {
     "python-dev": {
         "image": "mcpdev/python:3.12",
         "tools": ["mypy", "ruff", "black", "pytest", "bandit"],
-        "mount": "/workspace", 
+        "mount": "/workspace",
         "working_dir": "/workspace"
     },
     "js-dev": {
