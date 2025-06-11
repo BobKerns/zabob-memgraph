@@ -54,3 +54,8 @@ htmlcov/
 # Development
 .mypy_cache/
 .ruff_cache/
+
+# Don't store our db
+*.db
+*.db-shm
+*.db-wal
