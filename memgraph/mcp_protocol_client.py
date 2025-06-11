@@ -33,7 +33,8 @@ class MCPProtocolKnowledgeClient:
                         text_content = content[0].get("text", "{}")
                         try:
                             parsed_result = json.loads(text_content)
-                            print(f"Successfully read {len(parsed_result.get('entities', []))} entities via MCP protocol")
+                            num_entities = len(parsed_result.get('entities', []))
+                            print(f"Successfully read {num_entities} entities via MCP protocol")
                             return self._format_for_api(parsed_result)
                         except json.JSONDecodeError:
                             print(f"Failed to parse MCP response: {text_content}")
@@ -41,7 +42,10 @@ class MCPProtocolKnowledgeClient:
                     else:
                         return self._get_protocol_error("Empty response from MCP tool")
                 else:
-                    error_msg = result.get("content", [{}])[0].get("text", "Unknown error") if result else "No response"
+                    if result:
+                        error_msg = result.get("content", [{}])[0].get("text", "Unknown error")
+                    else:
+                        error_msg = "No response"
                     return self._get_protocol_error(f"MCP tool error: {error_msg}")
 
             except Exception as e:

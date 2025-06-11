@@ -27,7 +27,7 @@ with project mounts and access to development tools like type checkers, linters,
 Benefits of MCP Dev Container Tool:
 
 1. **Isolated Environments**: Each project gets clean container
-2. **Consistent Tooling**: Same Python/tool versions across machines  
+2. **Consistent Tooling**: Same Python/tool versions across machines
 3. **Security**: Sandboxed execution of dev tools
 4. **Parallel Execution**: Multiple containers for different tools
 5. **Tool Discovery**: Container can list available dev tools

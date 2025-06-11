@@ -101,12 +101,15 @@ async def get_knowledge_graph() -> dict[str, Any]:
         # Transform to D3 visualization format
         nodes = []
         for entity in graph_data["entities"]:
+
             # Map entity types to visualization groups
             group = "person" if entity["entityType"] == "person" else \
                    "project" if entity["entityType"] == "project" else \
                    "development" if "development" in entity["entityType"].lower() else \
-                   "strategy" if "strategy" in entity["entityType"].lower() or "plan" in entity["entityType"].lower() else \
-                   "debug" if "debug" in entity["entityType"].lower() or "investigation" in entity["entityType"].lower() else \
+                   "strategy" if "strategy" in entity["entityType"].lower() \
+                       or "plan" in entity["entityType"].lower() else \
+                   "debug" if "debug" in entity["entityType"].lower() \
+                       or "investigation" in entity["entityType"].lower() else \
                    "technology"
 
             nodes.append({

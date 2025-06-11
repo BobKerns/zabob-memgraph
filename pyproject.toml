@@ -58,7 +58,7 @@ disallow_untyped_decorators = true
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 120
 
 [tool.ruff.lint]
 select = [
@@ -69,7 +69,9 @@ select = [
     "B",   # flake8-bugbear
     "I",   # isort
 ]
-ignore = []
+ignore = [
+    "UP036",
+    ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
