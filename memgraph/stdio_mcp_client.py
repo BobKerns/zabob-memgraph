@@ -172,7 +172,7 @@ if __name__ == '__main__':
             if process.returncode == 0 and stdout:
                 response = json.loads(stdout.decode().strip())
                 if "result" in response:
-                    return response["result"]
+                    return response["result"]  # type: ignore[no-any-return]
                 elif "error" in response:
                     return {"error": response["error"]}
                 else:

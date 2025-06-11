@@ -119,7 +119,7 @@ class DockerMCPKnowledgeClient:
                     try:
                         response = json.loads(response_text)
                         if "result" in response:
-                            return response["result"]
+                            return response["result"]  # type: ignore[no-any-return]
                         elif "error" in response:
                             return {"error": response["error"]}
                         else:

@@ -97,7 +97,7 @@ except Exception as e:
             if process.returncode == 0 and stdout:
                 result = json.loads(stdout.decode())
                 if "error" not in result:
-                    return result
+                    return result  # type: ignore[no-any-return]
                 else:
                     print(f"MCP function error: {result}")
                     return None

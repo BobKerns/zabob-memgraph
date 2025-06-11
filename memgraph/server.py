@@ -83,7 +83,10 @@ async def root() -> HTMLResponse:
     """Serve the main visualization page"""
     web_file = Path(__file__).parent / "web" / "index.html"
     if web_file.exists():
-        return FileResponse(web_file)
+        # Convert FileResponse to HTMLResponse for type consistency
+        with open(web_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HTMLResponse(content)
     return HTMLResponse("""
     <html>
         <head><title>Knowledge Graph</title></head>
@@ -236,7 +239,7 @@ async def health_check() -> dict[str, str]:
         "status": "healthy",
         "service": "knowledge-graph-mcp",
         "version": "0.2.0",
-        "features": ["thread-safe storage", "multi-client support", "sqlite backend"]
+        "features": "thread-safe storage, multi-client support, sqlite backend"
     }
 
 @app.post("/api/import-mcp")
@@ -326,9 +329,9 @@ def run_stdio_server() -> None:
     logger.warning("Running in STDIO mode - this may have file locking issues")
 
     # Create MCP server
-    server: Server = Server("memgraph")
+    server: Server[Any, Any] = Server("memgraph")
 
-    @server.list_tools()
+    @server.list_tools()  # type: ignore[misc]
     async def list_tools() -> ListToolsResult:
         return ListToolsResult(
             tools=[
@@ -395,7 +398,7 @@ def run_stdio_server() -> None:
             ]
         )
 
-    @server.call_tool()
+    @server.call_tool()  # type: ignore[misc]
     async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
         try:
             if name == "read_graph":
