@@ -20,21 +20,29 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try different MCP integration approaches in order of preference
+# Try different knowledge graph backends in order of preference
 try:
-    from .simple_mcp_bridge import simple_mcp_bridge as knowledge_client
-    logger.info("Using simple MCP bridge for live data")
-except (ImportError, NameError) as e:
+    from .sqlite_backend import sqlite_knowledge_db as knowledge_client
+    logger.info("Using SQLite database backend")
+except (ImportError, Exception) as e:
     try:
-        from .real_mcp_client import real_mcp_knowledge_client as knowledge_client
-        logger.info("Using real MCP integration for live data")
+        from .stdio_mcp_client import stdio_mcp_knowledge_client as knowledge_client
+        logger.info("Using stdio MCP client for live data")
     except (ImportError, NameError) as e:
         try:
-            from .mcp_client import mcp_knowledge_client as knowledge_client
-            logger.info("Using direct MCP integration for live data")
-        except ImportError:
-            from .knowledge import knowledge_client
-            logger.info("Using file-based storage as fallback")
+            from .simple_mcp_bridge import simple_mcp_bridge as knowledge_client
+            logger.info("Using simple MCP bridge for live data")
+        except (ImportError, NameError) as e:
+            try:
+                from .real_mcp_client import real_mcp_knowledge_client as knowledge_client
+                logger.info("Using real MCP integration for live data")
+            except (ImportError, NameError) as e:
+                try:
+                    from .mcp_client import mcp_knowledge_client as knowledge_client
+                    logger.info("Using direct MCP integration for live data")
+                except ImportError:
+                    from .knowledge import knowledge_client
+                    logger.info("Using file-based storage as fallback")
 
 # Create FastAPI app
 app = FastAPI(
@@ -206,8 +214,48 @@ async def health_check() -> Dict[str, str]:
         "status": "healthy", 
         "service": "knowledge-graph-mcp",
         "version": "0.2.0",
-        "features": ["thread-safe storage", "multi-client support"]
+        "features": ["thread-safe storage", "multi-client support", "sqlite backend"]
     }
+
+@app.post("/api/import-mcp")
+async def import_from_mcp() -> Dict[str, Any]:
+    """Import knowledge graph data from MCP tools into SQLite"""
+    try:
+        # Try to import from stdio MCP client
+        from .stdio_mcp_client import stdio_mcp_knowledge_client
+        from .sqlite_backend import sqlite_knowledge_db
+        
+        result = await sqlite_knowledge_db.import_from_mcp(stdio_mcp_knowledge_client)
+        
+        if result["status"] == "success":
+            # Get updated stats
+            stats = await sqlite_knowledge_db.get_stats()
+            return {
+                "status": "success",
+                "message": "MCP data imported successfully",
+                "imported_entities": result["imported_entities"],
+                "imported_relations": result["imported_relations"],
+                "database_stats": stats
+            }
+        else:
+            return {
+                "status": "error",
+                "message": result["message"]
+            }
+    except Exception as e:
+        logger.error(f"Error importing from MCP: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+
+@app.get("/api/database-stats")
+async def get_database_stats() -> Dict[str, Any]:
+    """Get SQLite database statistics"""
+    try:
+        from .sqlite_backend import sqlite_knowledge_db
+        stats = await sqlite_knowledge_db.get_stats()
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting database stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
 def run_server(host: str = "localhost", port: int = 8080) -> None:
     """Run the server with uvicorn"""
