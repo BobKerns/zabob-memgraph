@@ -91,8 +91,14 @@ async function loadKnowledgeGraph() {
 
 // Update the graph visualization
 function updateKnowledgeGraph(nodes, links) {
-    // Store the data
-    graphData.nodes = nodes.map(d => ({...d}));
+    // Store the data and give nodes initial positions
+    graphData.nodes = nodes.map(d => ({
+        ...d,
+        x: Math.random() * width,  // Random initial positions
+        y: Math.random() * height,
+        vx: 0,  // Initial velocity
+        vy: 0
+    }));
     graphData.links = links.map(d => ({...d}));
     
     // Calculate node degrees for sizing
@@ -178,42 +184,51 @@ function updateKnowledgeGraph(nodes, links) {
             }
         });
 
-    // Update simulation
+    // Update simulation with proper restart
     simulation.nodes(graphData.nodes);
     simulation.force("link").links(graphData.links);
+    
+    // Force restart with higher alpha for better initial layout
+    simulation.alpha(1).alphaTarget(0.1).restart();
+    
+    // Remove alpha target after initial settling
+    setTimeout(() => {
+        simulation.alphaTarget(0);
+    }, 3000);
     
     // Create search index
     createSearchIndex(graphData.nodes);
 
-    // Set up tick function
     simulation.on("tick", function() {
         linkUpdate
-            .attr("x1", d => d.source.x)
-            .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
+            .attr("x1", d => d.source.x || 0)
+            .attr("y1", d => d.source.y || 0)
+            .attr("x2", d => d.target.x || 0)
+            .attr("y2", d => d.target.y || 0);
 
         nodeUpdate
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
+            .attr("cx", d => d.x || 0)
+            .attr("cy", d => d.y || 0);
 
         container.selectAll(".label")
-            .attr("x", d => d.x)
-            .attr("y", d => d.y)
+            .attr("x", d => d.x || 0)
+            .attr("y", d => d.y || 0)
             .selectAll("tspan")
             .attr("x", function() {
-                return d3.select(this.parentNode).datum().x;
+                const datum = d3.select(this.parentNode).datum();
+                return datum.x || 0;
             });
     });
 
-    simulation.alpha(1).restart();
+    // Don't call restart again here since we already did above
+    // simulation.alpha(1).restart();
 
     // Update stats
     document.getElementById('nodeCount').textContent = `Entities: ${graphData.nodes.length}`;
     document.getElementById('linkCount').textContent = `Relations: ${graphData.links.length}`;
 
-    // Auto-fit after a moment
-    setTimeout(fitToScreen, 1000);
+    // Auto-fit after simulation has settled
+    setTimeout(fitToScreen, 4000);
 }
 
 // Search functionality
