@@ -222,6 +222,32 @@ function updateKnowledgeGraph(nodes, links) {
 
     // Update simulation with proper restart and error handling
     try {
+        console.log('Available node IDs:', graphData.nodes.map(n => n.id));
+        console.log('Link source/target IDs:', graphData.links.map(l => ({ source: l.source, target: l.target })));
+        
+        // Check for missing nodes referenced in links
+        const nodeIds = new Set(graphData.nodes.map(n => n.id));
+        const missingNodes = new Set();
+        
+        graphData.links.forEach(link => {
+            if (!nodeIds.has(link.source)) {
+                missingNodes.add(link.source);
+            }
+            if (!nodeIds.has(link.target)) {
+                missingNodes.add(link.target);
+            }
+        });
+        
+        if (missingNodes.size > 0) {
+            console.error('Missing nodes referenced in links:', Array.from(missingNodes));
+            // Filter out links that reference missing nodes
+            graphData.links = graphData.links.filter(link => 
+                nodeIds.has(link.source) && nodeIds.has(link.target)
+            );
+            console.log('Filtered links to remove references to missing nodes');
+            console.log('Remaining links:', graphData.links.length);
+        }
+        
         console.log('Setting simulation nodes...');
         simulation.nodes(graphData.nodes);
         
