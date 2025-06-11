@@ -6,6 +6,7 @@ for the HTTP API.
 """
 
 import asyncio
+from collections.abc import Callable
 from typing import Any  # TODO: Clean up imports
 
 
@@ -33,7 +34,7 @@ class SimpleMCPKnowledgeClient:
                         read_graph_func = frame.f_globals['read_graph']
                         result = read_graph_func()
                         return self._format_for_api(result)
-                    frame = frame.f_back
+                    frame = frame.f_back  # type: ignore[assignment]
 
                 # Method 2: Try direct import from main context
                 try:
@@ -61,7 +62,12 @@ class SimpleMCPKnowledgeClient:
             try:
                 import builtins
                 if hasattr(builtins, 'search_nodes'):
-                    result = builtins.search_nodes(query=query)
+                    # Trying to get every static checker to agree not to complain
+                    # about the function not being defined. Can't just suppress,
+                    # what quiets pylance causes mypy to complain.
+                    fn_name = 'search_nodes'
+                    search_nodes: Callable[..., Any] = getattr(builtins, fn_name)
+                    result = search_nodes(query=query)
                     return self._format_for_api(result)
                 else:
                     # Fallback to local search

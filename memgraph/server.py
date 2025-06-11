@@ -331,7 +331,7 @@ def run_stdio_server() -> None:
     # Create MCP server
     server: Server[Any, Any] = Server("memgraph")
 
-    @server.list_tools()  # type: ignore[misc]
+    @server.list_tools()  # type: ignore[misc,no-untyped-call]
     async def list_tools() -> ListToolsResult:
         return ListToolsResult(
             tools=[
@@ -398,7 +398,7 @@ def run_stdio_server() -> None:
             ]
         )
 
-    @server.call_tool()  # type: ignore[misc]
+    @server.call_tool()  # type: ignore[misc,no-untyped-call]
     async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
         try:
             if name == "read_graph":
