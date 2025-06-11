@@ -8,7 +8,7 @@ Integrates with thread-safe knowledge graph storage to prevent multi-client issu
 import json
 import logging
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -79,7 +79,7 @@ if web_dir.exists():
     app.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
 
 @app.get("/")
-async def root() -> Union[HTMLResponse, FileResponse]:
+async def root() -> HTMLResponse|FileResponse:
     """Serve the main visualization page"""
     web_file = Path(__file__).parent / "web" / "index.html"
     if web_file.exists():

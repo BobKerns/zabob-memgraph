@@ -348,12 +348,12 @@ class SQLiteKnowledgeGraphDB:
         """Create new entities in the database"""
         async with self._lock:
             timestamp = datetime.utcnow().isoformat()
-            
+
             with sqlite3.connect(self.db_path) as conn:
                 for entity in entities:
                     try:
                         conn.execute("""
-                            INSERT OR REPLACE INTO entities 
+                            INSERT OR REPLACE INTO entities
                             (name, entity_type, observations, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?)
                         """, (
@@ -365,19 +365,19 @@ class SQLiteKnowledgeGraphDB:
                         ))
                     except Exception as e:
                         print(f"Failed to create entity {entity['name']}: {e}")
-                
+
                 conn.commit()
 
     async def create_relations(self, relations: list[dict[str, Any]]) -> None:
         """Create new relations in the database"""
         async with self._lock:
             timestamp = datetime.utcnow().isoformat()
-            
+
             with sqlite3.connect(self.db_path) as conn:
                 for relation in relations:
                     try:
                         conn.execute("""
-                            INSERT OR REPLACE INTO relations 
+                            INSERT OR REPLACE INTO relations
                             (from_entity, to_entity, relation_type, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?)
                         """, (
@@ -389,7 +389,7 @@ class SQLiteKnowledgeGraphDB:
                         ))
                     except Exception as e:
                         print(f"Failed to create relation {relation}: {e}")
-                
+
                 conn.commit()
 
 
