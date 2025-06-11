@@ -45,8 +45,8 @@ except (ImportError, Exception) as e:
                         from .mcp_client import mcp_knowledge_client as knowledge_client
                         logger.info("Using direct MCP integration for live data")
                     except ImportError:
-                        from .knowledge import knowledge_client
-                        logger.info("Using file-based storage as fallback")
+                        logger.error("No knowledge graph backend available")
+                        raise ImportError("No knowledge graph backend available. Please ensure at least one backend is properly configured.")
 
 # Create FastAPI app
 app = FastAPI(
