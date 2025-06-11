@@ -95,29 +95,46 @@ async function loadKnowledgeGraph() {
 
 // Update the graph visualization
 function updateKnowledgeGraph(nodes, links) {
+    console.log('Raw data from server:', { nodes: nodes.slice(0, 2), links: links.slice(0, 2) });
+    
     // Store the data and give nodes initial positions
-    // Create plain objects that D3 can modify freely
-    graphData.nodes = nodes.map(d => {
-        // Create a plain object with all properties writable
-        const node = {
-            id: d.id,
-            group: d.group,
-            type: d.type,
-            observations: d.observations,
-            x: width/2 + (Math.random() - 0.5) * 200,  // Spread around center
-            y: height/2 + (Math.random() - 0.5) * 200,
-            vx: (Math.random() - 0.5) * 50,  // Initial velocity to break clustering
-            vy: (Math.random() - 0.5) * 50
-        };
+    // Create completely plain objects that D3 can modify freely
+    graphData.nodes = nodes.map((d, i) => {
+        // Create a completely plain object
+        const node = Object.create(null);
+        node.id = d.id;
+        node.group = d.group;
+        node.type = d.type;
+        node.observations = Array.isArray(d.observations) ? [...d.observations] : [];
+        node.x = width/2 + (Math.random() - 0.5) * 200;
+        node.y = height/2 + (Math.random() - 0.5) * 200;
+        node.vx = (Math.random() - 0.5) * 50;
+        node.vy = (Math.random() - 0.5) * 50;
+        node.index = i;
+        
+        // Test if properties are writable
+        try {
+            node.x = node.x + 1;
+            node.y = node.y + 1;
+            node.vx = node.vx;
+            node.vy = node.vy;
+        } catch (e) {
+            console.error('Node property not writable:', e, node);
+        }
+        
         return node;
     });
     
-    graphData.links = links.map(d => ({
-        source: d.source,
-        target: d.target,
-        relation: d.relation
-    }));
+    graphData.links = links.map(d => {
+        const link = Object.create(null);
+        link.source = d.source;
+        link.target = d.target;
+        link.relation = d.relation;
+        return link;
+    });
     
+    console.log('Processed nodes sample:', graphData.nodes.slice(0, 2));
+    console.log('Processed links sample:', graphData.links.slice(0, 2));
     console.log(`Updating graph with ${nodes.length} nodes and ${links.length} links`);
     
     // Calculate node degrees for sizing
@@ -203,20 +220,49 @@ function updateKnowledgeGraph(nodes, links) {
             }
         });
 
-    // Update simulation with proper restart
-    simulation.nodes(graphData.nodes);
-    simulation.force("link").links(graphData.links);
-    
-    console.log('Force simulation restarting with alpha 1.0');
-    
-    // Force restart with very high alpha for strong initial layout
-    simulation.alpha(1.0).alphaTarget(0.3).restart();
-    
-    // Remove alpha target after longer settling period
-    setTimeout(() => {
-        console.log('Removing alphaTarget, allowing natural cooling');
-        simulation.alphaTarget(0);
-    }, 5000);
+    // Update simulation with proper restart and error handling
+    try {
+        console.log('Setting simulation nodes...');
+        simulation.nodes(graphData.nodes);
+        
+        console.log('Setting simulation links...');
+        simulation.force("link").links(graphData.links);
+        
+        console.log('Force simulation restarting with alpha 1.0');
+        
+        // Force restart with very high alpha for strong initial layout
+        simulation.alpha(1.0).alphaTarget(0.3).restart();
+        
+        // Remove alpha target after longer settling period
+        setTimeout(() => {
+            console.log('Removing alphaTarget, allowing natural cooling');
+            try {
+                simulation.alphaTarget(0);
+            } catch (e) {
+                console.error('Error removing alphaTarget:', e);
+            }
+        }, 5000);
+        
+    } catch (e) {
+        console.error('Error in simulation setup:', e);
+        console.error('Stack trace:', e.stack);
+        
+        // Try a simpler approach
+        console.log('Attempting simple simulation restart...');
+        try {
+            simulation.stop();
+            simulation.nodes([]);
+            simulation.force("link").links([]);
+            
+            setTimeout(() => {
+                simulation.nodes(graphData.nodes);
+                simulation.force("link").links(graphData.links);
+                simulation.alpha(0.3).restart();
+            }, 100);
+        } catch (e2) {
+            console.error('Even simple restart failed:', e2);
+        }
+    }
     
     // Create search index
     createSearchIndex(graphData.nodes);
