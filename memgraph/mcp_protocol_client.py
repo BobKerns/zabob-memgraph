@@ -8,7 +8,7 @@ via stdio, similar to how Claude Desktop and other MCP clients work.
 import asyncio
 import json
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any  # TODO: Clean up imports, List, Optional
 
 
 class MCPProtocolKnowledgeClient:
@@ -21,7 +21,7 @@ class MCPProtocolKnowledgeClient:
         self._lock = asyncio.Lock()
         self._request_id = 0
     
-    async def read_graph(self) -> Dict[str, Any]:
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph via MCP protocol"""
         async with self._lock:
             try:
@@ -49,7 +49,7 @@ class MCPProtocolKnowledgeClient:
                 print(f"MCP protocol read_graph failed: {e}")
                 return self._get_protocol_error(str(e))
     
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes via MCP protocol"""  
         async with self._lock:
             try:
@@ -78,7 +78,7 @@ class MCPProtocolKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
     
-    async def _call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> | None  # TODO: Fix Optional[dict[str, Any]]:
         """Call an MCP tool using the protocol"""
         try:
             # Since we're running in the same process context where MCP tools are available,
@@ -123,7 +123,7 @@ class MCPProtocolKnowledgeClient:
                 "content": [{"text": str(e)}]
             }
     
-    def _format_for_api(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_for_api(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
@@ -144,7 +144,7 @@ class MCPProtocolKnowledgeClient:
         
         return {"entities": entities, "relations": relations}
     
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
@@ -167,7 +167,7 @@ class MCPProtocolKnowledgeClient:
         
         return {"entities": matching_entities, "relations": matching_relations}
     
-    def _get_protocol_error(self, error_msg: str) -> Dict[str, Any]:
+    def _get_protocol_error(self, error_msg: str) -> dict[str, Any]:
         """Error data when MCP protocol fails"""
         return {
             "entities": [

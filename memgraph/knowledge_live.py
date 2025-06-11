@@ -9,7 +9,7 @@ import json
 import asyncio
 import aiofiles
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any  # TODO: Clean up imports, List, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
@@ -18,7 +18,7 @@ from datetime import datetime
 class Entity:
     name: str
     entityType: str
-    observations: List[str]
+    observations: list[str]
 
 
 @dataclass
@@ -30,8 +30,8 @@ class Relation:
 
 @dataclass
 class KnowledgeGraph:
-    entities: List[Entity]
-    relations: List[Relation]
+    entities: list[Entity]
+    relations: list[Relation]
 
 
 class LiveKnowledgeGraphManager:
@@ -43,7 +43,7 @@ class LiveKnowledgeGraphManager:
     def __init__(self):
         self._lock = asyncio.Lock()
         
-    async def read_graph(self) -> Dict[str, Any]:
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from MCP tools"""
         async with self._lock:
             try:
@@ -66,7 +66,7 @@ class LiveKnowledgeGraphManager:
                 print(f"Error reading from MCP tools: {e}")
                 return {"entities": [], "relations": []}
     
-    def _transform_mcp_data(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _transform_mcp_data(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Transform MCP data format to our expected format"""
         entities = []
         relations = []
@@ -88,7 +88,7 @@ class LiveKnowledgeGraphManager:
         
         return {"entities": entities, "relations": relations}
     
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search for nodes matching the query using MCP tools"""
         async with self._lock:
             try:
@@ -105,7 +105,7 @@ class LiveKnowledgeGraphManager:
                 print(f"Error searching with MCP tools: {e}")
                 return {"entities": [], "relations": []}
     
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search implementation as fallback"""
         query_lower = query.lower()
         matching_entities = []
@@ -144,7 +144,7 @@ class DirectMCPKnowledgeGraphManager:
     def __init__(self):
         self._lock = asyncio.Lock()
     
-    async def read_graph(self) -> Dict[str, Any]:
+    async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph using direct MCP function call"""
         async with self._lock:
             try:
@@ -157,7 +157,7 @@ class DirectMCPKnowledgeGraphManager:
                 # Return some sample data for testing
                 return self._get_sample_data()
     
-    async def search_nodes(self, query: str) -> Dict[str, Any]:
+    async def search_nodes(self, query: str) -> dict[str, Any]:
         """Search nodes using MCP tools"""
         async with self._lock:
             try:
@@ -170,7 +170,7 @@ class DirectMCPKnowledgeGraphManager:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
     
-    def _format_graph_data(self, mcp_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_graph_data(self, mcp_result: dict[str, Any]) -> dict[str, Any]:
         """Format MCP result for our API"""
         entities = []
         relations = []
@@ -191,7 +191,7 @@ class DirectMCPKnowledgeGraphManager:
         
         return {"entities": entities, "relations": relations}
     
-    def _local_search(self, graph_data: Dict[str, Any], query: str) -> Dict[str, Any]:
+    def _local_search(self, graph_data: dict[str, Any], query: str) -> dict[str, Any]:
         """Local search fallback"""
         query_lower = query.lower()
         matching_entities = []
@@ -214,7 +214,7 @@ class DirectMCPKnowledgeGraphManager:
         
         return {"entities": matching_entities, "relations": matching_relations}
     
-    def _get_sample_data(self) -> Dict[str, Any]:
+    def _get_sample_data(self) -> dict[str, Any]:
         """Sample data for testing when MCP tools unavailable"""
         return {
             "entities": [
