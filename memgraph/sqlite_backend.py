@@ -52,7 +52,7 @@ class SQLiteKnowledgeGraphDB:
         print(f"SQLite database path: {self.db_path.absolute()}")
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize the database schema"""
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript("""
@@ -255,7 +255,7 @@ class SQLiteKnowledgeGraphDB:
             print(f"Simple search failed: {e}")
             return {"entities": [], "relations": []}
 
-    async def import_from_mcp(self, mcp_client) -> dict[str, Any]:
+    async def import_from_mcp(self, mcp_client: Any) -> dict[str, Any]:
         """Import data from an MCP client into SQLite"""
         async with self._lock:
             try:
@@ -343,6 +343,54 @@ class SQLiteKnowledgeGraphDB:
         except Exception as e:
             print(f"Failed to get stats: {e}")
             return {"error": str(e)}
+
+    async def create_entities(self, entities: list[dict[str, Any]]) -> None:
+        """Create new entities in the database"""
+        async with self._lock:
+            timestamp = datetime.utcnow().isoformat()
+            
+            with sqlite3.connect(self.db_path) as conn:
+                for entity in entities:
+                    try:
+                        conn.execute("""
+                            INSERT OR REPLACE INTO entities 
+                            (name, entity_type, observations, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (
+                            entity["name"],
+                            entity["entityType"],
+                            json.dumps(entity["observations"]),
+                            timestamp,
+                            timestamp
+                        ))
+                    except Exception as e:
+                        print(f"Failed to create entity {entity['name']}: {e}")
+                
+                conn.commit()
+
+    async def create_relations(self, relations: list[dict[str, Any]]) -> None:
+        """Create new relations in the database"""
+        async with self._lock:
+            timestamp = datetime.utcnow().isoformat()
+            
+            with sqlite3.connect(self.db_path) as conn:
+                for relation in relations:
+                    try:
+                        conn.execute("""
+                            INSERT OR REPLACE INTO relations 
+                            (from_entity, to_entity, relation_type, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (
+                            relation["from"],
+                            relation["to"],
+                            relation["relationType"],
+                            timestamp,
+                            timestamp
+                        ))
+                    except Exception as e:
+                        print(f"Failed to create relation {relation}: {e}")
+                
+                conn.commit()
 
 
 # Create the SQLite knowledge graph database instance

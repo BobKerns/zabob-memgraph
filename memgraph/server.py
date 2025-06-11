@@ -8,7 +8,7 @@ Integrates with thread-safe knowledge graph storage to prevent multi-client issu
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,28 +20,37 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Try different knowledge graph backends in order of preference
+# Import all available backends and select at runtime
+knowledge_client: Any = None
+
 try:
-    from .sqlite_backend import sqlite_knowledge_db as knowledge_client
+    from .sqlite_backend import sqlite_knowledge_db
+    knowledge_client = sqlite_knowledge_db
     logger.info("Using SQLite database backend")
 except (ImportError, Exception):
     try:
-        from .docker_mcp_client import docker_mcp_knowledge_client as knowledge_client
+        from .docker_mcp_client import docker_mcp_knowledge_client
+        knowledge_client = docker_mcp_knowledge_client
         logger.info("Using Docker MCP client for live data")
     except (ImportError, Exception):
         try:
-            from .stdio_mcp_client import stdio_mcp_knowledge_client as knowledge_client
+            from .stdio_mcp_client import stdio_mcp_knowledge_client
+            knowledge_client = stdio_mcp_knowledge_client
             logger.info("Using stdio MCP client for live data")
         except (ImportError, NameError):
             try:
-                from .simple_mcp_bridge import simple_mcp_bridge as knowledge_client
+                from .simple_mcp_bridge import simple_mcp_bridge
+                knowledge_client = simple_mcp_bridge
                 logger.info("Using simple MCP bridge for live data")
             except (ImportError, NameError):
                 try:
-                    from .real_mcp_client import real_mcp_knowledge_client as knowledge_client
+                    from .real_mcp_client import real_mcp_knowledge_client
+                    knowledge_client = real_mcp_knowledge_client
                     logger.info("Using real MCP integration for live data")
                 except (ImportError, NameError):
                     try:
-                        from .mcp_client import mcp_knowledge_client as knowledge_client
+                        from .mcp_client import mcp_knowledge_client
+                        knowledge_client = mcp_knowledge_client
                         logger.info("Using direct MCP integration for live data")
                     except ImportError as e:
                         logger.error("No knowledge graph backend available")
@@ -70,7 +79,7 @@ if web_dir.exists():
     app.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
 
 @app.get("/")
-async def root() -> HTMLResponse:
+async def root() -> Union[HTMLResponse, FileResponse]:
     """Serve the main visualization page"""
     web_file = Path(__file__).parent / "web" / "index.html"
     if web_file.exists():
@@ -146,7 +155,8 @@ async def get_entities() -> list[dict[str, Any]]:
     """Get all entities with thread-safe access"""
     try:
         graph_data = await knowledge_client.read_graph()
-        return graph_data["entities"]
+        entities = graph_data.get("entities", [])
+        return entities
     except Exception as e:
         logger.error(f"Error reading entities: {e}")
         raise HTTPException(status_code=500,
@@ -226,7 +236,7 @@ async def health_check() -> dict[str, str]:
         "status": "healthy",
         "service": "knowledge-graph-mcp",
         "version": "0.2.0",
-        "features": ["thread-safe storage", "multi-client support", "sqlite backend"]
+        "features": "thread-safe storage, multi-client support, sqlite backend"
     }
 
 @app.post("/api/import-mcp")
@@ -239,6 +249,7 @@ async def import_from_mcp() -> dict[str, Any]:
         mcp_client = None
         client_name = "unknown"
 
+        mcp_client: Any = None
         try:
             from .docker_mcp_client import docker_mcp_knowledge_client
             mcp_client = docker_mcp_knowledge_client
@@ -317,7 +328,7 @@ def run_stdio_server() -> None:
     logger.warning("Running in STDIO mode - this may have file locking issues")
 
     # Create MCP server
-    server = Server("memgraph")
+    server: Server = Server("memgraph")
 
     @server.list_tools()
     async def list_tools() -> ListToolsResult:
@@ -414,7 +425,7 @@ def run_stdio_server() -> None:
                                   isError=True)
 
     # Run the server
-    async def main():
+    async def main() -> None:
         async with stdio_server() as (read_stream, write_stream):
             await server.run(read_stream, write_stream, server.create_initialization_options())
 
