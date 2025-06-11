@@ -1,4 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "aiofiles",
+#     "fastapi",
+#     "jinja2",
+#     "mcp",
+#     "pydantic",
+#     "uvicorn[standard]",
+# ]
+# ///
 """
 Main entry point for the Knowledge Graph MCP Server
 """
