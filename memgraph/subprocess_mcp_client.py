@@ -56,7 +56,7 @@ class SubprocessMCPKnowledgeClient:
                 full_graph = await self.read_graph()
                 return self._local_search(full_graph, query)
     
-    async def _call_mcp_function(self, function_name: str, args: dict[str, Any]) -> | None  # TODO: Fix Optional[dict[str, Any]]:
+    async def _call_mcp_function(self, function_name: str, args: dict[str, Any]) -> dict[str, Any] | None:
         """Call an MCP function via subprocess"""
         try:
             # Create a Python script that imports and calls the MCP function
