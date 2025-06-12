@@ -12,19 +12,24 @@ COPY pyproject.toml uv.lock ./
 COPY memgraph/ ./memgraph/
 COPY main.py ./
 
-# Install dependencies
+# Install dependencies and create venv
 RUN uv sync --frozen
 
-# Create directory for configuration and data
-RUN mkdir -p /app/.zabob-memgraph
+# Create data directory for database
+RUN mkdir -p /data
 
-# Set environment variable to indicate Docker container
+# Create startup script
+RUN echo '#!/bin/bash\n\nsource .venv/bin/activate\nexec python main.py "$@"' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Set environment variables to indicate Docker container
 ENV DOCKER_CONTAINER=1
 ENV MEMGRAPH_HOST=0.0.0.0
 ENV MEMGRAPH_PORT=8080
+ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
 
 # Expose default port
 EXPOSE 8080
 
-# Use main.py as entrypoint
-CMD ["uv", "run", "main.py"]
+# Use startup script as entrypoint
+CMD ["/app/start.sh"]

@@ -7,6 +7,7 @@ with import functionality from MCP data sources.
 
 import asyncio
 import json
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
@@ -39,7 +40,11 @@ class SQLiteKnowledgeGraphDB:
     SQLite-based knowledge graph database with MCP import functionality.
     """
 
-    def __init__(self, db_path: str = "knowledge_graph.db"):
+    def __init__(self, db_path: str | None = None):
+        # Get database path from environment or parameter
+        if db_path is None:
+            db_path = os.getenv('MEMGRAPH_DATABASE_PATH', 'knowledge_graph.db')
+        
         # Ensure we use absolute path to avoid working directory issues
         if not Path(db_path).is_absolute():
             # Use the directory of this file as the base for relative paths
@@ -47,6 +52,9 @@ class SQLiteKnowledgeGraphDB:
             self.db_path = base_dir / db_path
         else:
             self.db_path = Path(db_path)
+        
+        # Ensure the database directory exists
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         self._lock = asyncio.Lock()
         print(f"SQLite database path: {self.db_path.absolute()}")
@@ -424,7 +432,7 @@ class SQLiteKnowledgeGraphDB:
                             VALUES (?, ?, ?, ?, ?)
                         """,
                             (
-                                relation["from"],
+                                relation["from_entity"],
                                 relation["to"],
                                 relation["relationType"],
                                 timestamp,

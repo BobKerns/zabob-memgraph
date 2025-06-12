@@ -7,6 +7,7 @@ Integrates with thread-safe knowledge graph storage to prevent multi-client issu
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,50 +21,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Try different knowledge graph backends in order of preference
-# Import all available backends and select at runtime
+# SQLite backend for normal operation, FastMCP client only for external connections
 knowledge_client: Any = None
 
 try:
     from .sqlite_backend import sqlite_knowledge_db
 
     knowledge_client = sqlite_knowledge_db
-    logger.info("Using SQLite database backend")
-except (ImportError, Exception):
-    try:
-        from .docker_mcp_client import docker_mcp_knowledge_client
-
-        knowledge_client = docker_mcp_knowledge_client
-        logger.info("Using Docker MCP client for live data")
-    except (ImportError, Exception):
-        try:
-            from .stdio_mcp_client import stdio_mcp_knowledge_client
-
-            knowledge_client = stdio_mcp_knowledge_client
-            logger.info("Using stdio MCP client for live data")
-        except (ImportError, NameError):
-            try:
-                from .simple_mcp_bridge import simple_mcp_bridge
-
-                knowledge_client = simple_mcp_bridge
-                logger.info("Using simple MCP bridge for live data")
-            except (ImportError, NameError):
-                try:
-                    from .real_mcp_client import real_mcp_knowledge_client
-
-                    knowledge_client = real_mcp_knowledge_client
-                    logger.info("Using real MCP integration for live data")
-                except (ImportError, NameError):
-                    try:
-                        from .mcp_client import mcp_knowledge_client
-
-                        knowledge_client = mcp_knowledge_client
-                        logger.info("Using direct MCP integration for live data")
-                    except ImportError as e:
-                        logger.error("No knowledge graph backend available")
-                        raise ImportError(
-                            "No knowledge graph backend available. "
-                            "Please ensure at least one backend is properly configured."
-                        ) from e
+    logger.info("Using SQLite database backend for direct operation")
+except ImportError as e:
+    logger.error("SQLite backend not available")
+    raise ImportError(
+        "SQLite backend required for zabob-memgraph operation. "
+        "Please ensure sqlite_backend is properly configured."
+    ) from e
 
 # Create FastAPI app
 app = FastAPI(
@@ -291,60 +262,45 @@ async def health_check() -> dict[str, str]:
 
 
 @app.post("/api/import-mcp")
-async def import_from_mcp() -> dict[str, Any]:
-    """Import knowledge graph data from MCP tools into SQLite"""
+async def import_from_mcp(graph_data: dict[str, Any]) -> dict[str, Any]:
+    """Import knowledge graph data directly into SQLite"""
     try:
         from .sqlite_backend import sqlite_knowledge_db
 
-        # Try different MCP clients in order of preference
-        mcp_client: Any = None
-        client_name = "unknown"
-        try:
-            from .docker_mcp_client import docker_mcp_knowledge_client
+        if not graph_data.get("entities"):
+            return {"status": "error", "message": "No entities provided"}
 
-            mcp_client = docker_mcp_knowledge_client
-            client_name = "Docker MCP"
-        except ImportError:
-            try:
-                from .stdio_mcp_client import stdio_mcp_knowledge_client
+        imported_entities = 0
+        imported_relations = 0
+        timestamp = datetime.utcnow().isoformat()
 
-                mcp_client = stdio_mcp_knowledge_client
-                client_name = "Stdio MCP"
-            except ImportError:
-                try:
-                    from .simple_mcp_bridge import simple_mcp_bridge
+        # Import entities
+        entities = graph_data.get("entities", [])
+        if entities:
+            await sqlite_knowledge_db.create_entities(entities)
+            imported_entities = len(entities)
 
-                    mcp_client = simple_mcp_bridge
-                    client_name = "Simple MCP Bridge"
-                except ImportError:
-                    return {
-                        "status": "error",
-                        "message": "No MCP client available for import",
-                    }
+        # Import relations
+        relations = graph_data.get("relations", [])
+        if relations:
+            await sqlite_knowledge_db.create_relations(relations)
+            imported_relations = len(relations)
 
-        result = await sqlite_knowledge_db.import_from_mcp(mcp_client)
+        # Get updated stats
+        stats = await sqlite_knowledge_db.get_stats()
 
-        if result["status"] == "success":
-            # Get updated stats
-            stats = await sqlite_knowledge_db.get_stats()
-            return {
-                "status": "success",
-                "message": f"MCP data imported successfully from {client_name}",
-                "imported_entities": result["imported_entities"],
-                "imported_relations": result["imported_relations"],
-                "database_stats": stats,
-                "source_client": client_name,
-            }
-        else:
-            return {
-                "status": "error",
-                "message": result["message"],
-                "source_client": client_name,
-            }
+        return {
+            "status": "success",
+            "message": "Data imported successfully",
+            "imported_entities": imported_entities,
+            "imported_relations": imported_relations,
+            "database_stats": stats,
+            "timestamp": timestamp,
+        }
+
     except Exception as e:
-        logger.error(f"Error importing from MCP: {e}")
-        raise HTTPException(status_code=500,
-                            detail=f"Import failed: {str(e)}") from e
+        logger.error(f"Error importing data: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}") from e
 @app.get("/api/database-stats")
 async def get_database_stats() -> dict[str, Any]:
     """Get SQLite database statistics"""
@@ -382,7 +338,7 @@ def run_stdio_server() -> None:
         Tool,
     )
 
-    logger.warning("Running in STDIO mode - this may have file locking issues")
+    logger.info("Running in STDIO mode")
 
     # Create MCP server
     server: Server[Any, Any] = Server("memgraph")
@@ -510,5 +466,19 @@ def run_stdio_server() -> None:
         logger.info("STDIO server stopped")
 
 
+def run_servers():
+    """Run both HTTP and STDIO servers"""
+    import threading
+
+    # Start HTTP server in a separate thread
+    http_thread = threading.Thread(target=run_server, args=("localhost", 8080))
+    http_thread.start()
+
+    # Run STDIO server in the main thread
+    run_stdio_server()
+
+    # Wait for HTTP server to finish
+    http_thread.join()
+
 if __name__ == "__main__":
-    run_server()
+    run_servers()

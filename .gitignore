@@ -73,3 +73,7 @@ backup/
 # Docker
 .dockerignore
 
+node_modules/
+
+memory.json
+
