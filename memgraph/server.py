@@ -7,6 +7,8 @@ Integrates with thread-safe knowledge graph storage to prevent multi-client issu
 
 import json
 import logging
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -261,67 +263,45 @@ async def health_check() -> dict[str, str]:
 
 
 @app.post("/api/import-mcp")
-async def import_from_mcp() -> dict[str, Any]:
-    """Import knowledge graph data from MCP tools into SQLite"""
+async def import_from_mcp(graph_data: dict[str, Any]) -> dict[str, Any]:
+    """Import knowledge graph data directly into SQLite"""
     try:
         from .sqlite_backend import sqlite_knowledge_db
 
-        # Try to use FastMCP client for import (when available)
-        mcp_client: Any = None
-        client_name = "unknown"
-        try:
-            from .fastmcp_client import fastmcp_knowledge_client
-            mcp_client = fastmcp_knowledge_client
-            client_name = "FastMCP"
-            logger.info("Using FastMCP client for import")
-        except ImportError:
-            # Fall back to legacy MCP clients for import
-            try:
-                from .docker_mcp_client import docker_mcp_knowledge_client
+        if not graph_data.get("entities"):
+            return {"status": "error", "message": "No entities provided"}
 
-                mcp_client = docker_mcp_knowledge_client
-                client_name = "Docker MCP"
-            except ImportError:
-                try:
-                    from .stdio_mcp_client import stdio_mcp_knowledge_client
+        imported_entities = 0
+        imported_relations = 0
+        timestamp = datetime.utcnow().isoformat()
 
-                    mcp_client = stdio_mcp_knowledge_client
-                    client_name = "Stdio MCP"
-                except ImportError:
-                    try:
-                        from .simple_mcp_bridge import simple_mcp_bridge
+        # Import entities
+        entities = graph_data.get("entities", [])
+        if entities:
+            await sqlite_knowledge_db.create_entities(entities)
+            imported_entities = len(entities)
 
-                        mcp_client = simple_mcp_bridge
-                        client_name = "Simple MCP Bridge"
-                    except ImportError:
-                        return {
-                            "status": "error",
-                            "message": "No MCP client available for import",
-                        }
+        # Import relations
+        relations = graph_data.get("relations", [])
+        if relations:
+            await sqlite_knowledge_db.create_relations(relations)
+            imported_relations = len(relations)
 
-        result = await sqlite_knowledge_db.import_from_mcp(mcp_client)
+        # Get updated stats
+        stats = await sqlite_knowledge_db.get_stats()
+        
+        return {
+            "status": "success",
+            "message": "Data imported successfully",
+            "imported_entities": imported_entities,
+            "imported_relations": imported_relations,
+            "database_stats": stats,
+            "timestamp": timestamp,
+        }
 
-        if result["status"] == "success":
-            # Get updated stats
-            stats = await sqlite_knowledge_db.get_stats()
-            return {
-                "status": "success",
-                "message": f"MCP data imported successfully from {client_name}",
-                "imported_entities": result["imported_entities"],
-                "imported_relations": result["imported_relations"],
-                "database_stats": stats,
-                "source_client": client_name,
-            }
-        else:
-            return {
-                "status": "error",
-                "message": result["message"],
-                "source_client": client_name,
-            }
     except Exception as e:
-        logger.error(f"Error importing from MCP: {e}")
-        raise HTTPException(status_code=500,
-                            detail=f"Import failed: {str(e)}") from e
+        logger.error(f"Error importing data: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}") from e
 @app.get("/api/database-stats")
 async def get_database_stats() -> dict[str, Any]:
     """Get SQLite database statistics"""

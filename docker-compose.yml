@@ -6,14 +6,16 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Mount a volume for persistent data and configuration
-      - zabob_memgraph_data:/app/.zabob-memgraph
-      # Optional: mount local database file for development
-      # - ./knowledge_graph.db:/app/knowledge_graph.db
+      # Mount a volume for database storage
+      - zabob_memgraph_data:/data
+      # Mount user's home config directory for coordination and logging
+      # This enables daemon coordination and WAL simultaneous read/write access
+      - ${HOME}/.zabob-memgraph:/app/.zabob-memgraph
     environment:
       # Container is automatically detected via DOCKER_CONTAINER env var
       MEMGRAPH_HOST: 0.0.0.0
       MEMGRAPH_PORT: 8080
+      MEMGRAPH_DATABASE_PATH: /data/knowledge_graph.db
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8080/health')\""] 

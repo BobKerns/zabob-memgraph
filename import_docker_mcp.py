@@ -8,59 +8,93 @@
 #     "mcp",
 #     "pydantic",
 #     "uvicorn[standard]",
+#     "httpx",
 # ]
 # ///
 """
-Docker MCP to SQLite Import Utility
+Docker MCP to Server Import Utility
 
-This script imports knowledge graph data from Docker MCP containers into SQLite.
-Specifically designed to work with the claude-memory Docker volume.
+This script imports knowledge graph data from Docker MCP containers
+via the running zabob-memgraph server's HTTP API.
 """
 
 import asyncio
 import sys
 from pathlib import Path
 
+import httpx
+
 # Add the package to the path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from memgraph.docker_mcp_client import docker_mcp_knowledge_client
-from memgraph.sqlite_backend import sqlite_knowledge_db
 
 
-async def import_docker_mcp_to_sqlite():
-    """Import data from Docker MCP memory container to SQLite database"""
-    print("🐳 Starting Docker MCP to SQLite import...")
-    print("Container command:", " ".join(docker_mcp_knowledge_client.container_command))
-
-    try:
-        # Import from Docker MCP
-        result = await sqlite_knowledge_db.import_from_mcp(docker_mcp_knowledge_client)
-
-        if result["status"] == "success":
-            print(f"✅ Import successful!")
-            print(f"   Entities imported: {result['imported_entities']}")
-            print(f"   Relations imported: {result['imported_relations']}")
-            print(f"   Timestamp: {result['timestamp']}")
-
-            # Show database stats
-            stats = await sqlite_knowledge_db.get_stats()
-            print(f"\n📊 Database Statistics:")
-            print(f"   Total entities: {stats['entity_count']}")
-            print(f"   Total relations: {stats['relation_count']}")
-            print(f"   Entity types: {stats['entity_types']}")
-            print(f"   Relation types: {stats['relation_types']}")
-            print(f"   Database: {stats['database_path']}")
-
-        else:
-            print(f"❌ Import failed: {result['message']}")
+async def import_via_server_api(server_url: str = "http://localhost:8080"):
+    """Import data via the server's HTTP API"""
+    print(f"🌐 Starting import via server API: {server_url}")
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            # Check if server is running
+            health_response = await client.get(f"{server_url}/health")
+            if health_response.status_code != 200:
+                print(f"❌ Server not responding at {server_url}")
+                print(f"   Make sure zabob-memgraph server is running")
+                return False
+                
+            print(f"✅ Server is running")
+            
+            # Get data from Docker MCP
+            print("📥 Reading data from Docker MCP...")
+            graph_data = await docker_mcp_knowledge_client.read_graph()
+            
+            if not graph_data.get("entities"):
+                print("❌ No data retrieved from Docker MCP")
+                return False
+                
+            print(f"✅ Retrieved {len(graph_data['entities'])} entities and {len(graph_data['relations'])} relations")
+            
+            # Send data to server
+            print("📤 Sending data to server...")
+            import_response = await client.post(
+                f"{server_url}/api/import-mcp",
+                json=graph_data
+            )
+            
+            if import_response.status_code == 200:
+                result = import_response.json()
+                if result["status"] == "success":
+                    print(f"✅ Import successful!")
+                    print(f"   Entities imported: {result['imported_entities']}")
+                    print(f"   Relations imported: {result['imported_relations']}")
+                    
+                    # Show database stats
+                    if "database_stats" in result:
+                        stats = result["database_stats"]
+                        print(f"\n📊 Database Statistics:")
+                        print(f"   Total entities: {stats['entity_count']}")
+                        print(f"   Total relations: {stats['relation_count']}")
+                        print(f"   Entity types: {stats['entity_types']}")
+                        print(f"   Relation types: {stats['relation_types']}")
+                        print(f"   Database: {stats['database_path']}")
+                    
+                    return True
+                else:
+                    print(f"❌ Import failed: {result['message']}")
+                    return False
+            else:
+                print(f"❌ Server returned error {import_response.status_code}")
+                print(f"   Response: {import_response.text}")
+                return False
+                
+        except httpx.RequestError as e:
+            print(f"❌ Failed to connect to server: {e}")
+            print(f"   Make sure zabob-memgraph server is running at {server_url}")
             return False
-
-    except Exception as e:
-        print(f"❌ Import error: {e}")
-        return False
-
-    return True
+        except Exception as e:
+            print(f"❌ Import error: {e}")
+            return False
 
 
 async def test_docker_connection():
@@ -137,8 +171,8 @@ async def check_docker_setup():
 
 
 async def main():
-    """Main import and test function"""
-    print("🚀 Docker MCP to SQLite Import Tool")
+    """Main import function using server API"""
+    print("🚀 Docker MCP to Server Import Tool")
     print("=" * 50)
 
     # Check Docker setup first
@@ -154,13 +188,13 @@ async def main():
         print("   The import would fail. Check Docker setup and try again.")
         return
 
-    # Proceed with import
-    import_success = await import_docker_mcp_to_sqlite()
+    # Import via server API
+    import_success = await import_via_server_api()
 
     if import_success:
         print("\n✅ All operations completed successfully!")
-        print("   Your knowledge graph data is now in SQLite database.")
-        print("   Restart the memgraph server to see the imported data.")
+        print("   Your knowledge graph data is now in the server database.")
+        print("   Refresh the web interface to see the imported data.")
     else:
         print("\n❌ Import failed. Check error messages above.")
 
