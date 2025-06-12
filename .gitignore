@@ -73,3 +73,5 @@ backup/
 # Docker
 .dockerignore
 
+node_modules/
+
