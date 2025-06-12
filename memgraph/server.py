@@ -7,7 +7,6 @@ Integrates with thread-safe knowledge graph storage to prevent multi-client issu
 
 import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -27,7 +26,7 @@ knowledge_client: Any = None
 
 try:
     from .sqlite_backend import sqlite_knowledge_db
-    
+
     knowledge_client = sqlite_knowledge_db
     logger.info("Using SQLite database backend for direct operation")
 except ImportError as e:
@@ -289,7 +288,7 @@ async def import_from_mcp(graph_data: dict[str, Any]) -> dict[str, Any]:
 
         # Get updated stats
         stats = await sqlite_knowledge_db.get_stats()
-        
+
         return {
             "status": "success",
             "message": "Data imported successfully",
@@ -339,7 +338,7 @@ def run_stdio_server() -> None:
         Tool,
     )
 
-    logger.warning("Running in STDIO mode - this may have file locking issues")
+    logger.info("Running in STDIO mode")
 
     # Create MCP server
     server: Server[Any, Any] = Server("memgraph")
@@ -467,5 +466,19 @@ def run_stdio_server() -> None:
         logger.info("STDIO server stopped")
 
 
+def run_servers():
+    """Run both HTTP and STDIO servers"""
+    import threading
+
+    # Start HTTP server in a separate thread
+    http_thread = threading.Thread(target=run_server, args=("localhost", 8080))
+    http_thread.start()
+
+    # Run STDIO server in the main thread
+    run_stdio_server()
+
+    # Wait for HTTP server to finish
+    http_thread.join()
+
 if __name__ == "__main__":
-    run_server()
+    run_servers()
