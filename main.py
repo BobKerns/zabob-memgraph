@@ -51,7 +51,7 @@ def setup_logging(log_level: str = "INFO") -> None:
 
 def get_config_dir() -> Path:
     """Get configuration directory from environment or default
-    
+
     This directory is shared between host and container for daemon coordination,
     enabling write-ahead-logging and simultaneous read/write access across processes.
     """
@@ -65,7 +65,7 @@ def get_database_path() -> Path:
     db_path = os.getenv('MEMGRAPH_DATABASE_PATH')
     if db_path:
         return Path(db_path)
-    
+
     # Default to current directory for backward compatibility
     return Path("knowledge_graph.db")
 
@@ -76,7 +76,7 @@ def backup_database() -> None:
     db_file = get_database_path()
     backup_dir = config_dir / "backup"
     backup_dir.mkdir(exist_ok=True)
-    
+
     # Ensure the database directory exists
     db_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -158,6 +158,7 @@ def main():
     logging.info(f"Starting Zabob Memgraph server on {host}:{port}")
     logging.info(f"Configuration directory: {get_config_dir()}")
     logging.info(f"Database path: {get_database_path()}")
+    logging.info(f"Web interface: http://{host}:{port}")
 
     # Create database backup if enabled
     if config.get('backup_on_start', True):
@@ -169,10 +170,6 @@ def main():
 
     # Start the server
     try:
-        print(f"Starting Zabob Memgraph server on {host}:{port}")
-        print(f"Configuration: {get_config_dir()}")
-        print(f"Web interface: http://{host}:{port}")
-
         run_server(host=host, port=port)
 
     except KeyboardInterrupt:
