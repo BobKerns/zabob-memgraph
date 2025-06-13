@@ -43,22 +43,22 @@ def test_output_dir(test_dir, request):
     test_file_stem = Path(request.fspath).stem
     test_name = request.node.name
     output_dir = test_dir / 'out' / test_file_stem / test_name
-    
+
     # Clean up old test artifacts
     if output_dir.exists():
         shutil.rmtree(output_dir, ignore_errors=True)
-    
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     yield output_dir
-    
+
     # Copy artifacts from tmp_path if available
     if hasattr(request, 'tmp_path_factory'):
         try:
             tmp_path = request.getfixturevalue('tmp_path')
             if tmp_path.exists():
                 dest_tmp = output_dir / 'tmp_artifacts'
-                shutil.copytree(tmp_path, dest_tmp, ignore_errors=True)
+                shutil.copytree(tmp_path, dest_tmp)
         except Exception as e:
             logging.warning(f"Failed to copy test artifacts: {e}")
 
@@ -67,13 +67,13 @@ def web_content(package_dir, tmp_path):
     """Copy actual web content to temporary directory"""
     source_web = package_dir / 'web'
     dest_web = tmp_path / 'web'
-    
+
     logging.info(f"Looking for web content at: {str(source_web)}")
     logging.info(f"Source web exists: {source_web.exists()}")
     if source_web.exists():
         contents = [str(p) for p in source_web.iterdir()]
         logging.info(f"Source web contents: {' | '.join(contents)}")
-    
+
     if source_web.exists():
         shutil.copytree(source_web, dest_web)
         logging.info(f"Copied web content to: {str(dest_web)}")
@@ -90,7 +90,7 @@ def web_content(package_dir, tmp_path):
 </html>
         """.strip())
         logging.info(f"Created fallback content at: {str(dest_web)}")
-    
+
     return dest_web
 
 @pytest.fixture
