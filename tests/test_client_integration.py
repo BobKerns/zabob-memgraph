@@ -67,21 +67,16 @@ def test_web_app_connects_to_mcp_service(package_dir, web_content, get_free_port
         proc.terminate()
         proc.wait(timeout=5)
 
-def test_client_js_mcp_integration(package_dir, web_content, get_free_port, test_output_dir):
+def test_client_js_mcp_integration(package_dir, web_content, get_free_port, test_output_dir, tmp_path):
     """Test client.js MCP integration via subprocess"""
     port = get_free_port()
     log_file = test_output_dir / 'client_js_mcp.log'
     service_module = package_dir / 'service.py'
     
-    # Check if client.js exists in web content
-    client_js = None
-    for js_file in web_content.rglob('*.js'):
-        if 'client' in js_file.name.lower():
-            client_js = js_file
-            break
-    
-    if not client_js:
-        pytest.skip("client.js not found in web content - integration pending")
+    # client.js should be in the copied web content
+    client_js = web_content / 'client.js'
+    if not client_js.exists():
+        pytest.skip("client.js not found in web content")
     
     # Start the unified service with MCP endpoints
     service_proc = subprocess.Popen([
@@ -95,10 +90,11 @@ def test_client_js_mcp_integration(package_dir, web_content, get_free_port, test
         time.sleep(2)
         
         # Test client.js via subprocess with MCP server URL
+        # Run from tmp_path directory where node_modules is available
         mcp_url = f"http://localhost:{port}/mcp"
         client_proc = subprocess.Popen([
             "node", str(client_js), mcp_url
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=str(tmp_path))
         
         stdout, stderr = client_proc.communicate(timeout=10)
         
@@ -122,7 +118,7 @@ def test_client_js_mcp_integration(package_dir, web_content, get_free_port, test
         service_proc.terminate()
         service_proc.wait(timeout=5)
 
-def test_mcp_data_format_validation(package_dir, web_content, get_free_port, test_output_dir):
+def test_mcp_data_format_validation(package_dir, web_content, get_free_port, test_output_dir, tmp_path):
     """Test that MCP client returns data in expected format for visualization"""
     port = get_free_port()
     log_file = test_output_dir / 'mcp_data_format.log'
@@ -144,9 +140,10 @@ def test_mcp_data_format_validation(package_dir, web_content, get_free_port, tes
         time.sleep(2)
         
         # Test with stdio transport (no URL)
+        # Run from tmp_path directory where node_modules is available
         client_proc = subprocess.Popen([
             "node", str(client_js)
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=str(tmp_path))
         
         stdout, stderr = client_proc.communicate(timeout=15)
         

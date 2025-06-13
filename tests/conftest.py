@@ -78,6 +78,21 @@ def web_content(package_dir, tmp_path):
     
     shutil.copytree(source_web, dest_web)
     
+    # Copy Node.js dependencies for client.js subprocess testing
+    project_root = package_dir.parent
+    package_json = project_root / 'package.json'
+    node_modules = project_root / 'node_modules'
+    
+    if package_json.exists():
+        shutil.copy2(package_json, tmp_path / 'package.json')
+        logging.info(f"Copied package.json to {tmp_path}")
+    
+    if node_modules.exists():
+        shutil.copytree(node_modules, tmp_path / 'node_modules')
+        logging.info(f"Copied node_modules to {tmp_path}")
+    else:
+        logging.warning(f"node_modules not found at {node_modules} - Node.js tests may fail")
+    
     return dest_web
 
 @pytest.fixture
