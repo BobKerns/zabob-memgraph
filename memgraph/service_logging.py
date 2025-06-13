@@ -129,3 +129,58 @@ def log_server_start(service_logger: ServiceLogger, host: str, port: int) -> Non
     """Log server start details."""
     service_logger.logger.info(f"Starting server on {host}:{port}")
     service_logger.logger.info(f"Server URL: http://{host}:{port}")
+
+def configure_uvicorn_logging(log_file: str | None) -> dict:
+    """Configure uvicorn logging to use the same log file as the service."""
+    if log_file:
+        # Configure uvicorn to log to the same file
+        return {
+            "log_config": {
+                "version": 1,
+                "disable_existing_loggers": False,
+                "formatters": {
+                    "default": {
+                        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    },
+                    "access": {
+                        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    },
+                },
+                "handlers": {
+                    "default": {
+                        "formatter": "default",
+                        "class": "logging.FileHandler",
+                        "filename": log_file,
+                        "mode": "a",
+                    },
+                    "access": {
+                        "formatter": "access",
+                        "class": "logging.FileHandler",
+                        "filename": log_file,
+                        "mode": "a",
+                    },
+                },
+                "loggers": {
+                    "uvicorn": {
+                        "handlers": ["default"],
+                        "level": "INFO",
+                    },
+                    "uvicorn.error": {
+                        "handlers": ["default"],
+                        "level": "INFO",
+                    },
+                    "uvicorn.access": {
+                        "handlers": ["access"],
+                        "level": "INFO",
+                        "propagate": False,
+                    },
+                },
+                "root": {
+                    "level": "INFO",
+                    "handlers": ["default"],
+                },
+            }
+        }
+    else:
+        # Use default uvicorn logging (to stderr)
+        return {}

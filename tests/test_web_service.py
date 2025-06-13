@@ -81,10 +81,12 @@ def test_serves_static_files(web_service_module, web_content, get_free_port, tes
             proc.kill()
         client_logger.info("Web service process terminated")
 
-def test_web_service_health_check(web_service_module, web_content, get_free_port, test_output_dir):
+def test_web_service_health_check(web_service_module, web_content, get_free_port, test_output_dir, client_logger):
     """Test that web service health endpoint works"""
     port = get_free_port()
-    log_file = test_output_dir / 'health_service.log'
+    log_file = test_output_dir / 'service.log'  # Standardized name
+    
+    client_logger.info(f"Starting test_web_service_health_check on port {port}")
 
     proc = subprocess.Popen([
         "python", str(web_service_module),
@@ -92,26 +94,35 @@ def test_web_service_health_check(web_service_module, web_content, get_free_port
         "--port", str(port),
         "--log-file", str(log_file)
     ])
+    
+    client_logger.info(f"Started web service process PID: {proc.pid}")
 
     try:
         # Wait for service with retry pattern
-        wait_for_service(f"http://localhost:{port}/health")
+        wait_for_service(f"http://localhost:{port}/health", client_logger=client_logger)
         
         # Test health endpoint
+        client_logger.info("Testing health endpoint")
         response = requests.get(f"http://localhost:{port}/health")
+        client_logger.info(f"Health response: {response.status_code}")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
         assert data["service"] == "web_service"
+        client_logger.info("Health endpoint test passed")
 
     finally:
+        client_logger.info("Terminating web service process")
         proc.terminate()
         proc.wait(timeout=5)
+        client_logger.info("Web service process terminated")
 
-def test_web_service_starts(web_service_module, web_content, get_free_port, test_output_dir):
+def test_web_service_starts(web_service_module, web_content, get_free_port, test_output_dir, client_logger):
     """Test that web service starts without errors"""
     port = get_free_port()
-    log_file = test_output_dir / 'startup_service.log'
+    log_file = test_output_dir / 'service.log'  # Standardized name
+    
+    client_logger.info(f"Starting test_web_service_starts on port {port}")
 
     proc = subprocess.Popen([
         "python", str(web_service_module),
@@ -119,12 +130,20 @@ def test_web_service_starts(web_service_module, web_content, get_free_port, test
         "--port", str(port),
         "--log-file", str(log_file)
     ])
+    
+    client_logger.info(f"Started web service process PID: {proc.pid}")
 
     try:
         time.sleep(0.5)
         # If process is still running, it started successfully
+        if proc.poll() is None:
+            client_logger.info("Web service process still running - startup successful")
+        else:
+            client_logger.error(f"Web service process exited with code: {proc.returncode}")
         assert proc.poll() is None, "Web service exited unexpectedly"
 
     finally:
+        client_logger.info("Terminating web service process")
         proc.terminate()
         proc.wait(timeout=5)
+        client_logger.info("Web service process terminated")

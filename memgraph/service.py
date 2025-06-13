@@ -21,7 +21,8 @@ from memgraph.service_logging import (
     service_async_context, 
     log_app_creation,
     log_route_mounting,
-    log_server_start
+    log_server_start,
+    configure_uvicorn_logging
 )
 
 
@@ -123,11 +124,15 @@ def main(
             app = create_unified_app(static_dir, service_logger)
             log_server_start(service_logger, host, port)
             
+            # Configure uvicorn logging to use same log file
+            uvicorn_config = configure_uvicorn_logging(log_file)
+            
             uvicorn.run(
                 app,
                 host=host,
                 port=port,
-                log_level="info"
+                log_level="info",
+                **uvicorn_config
             )
             
         except FileNotFoundError as e:
