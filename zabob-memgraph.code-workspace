@@ -40,6 +40,13 @@
             "description": "Zabob custom dictionary",
             "addWords": true
         }
+    ],
+    "python.testing.autoTestDiscoverOnSavePattern": "test/**/*.py",
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "-n",
+        "auto",
+        "--dist=worksteal"
     ]
     }
 }

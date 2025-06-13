@@ -50,15 +50,15 @@ def test_output_dir(test_dir, request, tmp_path):
     test_file_stem = Path(request.fspath).stem
     test_name = request.node.name
     output_dir = test_dir / 'out' / test_file_stem / test_name
-    
+
     # Clean up old test artifacts
     if output_dir.exists():
         shutil.rmtree(output_dir, onexc=remove_readonly)
-    
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     yield output_dir
-    
+
     # Copy artifacts from tmp_path if available (suppress errors after warning)
     try:
         if tmp_path.exists():
@@ -72,27 +72,24 @@ def web_content(package_dir, tmp_path):
     """Copy actual web content to temporary directory"""
     source_web = package_dir / 'web'
     dest_web = tmp_path / 'web'
-    
+
     if not source_web.exists():
         pytest.fail(f"Required web content directory not found: {source_web}")
-    
+
     shutil.copytree(source_web, dest_web)
-    
+
     # Copy Node.js dependencies for client.js subprocess testing
     project_root = package_dir.parent
     package_json = project_root / 'package.json'
     node_modules = project_root / 'node_modules'
-    
-    if package_json.exists():
-        shutil.copy2(package_json, tmp_path / 'package.json')
-        logging.info(f"Copied package.json to {tmp_path}")
-    
+
+    shutil.copy2(package_json, tmp_path / 'package.json')
+
     if node_modules.exists():
         shutil.copytree(node_modules, tmp_path / 'node_modules')
-        logging.info(f"Copied node_modules to {tmp_path}")
     else:
         logging.warning(f"node_modules not found at {node_modules} - Node.js tests may fail")
-    
+
     return dest_web
 
 @pytest.fixture
