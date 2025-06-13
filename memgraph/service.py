@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 
 # Use absolute imports
 import memgraph.web_service as web_service
-import memgraph.mcp_service as mcp_service
+# Note: mcp_service.py is standalone FastMCP server, not imported here
 from memgraph.service_logging import (
     service_setup_context,
     service_async_context, 
@@ -38,7 +38,10 @@ def create_unified_app(static_dir: str = "web", service_logger=None) -> FastAPI:
     """
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        async with service_async_context(service_logger):
+        if service_logger:
+            async with service_async_context(service_logger):
+                yield
+        else:
             yield
     
     app = FastAPI(
