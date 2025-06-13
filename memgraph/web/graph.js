@@ -56,7 +56,7 @@ function initializeVisualization() {
         .velocityDecay(0.4);  // More damping
 }
 
-// Load knowledge graph data from the server
+// Load knowledge graph data using MCP client
 async function loadKnowledgeGraph() {
     const loadingEl = document.getElementById('loading');
     loadingEl.style.display = 'flex';
@@ -64,12 +64,8 @@ async function loadKnowledgeGraph() {
     const startTime = performance.now();
 
     try {
-        const response = await fetch('/api/knowledge-graph');
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        // Use the MCP client from client.js to call read_graph tool
+        const data = await callMCPTool('read_graph', {});
         const loadTime = Math.round(performance.now() - startTime);
 
         // Initialize visualization if not done yet
@@ -77,13 +73,16 @@ async function loadKnowledgeGraph() {
             initializeVisualization();
         }
 
+        // Convert MCP data format to visualization format
+        const graphData = convertMCPDataToGraph(data);
+        
         // Update the visualization
-        updateKnowledgeGraph(data.nodes, data.links);
+        updateKnowledgeGraph(graphData.nodes, graphData.links);
 
         // Update stats
         document.getElementById('loadTime').textContent = `Load: ${loadTime}ms`;
 
-        console.log('Knowledge graph loaded:', data.stats);
+        console.log('Knowledge graph loaded via MCP:', graphData.stats);
 
     } catch (error) {
         console.error('Failed to load knowledge graph:', error);
