@@ -3,7 +3,14 @@ import pytest
 import shutil
 import socket
 import logging
+import os
+import stat
 from pathlib import Path
+
+def remove_readonly(func, path, _):
+    """Clear the readonly bit and reattempt the removal"""
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 @pytest.fixture
 def test_dir():
@@ -43,54 +50,44 @@ def test_output_dir(test_dir, request):
     test_file_stem = Path(request.fspath).stem
     test_name = request.node.name
     output_dir = test_dir / 'out' / test_file_stem / test_name
-
+    
     # Clean up old test artifacts
     if output_dir.exists():
-        shutil.rmtree(output_dir, ignore_errors=True)
-
+        shutil.rmtree(output_dir, onexc=remove_readonly)
+    
     output_dir.mkdir(parents=True, exist_ok=True)
-
+    
     yield output_dir
-
-    # Copy artifacts from tmp_path if available
-    if hasattr(request, 'tmp_path_factory'):
-        try:
-            tmp_path = request.getfixturevalue('tmp_path')
-            if tmp_path.exists():
-                dest_tmp = output_dir / 'tmp_artifacts'
-                shutil.copytree(tmp_path, dest_tmp)
-        except Exception as e:
-            logging.warning(f"Failed to copy test artifacts: {e}")
+    
+    # Copy artifacts from tmp_path if available (suppress errors after warning)
+    try:
+        tmp_path = request.getfixturevalue('tmp_path')
+        if tmp_path.exists():
+            dest_tmp = output_dir / 'tmp_artifacts'
+            shutil.copytree(tmp_path, dest_tmp)
+    except Exception as e:
+        logging.warning(f"Failed to copy test artifacts: {e}")
 
 @pytest.fixture
 def web_content(package_dir, tmp_path):
     """Copy actual web content to temporary directory"""
     source_web = package_dir / 'web'
     dest_web = tmp_path / 'web'
-
+    
     logging.info(f"Looking for web content at: {str(source_web)}")
     logging.info(f"Source web exists: {source_web.exists()}")
-    if source_web.exists():
-        contents = [str(p) for p in source_web.iterdir()]
-        logging.info(f"Source web contents: {' | '.join(contents)}")
-
-    if source_web.exists():
-        shutil.copytree(source_web, dest_web)
-        logging.info(f"Copied web content to: {str(dest_web)}")
-        dest_contents = [str(p.name) for p in dest_web.iterdir()]
-        logging.info(f"Dest web contents: {' | '.join(dest_contents)}")
-    else:
-        # Fallback: create minimal content if web directory doesn't exist
-        dest_web.mkdir()
-        (dest_web / 'index.html').write_text("""
-<!DOCTYPE html>
-<html>
-<head><title>Test Page</title></head>
-<body><h1>Knowledge Graph</h1></body>
-</html>
-        """.strip())
-        logging.info(f"Created fallback content at: {str(dest_web)}")
-
+    
+    if not source_web.exists():
+        pytest.fail(f"Required web content directory not found: {source_web}")
+    
+    contents = [str(p) for p in source_web.iterdir()]
+    logging.info(f"Source web contents: {' | '.join(contents)}")
+    
+    shutil.copytree(source_web, dest_web)
+    logging.info(f"Copied web content to: {str(dest_web)}")
+    dest_contents = [str(p.name) for p in dest_web.iterdir()]
+    logging.info(f"Dest web contents: {' | '.join(dest_contents)}")
+    
     return dest_web
 
 @pytest.fixture
