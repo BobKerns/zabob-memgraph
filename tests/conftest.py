@@ -73,19 +73,10 @@ def web_content(package_dir, tmp_path):
     source_web = package_dir / 'web'
     dest_web = tmp_path / 'web'
     
-    logging.info(f"Looking for web content at: {str(source_web)}")
-    logging.info(f"Source web exists: {source_web.exists()}")
-    
     if not source_web.exists():
         pytest.fail(f"Required web content directory not found: {source_web}")
     
-    contents = [str(p) for p in source_web.iterdir()]
-    logging.info(f"Source web contents: {' | '.join(contents)}")
-    
     shutil.copytree(source_web, dest_web)
-    logging.info(f"Copied web content to: {str(dest_web)}")
-    dest_contents = [str(p.name) for p in dest_web.iterdir()]
-    logging.info(f"Dest web contents: {' | '.join(dest_contents)}")
     
     return dest_web
 
