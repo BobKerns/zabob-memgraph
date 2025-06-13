@@ -76,4 +76,5 @@ backup/
 node_modules/
 
 memory.json
+tests/out
 
