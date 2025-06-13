@@ -7,6 +7,11 @@ import subprocess
 def test_serves_static_files(web_service_module, web_content):
     """Test that web_service.py serves static files correctly"""
     
+    print(f"DEBUG: Starting web service with static dir: {web_content}")
+    print(f"DEBUG: Web content exists: {web_content.exists()}")
+    if web_content.exists():
+        print(f"DEBUG: Web content files: {list(web_content.rglob('*'))}")
+    
     # Start web service as module
     proc = subprocess.Popen([
         "python", str(web_service_module), 

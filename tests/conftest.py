@@ -29,8 +29,15 @@ def web_content(package_dir, tmp_path):
     source_web = package_dir / 'web'
     dest_web = tmp_path / 'web'
     
+    print(f"DEBUG: Looking for web content at: {source_web}")
+    print(f"DEBUG: Source web exists: {source_web.exists()}")
+    if source_web.exists():
+        print(f"DEBUG: Source web contents: {list(source_web.iterdir())}")
+    
     if source_web.exists():
         shutil.copytree(source_web, dest_web)
+        print(f"DEBUG: Copied web content to: {dest_web}")
+        print(f"DEBUG: Dest web contents: {list(dest_web.iterdir())}")
     else:
         # Fallback: create minimal content if web directory doesn't exist
         dest_web.mkdir()
@@ -41,6 +48,7 @@ def web_content(package_dir, tmp_path):
 <body><h1>Knowledge Graph</h1></body>
 </html>
         """.strip())
+        print(f"DEBUG: Created fallback content at: {dest_web}")
     
     return dest_web
 
