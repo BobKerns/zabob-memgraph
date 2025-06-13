@@ -14,13 +14,14 @@ def remove_readonly(func, path, _):
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
-def wait_for_service(url, max_attempts=10, timeout=1.0):
+def wait_for_service(url, max_attempts=10, timeout=1.0, client_logger=None):
     """Wait for service to be ready with retry pattern.
     
     Args:
         url: Service URL to check
         max_attempts: Maximum number of retry attempts (increased to 10)
         timeout: Timeout per attempt in seconds (increased to 1.0s)
+        client_logger: Logger for client-side logging
         
     Returns:
         requests.Response: Successful response
@@ -28,30 +29,79 @@ def wait_for_service(url, max_attempts=10, timeout=1.0):
     Raises:
         TimeoutError: If service not ready after max_attempts
     """
+    if client_logger:
+        client_logger.info(f"Starting service health check: {url} (max {max_attempts} attempts, {timeout}s timeout each)")
+    
     last_error = None
     for attempt in range(max_attempts):
+        if client_logger:
+            client_logger.info(f"Health check attempt {attempt + 1}/{max_attempts}")
+            
         try:
             response = requests.get(url, timeout=timeout)
+            if client_logger:
+                client_logger.info(f"Got HTTP response: {response.status_code}")
+                
             if response.status_code == 200:
+                if client_logger:
+                    client_logger.info(f"Service ready after {attempt + 1} attempts")
                 logging.info(f"Service at {url} ready after {attempt + 1} attempts")
                 return response
             else:
                 last_error = f"HTTP {response.status_code}"
+                if client_logger:
+                    client_logger.warning(f"Unexpected status code: {response.status_code}")
         except requests.exceptions.ConnectionError as e:
             last_error = f"Connection error: {e}"
+            if client_logger:
+                client_logger.warning(f"Connection failed: {e}")
         except requests.exceptions.Timeout as e:
             last_error = f"Timeout: {e}"
+            if client_logger:
+                client_logger.warning(f"Request timeout: {e}")
         except requests.exceptions.RequestException as e:
             last_error = f"Request error: {e}"
+            if client_logger:
+                client_logger.warning(f"Request error: {e}")
         except Exception as e:
             last_error = f"Unexpected error: {e}"
+            if client_logger:
+                client_logger.error(f"Unexpected error: {e}")
             
         if attempt < max_attempts - 1:
+            if client_logger:
+                client_logger.info(f"Waiting 0.2s before next attempt...")
             time.sleep(0.2)  # Slightly longer pause between retries
             
     # Log the final error state
-    logging.error(f"Service at {url} not ready after {max_attempts} attempts. Last error: {last_error}")
-    raise TimeoutError(f"Service at {url} not ready after {max_attempts} attempts. Last error: {last_error}")
+    error_msg = f"Service at {url} not ready after {max_attempts} attempts. Last error: {last_error}"
+    if client_logger:
+        client_logger.error(error_msg)
+    logging.error(error_msg)
+    raise TimeoutError(error_msg)
+
+@pytest.fixture
+def client_logger(test_output_dir):
+    """Create client-side logger for test process"""
+    client_log_file = test_output_dir / 'client.log'
+    
+    # Create a dedicated logger for this test
+    logger = logging.getLogger(f"client_{test_output_dir.name}")
+    logger.setLevel(logging.INFO)
+    
+    # Remove any existing handlers to avoid duplicates
+    logger.handlers.clear()
+    
+    # Add file handler
+    file_handler = logging.FileHandler(client_log_file)
+    file_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    logger.info(f"=== Client logging started for test: {test_output_dir.name} ===")
+    
+    return logger
 
 @pytest.fixture
 def test_dir():
