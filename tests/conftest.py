@@ -14,13 +14,13 @@ def remove_readonly(func, path, _):
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
-def wait_for_service(url, max_attempts=5, timeout=0.5):
+def wait_for_service(url, max_attempts=10, timeout=1.0):
     """Wait for service to be ready with retry pattern.
     
     Args:
         url: Service URL to check
-        max_attempts: Maximum number of retry attempts
-        timeout: Timeout per attempt in seconds
+        max_attempts: Maximum number of retry attempts (increased to 10)
+        timeout: Timeout per attempt in seconds (increased to 1.0s)
         
     Returns:
         requests.Response: Successful response
@@ -28,16 +28,30 @@ def wait_for_service(url, max_attempts=5, timeout=0.5):
     Raises:
         TimeoutError: If service not ready after max_attempts
     """
+    last_error = None
     for attempt in range(max_attempts):
         try:
             response = requests.get(url, timeout=timeout)
             if response.status_code == 200:
+                logging.info(f"Service at {url} ready after {attempt + 1} attempts")
                 return response
-        except requests.RequestException:
-            if attempt < max_attempts - 1:
-                time.sleep(0.1)  # Brief pause between retries
-            continue
-    raise TimeoutError(f"Service at {url} not ready after {max_attempts} attempts")
+            else:
+                last_error = f"HTTP {response.status_code}"
+        except requests.exceptions.ConnectionError as e:
+            last_error = f"Connection error: {e}"
+        except requests.exceptions.Timeout as e:
+            last_error = f"Timeout: {e}"
+        except requests.exceptions.RequestException as e:
+            last_error = f"Request error: {e}"
+        except Exception as e:
+            last_error = f"Unexpected error: {e}"
+            
+        if attempt < max_attempts - 1:
+            time.sleep(0.2)  # Slightly longer pause between retries
+            
+    # Log the final error state
+    logging.error(f"Service at {url} not ready after {max_attempts} attempts. Last error: {last_error}")
+    raise TimeoutError(f"Service at {url} not ready after {max_attempts} attempts. Last error: {last_error}")
 
 @pytest.fixture
 def test_dir():
