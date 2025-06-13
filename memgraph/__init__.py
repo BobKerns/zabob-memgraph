@@ -5,7 +5,8 @@ Provides HTTP endpoints for knowledge graph data while maintaining MCP compatibi
 Serves static web assets for D3.js visualization client.
 """
 
-from .server import app, run_server
+# Note: server.py has been renamed to server_old.py (reference only)
+# Active service is now in service.py
 
 __version__ = "0.1.0"
-__all__ = ["app", "run_server"]
+__all__ = []

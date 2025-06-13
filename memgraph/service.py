@@ -12,14 +12,9 @@ from fastapi import FastAPI
 import uvicorn
 import click
 
-# Import the individual service modules - handle both script and package contexts
-try:
-    from . import web_service
-    from . import mcp_service
-except ImportError:
-    # Running as script, use absolute imports
-    import web_service
-    import mcp_service
+# Use absolute imports
+import memgraph.web_service as web_service
+import memgraph.mcp_service as mcp_service
 
 
 def create_unified_app(static_dir: str = "web") -> FastAPI:
