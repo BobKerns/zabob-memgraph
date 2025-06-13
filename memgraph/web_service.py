@@ -12,6 +12,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import uvicorn
+from contextlib import asynccontextmanager
+
+from memgraph.service_logging import (
+    service_setup_context,
+    service_async_context,
+    log_app_creation,
+    log_route_mounting,
+    log_server_start
+)
 
 
 app = FastAPI(
@@ -21,58 +30,85 @@ app = FastAPI(
 )
 
 
-def setup_static_routes(static_dir: str = "web"):
+def setup_static_routes(static_dir: str = "web", service_logger=None, target_app=None):
     """
     Configure static file serving.
 
     Args:
         static_dir: Directory containing static web assets (default: "web")
+        service_logger: Logger instance for tracking setup
+        target_app: FastAPI app to configure (uses global app if None)
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
+    if target_app is None:
+        target_app = app
+        
     static_path = Path(static_dir)
 
-    logger.info(f"Setting up static routes for: {str(static_path)}")
-    logger.info(f"Static path exists: {static_path.exists()}")
-    if static_path.exists():
-        contents = [str(p.name) for p in static_path.iterdir()]
-        logger.info(f"Static path contents: {' | '.join(contents)}")
+    if service_logger:
+        service_logger.logger.info(f"Setting up static routes for: {str(static_path)}")
+        service_logger.logger.info(f"Static path exists: {static_path.exists()}")
+        if static_path.exists():
+            contents = [str(p.name) for p in static_path.iterdir()]
+            service_logger.logger.info(f"Static path contents: {' | '.join(contents)}")
 
     if not static_path.exists():
-        raise FileNotFoundError(f"Static directory not found: {static_path}")
+        error_msg = f"Static directory not found: {static_path}"
+        if service_logger:
+            service_logger.logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
 
     # Mount static files directory
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    logger.info(f"Mounted /static to {str(static_dir)}")
+    target_app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    if service_logger:
+        log_route_mounting(service_logger, "/static", str(static_dir))
 
     # Serve index.html at root
-    @app.get("/")
+    @target_app.get("/")
     async def serve_index():
         index_path = static_path / "index.html"
-        logger.info(f"Serving index from: {str(index_path)}")
-        logger.info(f"Index exists: {index_path.exists()}")
+        if service_logger:
+            service_logger.logger.info(f"Serving index from: {str(index_path)}")
+            service_logger.logger.info(f"Index exists: {index_path.exists()}")
         if not index_path.exists():
             raise HTTPException(status_code=404, detail="index.html not found")
         return FileResponse(index_path)
 
     # Health check endpoint
-    @app.get("/health")
+    @target_app.get("/health")
     async def health_check():
         return {"status": "healthy", "service": "web_service"}
 
 
-def create_app(static_dir: str = "web") -> FastAPI:
+def create_app(static_dir: str = "web", service_logger=None) -> FastAPI:
     """
     Create configured FastAPI application.
 
     Args:
         static_dir: Directory containing static web assets
+        service_logger: Logger instance for tracking app creation
 
     Returns:
         Configured FastAPI application
     """
-    setup_static_routes(static_dir)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async with service_async_context(service_logger):
+            yield
+    
+    app = FastAPI(
+        title="Knowledge Graph Web Service",
+        description="Static content server for knowledge graph visualization",
+        version="1.0.0",
+        lifespan=lifespan
+    )
+    
+    if service_logger:
+        log_app_creation(service_logger, "web", {
+            "static_dir": static_dir,
+            "title": "Knowledge Graph Web Service"
+        })
+    
+    setup_static_routes(static_dir, service_logger, app)
     return app
 
 
@@ -93,39 +129,35 @@ def main(
         reload: Enable auto-reload for development (default: False)
         log_file: Log file path (default: None, logs to stderr)
     """
-    import logging
+    args = {
+        "host": host,
+        "port": port,
+        "static_dir": static_dir,
+        "reload": reload,
+        "log_file": log_file
+    }
     
-    # Configure logging
-    if log_file:
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            filename=log_file
-        )
-    else:
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-    
-    logger = logging.getLogger(__name__)
-    
-    try:
-        setup_static_routes(static_dir)
-        logger.info(f"Starting web service on {host}:{port} with static dir {static_dir}")
-        uvicorn.run(
-            app,  # Use the configured app directly
-            host=host,
-            port=port,
-            log_level="info"
-        )
-    except FileNotFoundError as e:
-        logger.error(f"Error: {e}")
-        logger.error(f"Please ensure the '{static_dir}' directory exists and contains web assets.")
-        return 1
-    except Exception as e:
-        logger.error(f"Failed to start web service: {e}")
-        return 1
+    with service_setup_context("web_service", args, log_file) as service_logger:
+        try:
+            # Use create_app instead of global app for better encapsulation
+            app_instance = create_app(static_dir, service_logger)
+            log_server_start(service_logger, host, port)
+            
+            uvicorn.run(
+                app_instance,
+                host=host,
+                port=port,
+                log_level="info",
+                reload=reload
+            )
+            
+        except FileNotFoundError as e:
+            service_logger.logger.error(f"Configuration error: {e}")
+            service_logger.logger.error(f"Please ensure the '{static_dir}' directory exists and contains web assets.")
+            return 1
+        except Exception as e:
+            service_logger.logger.error(f"Failed to start web service: {e}", exc_info=True)
+            return 1
 
 
 if __name__ == "__main__":

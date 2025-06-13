@@ -11,36 +11,57 @@ from pathlib import Path
 from fastapi import FastAPI
 import uvicorn
 import click
+from contextlib import asynccontextmanager
 
 # Use absolute imports
 import memgraph.web_service as web_service
 import memgraph.mcp_service as mcp_service
+from memgraph.service_logging import (
+    service_setup_context,
+    service_async_context, 
+    log_app_creation,
+    log_route_mounting,
+    log_server_start
+)
 
 
-def create_unified_app(static_dir: str = "web") -> FastAPI:
+def create_unified_app(static_dir: str = "web", service_logger=None) -> FastAPI:
     """
     Create unified FastAPI application with both web and MCP routes.
     
     Args:
         static_dir: Directory containing static web assets
+        service_logger: Logger instance for tracking app creation
         
     Returns:
         Configured FastAPI application with both route collections
     """
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async with service_async_context(service_logger):
+            yield
+    
     app = FastAPI(
         title="Knowledge Graph Unified Service",
         description="Combined web content and MCP protocol server",
-        version="1.0.0"
+        version="1.0.0",
+        lifespan=lifespan
     )
     
-    logger = logging.getLogger(__name__)
-    logger.info(f"Creating unified service with static dir: {static_dir}")
+    if service_logger:
+        log_app_creation(service_logger, "unified", {
+            "static_dir": static_dir,
+            "title": "Knowledge Graph Unified Service"
+        })
     
     # Set up static routes directly on our app
     static_path = Path(static_dir)
     
     if not static_path.exists():
-        raise FileNotFoundError(f"Static directory not found: {static_path}")
+        error_msg = f"Static directory not found: {static_path}"
+        if service_logger:
+            service_logger.logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
     
     # Mount static files directory
     from fastapi.staticfiles import StaticFiles
@@ -48,7 +69,8 @@ def create_unified_app(static_dir: str = "web") -> FastAPI:
     from fastapi import HTTPException
     
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    logger.info(f"Mounted /static to {static_dir}")
+    if service_logger:
+        log_route_mounting(service_logger, "/static", str(static_dir))
     
     # Add web service routes
     @app.get("/")
@@ -68,6 +90,9 @@ def create_unified_app(static_dir: str = "web") -> FastAPI:
     async def mcp_health():
         return {"status": "healthy", "service": "mcp_service"}
     
+    if service_logger:
+        service_logger.logger.info("Unified service routes configured")
+    
     return app
 
 
@@ -86,33 +111,32 @@ def main(
         static_dir: Directory containing static web assets (default: "web")
         log_file: Log file path (default: None, logs to stderr)
     """
-    # Configure logging
-    if log_file:
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            filename=log_file
-        )
-    else:
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+    args = {
+        "host": host,
+        "port": port,
+        "static_dir": static_dir,
+        "log_file": log_file
+    }
     
-    logger = logging.getLogger(__name__)
-    
-    try:
-        app = create_unified_app(static_dir)
-        logger.info(f"Starting unified service on {host}:{port}")
-        uvicorn.run(
-            app,
-            host=host,
-            port=port,
-            log_level="info"
-        )
-    except Exception as e:
-        logger.error(f"Failed to start unified service: {e}")
-        return 1
+    with service_setup_context("unified_service", args, log_file) as service_logger:
+        try:
+            app = create_unified_app(static_dir, service_logger)
+            log_server_start(service_logger, host, port)
+            
+            uvicorn.run(
+                app,
+                host=host,
+                port=port,
+                log_level="info"
+            )
+            
+        except FileNotFoundError as e:
+            service_logger.logger.error(f"Configuration error: {e}")
+            service_logger.logger.error(f"Please ensure the '{static_dir}' directory exists and contains web assets.")
+            return 1
+        except Exception as e:
+            service_logger.logger.error(f"Failed to start unified service: {e}", exc_info=True)
+            return 1
 
 
 if __name__ == "__main__":
