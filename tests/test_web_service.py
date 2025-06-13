@@ -4,12 +4,12 @@ import requests
 import time
 import subprocess
 
-def test_serves_static_files(web_service_script, web_content):
+def test_serves_static_files(web_service_module, web_content):
     """Test that web_service.py serves static files correctly"""
     
-    # Start web service using absolute path
+    # Start web service as module
     proc = subprocess.Popen([
-        "python", str(web_service_script), 
+        "python", str(web_service_module), 
         "--static-dir", str(web_content),
         "--port", "8081"
     ])
@@ -45,10 +45,10 @@ def test_serves_static_files(web_service_script, web_content):
         except subprocess.TimeoutExpired:
             proc.kill()
 
-def test_web_service_starts(web_service_script, web_content):
+def test_web_service_starts(web_service_module, web_content):
     """Test that web service starts without errors"""
     proc = subprocess.Popen([
-        "python", str(web_service_script),
+        "python", str(web_service_module),
         "--static-dir", str(web_content),
         "--port", "8082"
     ])

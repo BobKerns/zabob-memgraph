@@ -19,9 +19,9 @@ def package_dir(project_dir):
     return project_dir / 'memgraph'
 
 @pytest.fixture
-def web_service_script(project_dir):
-    """Path to web_service.py script"""
-    return project_dir / 'web_service.py'
+def web_service_module(package_dir):
+    """Path to web_service.py module within package"""
+    return package_dir / 'web_service.py'
 
 @pytest.fixture
 def web_content(package_dir, tmp_path):
