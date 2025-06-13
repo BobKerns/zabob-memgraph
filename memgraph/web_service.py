@@ -30,23 +30,24 @@ def setup_static_routes(static_dir: str = "web"):
     """
     static_path = Path(static_dir)
     
-    print(f"DEBUG: Setting up static routes for: {static_path}")
+    print(f"DEBUG: Setting up static routes for: {str(static_path)}")
     print(f"DEBUG: Static path exists: {static_path.exists()}")
     if static_path.exists():
-        print(f"DEBUG: Static path contents: {list(static_path.iterdir())}")
+        contents = [str(p.name) for p in static_path.iterdir()]
+        print(f"DEBUG: Static path contents: {' | '.join(contents)}")
     
     if not static_path.exists():
         raise FileNotFoundError(f"Static directory not found: {static_path}")
     
     # Mount static files directory
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    print(f"DEBUG: Mounted /static to {static_dir}")
+    print(f"DEBUG: Mounted /static to {str(static_dir)}")
     
     # Serve index.html at root
     @app.get("/")
     async def serve_index():
         index_path = static_path / "index.html"
-        print(f"DEBUG: Serving index from: {index_path}")
+        print(f"DEBUG: Serving index from: {str(index_path)}")
         print(f"DEBUG: Index exists: {index_path.exists()}")
         if not index_path.exists():
             raise HTTPException(status_code=404, detail="index.html not found")
