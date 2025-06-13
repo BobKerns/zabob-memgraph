@@ -44,7 +44,7 @@ def get_free_port():
     return _get_port
 
 @pytest.fixture
-def test_output_dir(test_dir, request):
+def test_output_dir(test_dir, request, tmp_path):
     """Create test output directory for artifacts"""
     # Create path: tests/out/<test-file-stem>/<test-name>
     test_file_stem = Path(request.fspath).stem
@@ -61,7 +61,6 @@ def test_output_dir(test_dir, request):
     
     # Copy artifacts from tmp_path if available (suppress errors after warning)
     try:
-        tmp_path = request.getfixturevalue('tmp_path')
         if tmp_path.exists():
             dest_tmp = output_dir / 'tmp_artifacts'
             shutil.copytree(tmp_path, dest_tmp)
