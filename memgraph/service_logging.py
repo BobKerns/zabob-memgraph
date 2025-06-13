@@ -79,12 +79,17 @@ def service_setup_context(service_name: str, args: Dict[str, Any], log_file: Opt
 
 
 @asynccontextmanager
-async def service_async_context(service_logger: ServiceLogger):
+async def service_async_context(service_logger):
     """
     Context manager for async service phase (FastAPI lifespan).
     
     Logs service start/stop and handles graceful shutdown.
     """
+    if service_logger is None:
+        # No logging when service_logger is None
+        yield
+        return
+        
     def signal_handler(signum, frame):
         service_logger.logger.info(f"Received signal {signum}, initiating graceful shutdown")
         service_logger.log_shutdown("signal")

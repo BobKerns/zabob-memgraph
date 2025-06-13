@@ -92,10 +92,7 @@ def create_app(static_dir: str = "web", service_logger=None) -> FastAPI:
     """
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        if service_logger:
-            async with service_async_context(service_logger):
-                yield
-        else:
+        async with service_async_context(service_logger):
             yield
     
     app = FastAPI(
