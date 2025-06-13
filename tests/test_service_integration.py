@@ -6,11 +6,14 @@ import subprocess
 import logging
 from conftest import wait_for_service
 
-def test_unified_service_starts(package_dir, web_content, get_free_port, test_output_dir):
+def test_unified_service_starts(package_dir, web_content, get_free_port, test_output_dir, client_logger):
     """Test that unified service starts without errors"""
     port = get_free_port()
-    log_file = test_output_dir / 'unified_service.log'
+    log_file = test_output_dir / 'service.log'  # Standardized name
     service_module = package_dir / 'service.py'
+    
+    client_logger.info(f"Starting test_unified_service_starts on port {port}")
+    client_logger.info(f"Service log: {log_file}")
 
     proc = subprocess.Popen([
         "python", str(service_module),
@@ -18,15 +21,23 @@ def test_unified_service_starts(package_dir, web_content, get_free_port, test_ou
         "--port", str(port),
         "--log-file", str(log_file)
     ])
+    
+    client_logger.info(f"Started service process PID: {proc.pid}")
 
     try:
         time.sleep(0.5)
         # If process is still running, it started successfully
+        if proc.poll() is None:
+            client_logger.info("Service process still running - startup successful")
+        else:
+            client_logger.error(f"Service process exited with code: {proc.returncode}")
         assert proc.poll() is None, "Unified service exited unexpectedly"
 
     finally:
+        client_logger.info("Terminating service process")
         proc.terminate()
         proc.wait(timeout=5)
+        client_logger.info("Service process terminated")
 
 def test_unified_service_web_routes(package_dir, web_content, get_free_port, test_output_dir, client_logger):
     """Test that unified service serves web content correctly"""
@@ -127,11 +138,13 @@ def test_unified_service_mcp_routes(package_dir, web_content, get_free_port, tes
         proc.wait(timeout=5)
         client_logger.info("Service process terminated")
 
-def test_unified_service_both_routes_same_port(package_dir, web_content, get_free_port, test_output_dir):
+def test_unified_service_both_routes_same_port(package_dir, web_content, get_free_port, test_output_dir, client_logger):
     """Test that both web and MCP routes work on the same port"""
     port = get_free_port()
-    log_file = test_output_dir / 'both_routes.log'
+    log_file = test_output_dir / 'service.log'  # Standardized name
     service_module = package_dir / 'service.py'
+    
+    client_logger.info(f"Starting test_unified_service_both_routes_same_port on port {port}")
 
     proc = subprocess.Popen([
         "python", str(service_module),
@@ -139,27 +152,41 @@ def test_unified_service_both_routes_same_port(package_dir, web_content, get_fre
         "--port", str(port),
         "--log-file", str(log_file)
     ])
+    
+    client_logger.info(f"Started service process PID: {proc.pid}")
 
     try:
         # Wait for service with retry pattern
-        wait_for_service(f"http://localhost:{port}/health")
+        wait_for_service(f"http://localhost:{port}/health", client_logger=client_logger)
 
         # Test web health
+        client_logger.info("Testing web health endpoint")
         web_response = requests.get(f"http://localhost:{port}/health")
+        client_logger.info(f"Web health response: {web_response.status_code}")
         assert web_response.status_code == 200
         assert web_response.json()["service"] == "unified_service"
+        client_logger.info("Web health test passed")
 
         # Test MCP health
+        client_logger.info("Testing MCP health endpoint")
         mcp_response = requests.get(f"http://localhost:{port}/mcp/health")
+        client_logger.info(f"MCP health response: {mcp_response.status_code}")
         assert mcp_response.status_code == 200
         assert mcp_response.json()["service"] == "mcp_service"
+        client_logger.info("MCP health test passed")
 
         # Test static content
+        client_logger.info("Testing static content")
         static_response = requests.get(f"http://localhost:{port}/")
+        client_logger.info(f"Static content response: {static_response.status_code}")
         assert static_response.status_code == 200
+        client_logger.info("Static content test passed")
 
         logging.info(f"All routes working on port {port}")
+        client_logger.info("All route tests passed successfully")
 
     finally:
+        client_logger.info("Terminating service process")
         proc.terminate()
         proc.wait(timeout=5)
+        client_logger.info("Service process terminated")

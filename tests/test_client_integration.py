@@ -7,11 +7,13 @@ import logging
 from pathlib import Path
 from conftest import wait_for_service
 
-def test_web_app_loads_static_content(package_dir, web_content, get_free_port, test_output_dir):
+def test_web_app_loads_static_content(package_dir, web_content, get_free_port, test_output_dir, client_logger):
     """Test that web app loads static content from unified service"""
     port = get_free_port()
-    log_file = test_output_dir / 'web_app_static.log'
+    log_file = test_output_dir / 'service.log'  # Standardized name
     service_module = package_dir / 'service.py'
+    
+    client_logger.info(f"Starting test_web_app_loads_static_content on port {port}")
 
     proc = subprocess.Popen([
         "python", str(service_module),
@@ -19,31 +21,41 @@ def test_web_app_loads_static_content(package_dir, web_content, get_free_port, t
         "--port", str(port),
         "--log-file", str(log_file)
     ])
+    
+    client_logger.info(f"Started service process PID: {proc.pid}")
 
     try:
         # Wait for service with retry pattern
-        wait_for_service(f"http://localhost:{port}/")
+        wait_for_service(f"http://localhost:{port}/", client_logger=client_logger)
 
         # Test that index.html loads and contains expected web app structure
+        client_logger.info("Testing index.html loading")
         response = requests.get(f"http://localhost:{port}/")
+        client_logger.info(f"Index response: {response.status_code}")
         assert response.status_code == 200
         content = response.text.lower()
 
         # Look for typical web app elements
         assert "html" in content
+        client_logger.info("HTML content verified")
         # If graph.js or similar is referenced, check for it
         if "graph.js" in content or "script" in content:
+            client_logger.info("Web app structure detected in index.html")
             logging.info("Web app structure detected in index.html")
 
     finally:
+        client_logger.info("Terminating service process")
         proc.terminate()
         proc.wait(timeout=5)
+        client_logger.info("Service process terminated")
 
-def test_web_app_connects_to_mcp_service(package_dir, web_content, get_free_port, test_output_dir):
+def test_web_app_connects_to_mcp_service(package_dir, web_content, get_free_port, test_output_dir, client_logger):
     """Test that web app can connect to MCP service endpoints"""
     port = get_free_port()
-    log_file = test_output_dir / 'web_app_mcp.log'
+    log_file = test_output_dir / 'service.log'  # Standardized name
     service_module = package_dir / 'service.py'
+    
+    client_logger.info(f"Starting test_web_app_connects_to_mcp_service on port {port}")
 
     proc = subprocess.Popen([
         "python", str(service_module),
@@ -51,24 +63,31 @@ def test_web_app_connects_to_mcp_service(package_dir, web_content, get_free_port
         "--port", str(port),
         "--log-file", str(log_file)
     ])
+    
+    client_logger.info(f"Started service process PID: {proc.pid}")
 
     try:
         # Wait for service with retry pattern
-        wait_for_service(f"http://localhost:{port}/mcp/health")
+        wait_for_service(f"http://localhost:{port}/mcp/health", client_logger=client_logger)
 
         # Test MCP health endpoint (placeholder for now)
+        client_logger.info("Testing MCP health endpoint")
         response = requests.get(f"http://localhost:{port}/mcp/health")
+        client_logger.info(f"MCP health response: {response.status_code}")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
         assert data["service"] == "mcp_service"
+        client_logger.info("MCP health test passed")
 
         # TODO: Test actual MCP protocol endpoints when implemented
         # For now, verify the endpoint structure is accessible
 
     finally:
+        client_logger.info("Terminating service process")
         proc.terminate()
         proc.wait(timeout=5)
+        client_logger.info("Service process terminated")
 
 def test_client_js_mcp_integration(package_dir, web_content, get_free_port, test_output_dir, tmp_path):
     """Test client.js MCP integration via subprocess"""

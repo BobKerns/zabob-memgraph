@@ -6,16 +6,19 @@ import subprocess
 import logging
 from conftest import wait_for_service
 
-def test_serves_static_files(web_service_module, web_content, get_free_port, test_output_dir):
+def test_serves_static_files(web_service_module, web_content, get_free_port, test_output_dir, client_logger):
     """Test that web_service.py serves static files correctly"""
     port = get_free_port()
-    log_file = test_output_dir / 'web_service.log'
-
-    logging.info(f"Starting web service with static dir: {str(web_content)}")
-    logging.info(f"Web content exists: {web_content.exists()}")
+    log_file = test_output_dir / 'service.log'  # Standardized name
+    
+    client_logger.info(f"Starting test_serves_static_files on port {port}")
+    client_logger.info(f"Web service module: {web_service_module}")
+    client_logger.info(f"Web content dir: {web_content}")
+    client_logger.info(f"Web content exists: {web_content.exists()}")
+    
     if web_content.exists():
         files = [str(p.relative_to(web_content)) for p in web_content.rglob('*') if p.is_file()]
-        logging.info(f"Web content files: {' | '.join(files)}")
+        client_logger.info(f"Web content files: {' | '.join(files)}")
 
     # Start web service as module
     proc = subprocess.Popen([
@@ -24,25 +27,30 @@ def test_serves_static_files(web_service_module, web_content, get_free_port, tes
         "--port", str(port),
         "--log-file", str(log_file)
     ])
+    
+    client_logger.info(f"Started web service process PID: {proc.pid}")
 
     try:
         # Wait for service with retry pattern
-        wait_for_service(f"http://localhost:{port}/health")
+        wait_for_service(f"http://localhost:{port}/health", client_logger=client_logger)
 
         # Test health endpoint first
+        client_logger.info("Testing health endpoint")
         response = requests.get(f"http://localhost:{port}/health")
+        client_logger.info(f"Health response: {response.status_code}")
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"
-        logging.info("Health check passed")
+        client_logger.info("Health check passed")
 
         # Test serving index.html at root
+        client_logger.info("Testing index serving")
         response = requests.get(f"http://localhost:{port}/")
-        logging.info(f"Root request status: {response.status_code}")
+        client_logger.info(f"Index response: {response.status_code}")
         if response.status_code != 200:
-            logging.error(f"Root request error: {response.text}")
+            client_logger.error(f"Index request error: {response.text}")
         assert response.status_code == 200
         assert "html" in response.text.lower()
-        logging.info("Index serving passed")
+        client_logger.info("Index serving passed")
 
         # Test serving actual static files via /static/ path
         static_files = [p for p in web_content.rglob('*') if p.is_file() and p.suffix in ['.css', '.js', '.html']]
@@ -51,25 +59,27 @@ def test_serves_static_files(web_service_module, web_content, get_free_port, tes
             test_file = static_files[0]
             relative_path = test_file.relative_to(web_content)
             static_url = f"http://localhost:{port}/static/{relative_path}"
-            logging.info(f"Testing static file: {static_url}")
+            client_logger.info(f"Testing static file: {static_url}")
 
             response = requests.get(static_url)
-            logging.info(f"Static file status: {response.status_code}")
+            client_logger.info(f"Static file response: {response.status_code}")
             if response.status_code != 200:
-                logging.error(f"Static file error: {response.text}")
+                client_logger.error(f"Static file error: {response.text}")
             assert response.status_code == 200
             assert len(response.text) > 0
-            logging.info(f"Static file serving passed for {relative_path}")
+            client_logger.info(f"Static file serving passed for {relative_path}")
         else:
-            logging.info("No static files found to test")
+            client_logger.info("No static files found to test")
 
     finally:
         # Clean shutdown
+        client_logger.info("Terminating web service process")
         proc.terminate()
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
+        client_logger.info("Web service process terminated")
 
 def test_web_service_health_check(web_service_module, web_content, get_free_port, test_output_dir):
     """Test that web service health endpoint works"""
