@@ -4,6 +4,7 @@ import requests
 import time
 import subprocess
 import logging
+from conftest import wait_for_service
 
 def test_unified_service_starts(package_dir, web_content, get_free_port, test_output_dir):
     """Test that unified service starts without errors"""
@@ -41,7 +42,8 @@ def test_unified_service_web_routes(package_dir, web_content, get_free_port, tes
     ])
 
     try:
-        time.sleep(1)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/health")
 
         # Test health endpoint
         response = requests.get(f"http://localhost:{port}/health")
@@ -82,7 +84,8 @@ def test_unified_service_mcp_routes(package_dir, web_content, get_free_port, tes
     ])
 
     try:
-        time.sleep(0.5)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/mcp/health")
 
         # Test MCP health endpoint (placeholder for now)
         response = requests.get(f"http://localhost:{port}/mcp/health")
@@ -109,7 +112,8 @@ def test_unified_service_both_routes_same_port(package_dir, web_content, get_fre
     ])
 
     try:
-        time.sleep(0.5)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/health")
 
         # Test web health
         web_response = requests.get(f"http://localhost:{port}/health")

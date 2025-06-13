@@ -4,6 +4,7 @@ import requests
 import time
 import subprocess
 import logging
+from conftest import wait_for_service
 
 def test_serves_static_files(web_service_module, web_content, get_free_port, test_output_dir):
     """Test that web_service.py serves static files correctly"""
@@ -25,8 +26,8 @@ def test_serves_static_files(web_service_module, web_content, get_free_port, tes
     ])
 
     try:
-        # Give service time to start
-        time.sleep(0.5)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/health")
 
         # Test health endpoint first
         response = requests.get(f"http://localhost:{port}/health")
@@ -83,7 +84,9 @@ def test_web_service_health_check(web_service_module, web_content, get_free_port
     ])
 
     try:
-        time.sleep(0.5)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/health")
+        
         # Test health endpoint
         response = requests.get(f"http://localhost:{port}/health")
         assert response.status_code == 200

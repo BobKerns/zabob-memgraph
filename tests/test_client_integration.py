@@ -5,6 +5,7 @@ import time
 import subprocess
 import logging
 from pathlib import Path
+from conftest import wait_for_service
 
 def test_web_app_loads_static_content(package_dir, web_content, get_free_port, test_output_dir):
     """Test that web app loads static content from unified service"""
@@ -20,7 +21,8 @@ def test_web_app_loads_static_content(package_dir, web_content, get_free_port, t
     ])
 
     try:
-        time.sleep(2)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/")
 
         # Test that index.html loads and contains expected web app structure
         response = requests.get(f"http://localhost:{port}/")
@@ -51,7 +53,8 @@ def test_web_app_connects_to_mcp_service(package_dir, web_content, get_free_port
     ])
 
     try:
-        time.sleep(2)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/mcp/health")
 
         # Test MCP health endpoint (placeholder for now)
         response = requests.get(f"http://localhost:{port}/mcp/health")
@@ -87,7 +90,8 @@ def test_client_js_mcp_integration(package_dir, web_content, get_free_port, test
     ])
 
     try:
-        time.sleep(2)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/health")
 
         # Test client.js via subprocess with MCP server URL
         # Run from tmp_path directory where node_modules is available
@@ -141,7 +145,8 @@ def test_full_web_app_stack(package_dir, web_content, get_free_port, test_output
     ])
 
     try:
-        time.sleep(2)
+        # Wait for service with retry pattern
+        wait_for_service(f"http://localhost:{port}/health")
 
         # Test all components working together
 

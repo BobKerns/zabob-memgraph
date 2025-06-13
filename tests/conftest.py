@@ -5,12 +5,39 @@ import socket
 import logging
 import os
 import stat
+import time
+import requests
 from pathlib import Path
 
 def remove_readonly(func, path, _):
     """Clear the readonly bit and reattempt the removal"""
     os.chmod(path, stat.S_IWRITE)
     func(path)
+
+def wait_for_service(url, max_attempts=5, timeout=0.5):
+    """Wait for service to be ready with retry pattern.
+    
+    Args:
+        url: Service URL to check
+        max_attempts: Maximum number of retry attempts
+        timeout: Timeout per attempt in seconds
+        
+    Returns:
+        requests.Response: Successful response
+        
+    Raises:
+        TimeoutError: If service not ready after max_attempts
+    """
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(url, timeout=timeout)
+            if response.status_code == 200:
+                return response
+        except requests.RequestException:
+            if attempt < max_attempts - 1:
+                time.sleep(0.1)  # Brief pause between retries
+            continue
+    raise TimeoutError(f"Service at {url} not ready after {max_attempts} attempts")
 
 @pytest.fixture
 def test_dir():
