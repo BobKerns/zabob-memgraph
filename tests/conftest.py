@@ -1,6 +1,8 @@
 # conftest.py - Test fixtures
 import pytest
 import shutil
+import socket
+import logging
 from pathlib import Path
 
 @pytest.fixture
@@ -23,23 +25,60 @@ def web_service_module(package_dir):
     """Path to web_service.py module within package"""
     return package_dir / 'web_service.py'
 
+@pytest.fixture(scope="session")
+def get_free_port():
+    """Get available port number"""
+    def _get_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('', 0))
+            s.listen(1)
+            port = s.getsockname()[1]
+        return port
+    return _get_port
+
+@pytest.fixture
+def test_output_dir(test_dir, request):
+    """Create test output directory for artifacts"""
+    # Create path: tests/out/<test-file-stem>/<test-name>
+    test_file_stem = Path(request.fspath).stem
+    test_name = request.node.name
+    output_dir = test_dir / 'out' / test_file_stem / test_name
+    
+    # Clean up old test artifacts
+    if output_dir.exists():
+        shutil.rmtree(output_dir, ignore_errors=True)
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    yield output_dir
+    
+    # Copy artifacts from tmp_path if available
+    if hasattr(request, 'tmp_path_factory'):
+        try:
+            tmp_path = request.getfixturevalue('tmp_path')
+            if tmp_path.exists():
+                dest_tmp = output_dir / 'tmp_artifacts'
+                shutil.copytree(tmp_path, dest_tmp, ignore_errors=True)
+        except Exception as e:
+            logging.warning(f"Failed to copy test artifacts: {e}")
+
 @pytest.fixture
 def web_content(package_dir, tmp_path):
     """Copy actual web content to temporary directory"""
     source_web = package_dir / 'web'
     dest_web = tmp_path / 'web'
     
-    print(f"DEBUG: Looking for web content at: {str(source_web)}")
-    print(f"DEBUG: Source web exists: {source_web.exists()}")
+    logging.info(f"Looking for web content at: {str(source_web)}")
+    logging.info(f"Source web exists: {source_web.exists()}")
     if source_web.exists():
         contents = [str(p) for p in source_web.iterdir()]
-        print(f"DEBUG: Source web contents: {' | '.join(contents)}")
+        logging.info(f"Source web contents: {' | '.join(contents)}")
     
     if source_web.exists():
         shutil.copytree(source_web, dest_web)
-        print(f"DEBUG: Copied web content to: {str(dest_web)}")
+        logging.info(f"Copied web content to: {str(dest_web)}")
         dest_contents = [str(p.name) for p in dest_web.iterdir()]
-        print(f"DEBUG: Dest web contents: {' | '.join(dest_contents)}")
+        logging.info(f"Dest web contents: {' | '.join(dest_contents)}")
     else:
         # Fallback: create minimal content if web directory doesn't exist
         dest_web.mkdir()
@@ -50,7 +89,7 @@ def web_content(package_dir, tmp_path):
 <body><h1>Knowledge Graph</h1></body>
 </html>
         """.strip())
-        print(f"DEBUG: Created fallback content at: {str(dest_web)}")
+        logging.info(f"Created fallback content at: {str(dest_web)}")
     
     return dest_web
 
