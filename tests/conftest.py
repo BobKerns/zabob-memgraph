@@ -206,6 +206,7 @@ def open_subprocess(cmd: list[Any], log: logging.Logger)  -> Generator[subproces
     finally:
         log.info(f"Terminating subprocess PID: {proc.pid}")
         proc.terminate()
+        #proc.communicate()
 
 
 @pytest.fixture
@@ -306,6 +307,8 @@ def open_service(request,
                 finally:
                     log.info(f"Terminating service process for {test_name}")
                     proc.terminate()
+                    proc.wait()
+                    #proc.communicate()
 
             case 'web':
                 proc = subprocess.Popen([
@@ -323,6 +326,7 @@ def open_service(request,
                 finally:
                     log.info(f"Terminating service process for {test_name}")
                     proc.terminate()
+                    #proc.communicate()
     return _service
 
 @pytest.fixture
