@@ -159,24 +159,32 @@ def static_files(web_content: Path) -> list[Path]:
     """Generator of static files in web content"""
     return list(web_content.rglob('*'))
 
-type Transport = Literal['stdio', 'http', 'web']
+type Transport = Literal['stdio', 'http', 'web', 'both']
 '''
 Value indicating transport mechanism for MCP service
 - 'stdio': Use standard input/output streams
 - 'http': Use streaming HTTP requests
 - 'web': Regular web HTP requests
+- 'both': Both web and MCP clients available
 '''
 
 class TestClient(Protocol):
     '''
-    Protocol for js_client fixture
+    Protocol for single client fixture
 
     Args:
         url: URL to connect to (default http://localhost:{port}/)
     Returns:
-        str: Output from client.js
+        str: Output from client
     '''
     def __call__(self, url: str) -> str: ...
+
+class BothClients(Protocol):
+    '''
+    Protocol for both web and MCP clients
+    '''
+    web: TestClient
+    mcp: TestClient
 
 _node_js_path: Path|None = None
 
@@ -193,7 +201,7 @@ def node_js() -> Path:
 
 class ServiceOpener(Protocol):
     @contextmanager
-    def __call__(self, service: Path, transport: Transport) -> Generator[TestClient, None, None]: ...
+    def __call__(self, service: Path, transport: Transport) -> Generator[TestClient | BothClients, None, None]: ...
 
 @contextmanager
 def open_subprocess(cmd: list[Any], log: logging.Logger)  -> Generator[subprocess.Popen[str], Any, None]:
@@ -225,15 +233,15 @@ def open_service(request,
     test_name = request.node.name
 
     @contextmanager
-    def _service(service: Path, transport: Transport)-> Generator[TestClient, None, None]:
+    def _service(service: Path, transport: Transport)-> Generator[TestClient | BothClients, None, None]:
         '''
         Service context manager.
 
         Args:
             service: Path to service script to run
-            transport: Transport mechanism to use ('stdio', 'http', 'web')
+            transport: Transport mechanism to use ('stdio', 'http', 'web', 'both')
         Yields:
-            TestClient: Function to interact with the service
+            TestClient | BothClients: Function(s) to interact with the service
         '''
         def _client(url: str) -> str:
             '''
@@ -326,6 +334,33 @@ def open_service(request,
                 finally:
                     log.info(f"Terminating service process for {test_name}")
                     proc.terminate()
+                    #proc.communicate()
+                    
+            case 'both':
+                # Start unified service and provide both web and MCP clients
+                proc = subprocess.Popen([
+                    "python", str(service),
+                    "--static-dir", str(web_content),
+                    "--port", str(port),
+                    "--log-file", str(service_log)
+                ],
+                                            text=True,)
+
+                log.info(f"Started unified service process PID: {proc.pid}")
+                try:
+                    time.sleep(0.5)  # Give server a moment to start
+                    
+                    # Create both clients object
+                    class _BothClients:
+                        def __init__(self):
+                            self.web = _web_client
+                            self.mcp = _client
+                    
+                    yield _BothClients()
+                finally:
+                    log.info(f"Terminating unified service process for {test_name}")
+                    proc.terminate()
+                    proc.wait()
                     #proc.communicate()
     return _service
 
