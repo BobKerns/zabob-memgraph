@@ -22,7 +22,14 @@ dependencies = [
     "toml>=0.10.2",
     "fastmcp>=2.8.0",
     "httpx>=0.24.0",
-    "pytest-xdist[dev]>=3.7.0",
+    "pytest>=8.4.0",
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "mypy>=1.16.0",
+    "ruff>=0.11.13",
+    "pytest-xdist>=3.7.0",
+    "pytest-asyncio>=1.0.0",
+    "anyio>=4.9.0",
 ]
 
 [project.scripts]
@@ -31,11 +38,6 @@ zabob-memgraph = "main:main"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.4.0",
-    "black>=25.1.0",
-    "isort>=6.0.1",
-    "mypy>=1.16.0",
-    "ruff>=0.11.13",
 ]
 
 [tool.setuptools.packages.find]

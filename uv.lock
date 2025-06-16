@@ -647,6 +647,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-asyncio"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d0/d4/14f53324cb1a6381bef29d698987625d80052bb33932d8e7cbf9b337b17c/pytest_asyncio-1.0.0.tar.gz", hash = "sha256:d15463d13f4456e1ead2594520216b225a16f781e144f8fdf6c5bb4667c48b3f", size = 46960, upload-time = "2025-05-26T04:54:40.484Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/05/ce271016e351fddc8399e546f6e23761967ee09c8c568bbfbecb0c150171/pytest_asyncio-1.0.0-py3-none-any.whl", hash = "sha256:4f024da9f1ef945e680dc68610b52550e36590a67fd31bb3b4943979a1f90ef3", size = 15976, upload-time = "2025-05-26T04:54:39.035Z" },
+]
+
+[[package]]
 name = "pytest-xdist"
 version = "3.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -969,47 +981,47 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
+    { name = "anyio" },
+    { name = "black" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "httpx" },
+    { name = "isort" },
     { name = "jinja2" },
     { name = "mcp" },
+    { name = "mypy" },
     { name = "psutil" },
     { name = "pydantic" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "rich" },
+    { name = "ruff" },
     { name = "toml" },
     { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "black" },
-    { name = "isort" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=25.1.0" },
+    { name = "anyio", specifier = ">=4.9.0" },
+    { name = "black", specifier = ">=25.1.0" },
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "fastmcp", specifier = ">=2.8.0" },
     { name = "httpx", specifier = ">=0.24.0" },
-    { name = "isort", marker = "extra == 'dev'", specifier = ">=6.0.1" },
+    { name = "isort", specifier = ">=6.0.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mcp", specifier = ">=1.9.3" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
+    { name = "mypy", specifier = ">=1.16.0" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pydantic", specifier = ">=2.11.5" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.0" },
-    { name = "pytest-xdist", extras = ["dev"], specifier = ">=3.7.0" },
+    { name = "pytest", specifier = ">=8.4.0" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+    { name = "pytest-xdist", specifier = ">=3.7.0" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "rich", specifier = ">=14.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.13" },
+    { name = "ruff", specifier = ">=0.11.13" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.3" },
 ]

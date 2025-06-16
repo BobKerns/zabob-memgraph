@@ -4,25 +4,18 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdIo.js"
 
 const run_client = async (transportType, url, servicePath) => {
     console.log(`Connecting to Model Context Protocol server via ${transportType}:`, url || servicePath || 'stdio');
-    
+
     let transport;
     if (transportType === 'http' && url) {
         transport = new StreamableHTTPClientTransport(url);
-    } else if (transportType === 'stdio' && servicePath) {
+    } else if (transportType === 'stdio' && servicePath && url) {
         transport = new StdioClientTransport({
             command: 'python3',
             args: [servicePath],
         });
     } else {
-        // Fallback to old behavior for backward compatibility
-        transport = (
-            url
-            ? new StreamableHTTPClientTransport(url)
-            : new StdioClientTransport({
-                command: 'python3',
-                args: ['memgraph/mcp_service.py'],
-            })
-        );
+        console.error('Invalid transport type or missing URL/service path.');
+        return;
     }
     const client = new Client(
     {
@@ -62,7 +55,7 @@ if (!isBrowser()) {
     let transportType = null;
     let url = null;
     let servicePath = null;
-    
+
     // Parse --transport, --url, --service-path arguments
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--transport' && i + 1 < args.length) {
@@ -79,7 +72,7 @@ if (!isBrowser()) {
             url = args[i];
         }
     }
-    
+
     // If not running in a browser, execute the client
     run_client(transportType, url, servicePath);
 }
