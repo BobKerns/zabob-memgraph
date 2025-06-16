@@ -22,62 +22,6 @@ def remove_readonly(func, path, _):
     func(path)
 
 @pytest.fixture
-def wait_for_service(log):
-    """Wait for service to be ready with retry pattern.'''
-    """
-    def wait_for_service(max_attempts=10, timeout=1.0):
-        """
-        Wait for a service to be ready by polling its health endpoint.
-        Args:
-            max_attempts: Maximum number of retry attempts (increased to 10)
-            timeout: Timeout per attempt in seconds (increased to 1.0s)
-
-        Returns:
-            requests.Response: Successful response
-
-        Raises:
-            TimeoutError: If service not ready after max_attempts
-        """
-        url = "http://localhost:8000/health"
-        log.info(f"Starting service health check: {url} (max {max_attempts} attempts, {timeout}s timeout each)")
-        last_error = None
-        for attempt in range(max_attempts):
-            log.info(f"Health check attempt {attempt + 1}/{max_attempts}")
-
-            try:
-                response = requests.get(url, timeout=timeout)
-                log.info(f"Got HTTP response: {response.status_code}")
-
-                if response.status_code == 200:
-                    logging.info(f"Service at {url} ready after {attempt + 1} attempts")
-                    return response
-                else:
-                    last_error = f"HTTP {response.status_code}"
-                    log.warning(f"Unexpected status code: {response.status_code}")
-            except requests.exceptions.ConnectionError as e:
-                last_error = f"Connection error: {e}"
-                log.warning(f"Connection failed: ~{e}")
-            except requests.exceptions.Timeout as e:
-                last_error = f"Timeout: {e}"
-                log.warning(f"Request timeout: {e}")
-            except requests.exceptions.RequestException as e:
-                last_error = f"Request error: {e}"
-                log.warning(f"Request error: {e}")
-            except Exception as e:
-                last_error = f"Unexpected error: {e}"
-                log.error(f"Unexpected error: {e}")
-
-            if attempt < max_attempts - 1:
-                log.info(f"Waiting 0.2s before next attempt...")
-                time.sleep(0.2)  # Slightly longer pause between retries
-
-        # Log the final error state
-        error_msg = f"Service at {url} not ready after {max_attempts} attempts. Last error: {last_error}"
-        log.error(error_msg)
-        raise TimeoutError(error_msg)
-    return wait_for_service
-
-@pytest.fixture
 def log(request: pytest.FixtureRequest, client_log):
     """Create client-side logger for test process"""
     # Create a dedicated logger for this test
@@ -137,6 +81,7 @@ def http_service_py(package_dir: Path) -> Path:
 def stdio_service_py(package_dir: Path) -> Path:
     """Path to MCP via stdio stdio_service.py module within package"""
     return package_dir / 'stdio_service.py'
+
 @pytest.fixture
 def service_py(package_dir: Path) -> Path:
     """Path to unified service.py module within package"""
@@ -271,14 +216,34 @@ def open_service(request,
                  node_js: Path,
                  client_js: Path,
                  service_log) -> ServiceOpener:
-    """Start the a service as a subprocess and ensure cleanup"""
+    """
+    Start the a service as a subprocess and ensure cleanup
+
+    Once a service is started, yield a client function to interact with it.
+    """
     test_name = request.node.name
 
     @contextmanager
     def _service(service: Path, transport: Transport)-> Generator[TestClient, None, None]:
+        '''
+        Service context manager.
+
+        Args:
+            service: Path to service script to run
+            transport: Transport mechanism to use ('stdio', 'http', 'web')
+        Yields:
+            TestClient: Function to interact with the service
+        '''
         def _client(url: str) -> str:
+            '''
+            Client function to interact with service via MCP over stdio or HTTP.
+            Args:
+                url: URL path to request (e.g. 'mcp/health')
+            Returns:
+                str: Response text from client.js subprocess
+            '''
             match transport:
-                case 'http'|'web':
+                case 'http':
                     url = f'http://localhost:{port}/{url}'
             log.info(f"Starting client subprocess for {url}")
 
@@ -300,6 +265,13 @@ def open_service(request,
                     return stdout.read()
 
         def _web_client(url: str) -> str:
+            '''
+            Client function to interact with service via regular web HTTP.
+            Args:
+                url: URL path to request (e.g. 'health', 'index.html')
+            Returns:
+                str: Response text from HTTP GET request
+            '''
             match transport:
                 case 'http'|'web':
                     url = f'http://localhost:{port}/{url}'
