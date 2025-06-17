@@ -196,9 +196,9 @@ class ServiceOpener(Protocol):
     @overload
     @contextmanager
     def __call__(self, service: Path, transport: Literal['both']) -> Generator[tuple[TestClient, TestClient], None, None]: ...
-    
+
     @overload
-    @contextmanager  
+    @contextmanager
     def __call__(self, service: Path, transport: Literal['stdio', 'http', 'web']) -> Generator[TestClient, None, None]: ...
     
     @contextmanager
@@ -233,8 +233,16 @@ def open_service(request,
     """
     test_name = request.node.name
 
+    @overload
     @contextmanager
-    def _service(service: Path, transport: Transport)-> Generator[TestClient | tuple[TestClient, TestClient], None, None]:
+    def _service(service: Path, transport: Literal['both']) -> Generator[tuple[TestClient, TestClient], None, None]: ...
+    
+    @overload
+    @contextmanager
+    def _service(service: Path, transport: Literal['stdio', 'http', 'web']) -> Generator[TestClient, None, None]: ...
+    
+    @contextmanager
+    def _service(service: Path, transport: Transport) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]:
         '''
         Service context manager.
 
@@ -336,7 +344,7 @@ def open_service(request,
                     log.info(f"Terminating service process for {test_name}")
                     proc.terminate()
                     #proc.communicate()
-                    
+
             case 'both':
                 # Start unified service and provide both web and MCP clients
                 proc = subprocess.Popen([
@@ -350,7 +358,7 @@ def open_service(request,
                 log.info(f"Started unified service process PID: {proc.pid}")
                 try:
                     time.sleep(0.5)  # Give server a moment to start
-                    
+
                     # Yield tuple of (mcp_client, web_client) for unpacking
                     yield (_client, _web_client)
                 finally:
