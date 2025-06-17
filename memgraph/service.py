@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 
 # Use absolute imports
 import memgraph.web_service as web_service
-import memgraph.stdio_service as stdio_service
+import memgraph.mcp_service as mcp_service
 from memgraph.service_logging import (
     service_setup_context,
     service_async_context,
