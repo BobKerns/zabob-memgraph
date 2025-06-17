@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import json
 import subprocess
 from collections.abc import Generator
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, Protocol, cast, overload
 from psutil.tests import sh
 import pytest
 import shutil
@@ -179,13 +179,6 @@ class TestClient(Protocol):
     '''
     def __call__(self, url: str) -> str: ...
 
-class BothClients(Protocol):
-    '''
-    Protocol for both web and MCP clients
-    '''
-    web: TestClient
-    mcp: TestClient
-
 _node_js_path: Path|None = None
 
 @pytest.fixture
@@ -200,8 +193,16 @@ def node_js() -> Path:
     return _node_js_path
 
 class ServiceOpener(Protocol):
+    @overload
     @contextmanager
-    def __call__(self, service: Path, transport: Transport) -> Generator[TestClient | BothClients, None, None]: ...
+    def __call__(self, service: Path, transport: Literal['both']) -> Generator[tuple[TestClient, TestClient], None, None]: ...
+    
+    @overload
+    @contextmanager  
+    def __call__(self, service: Path, transport: Literal['stdio', 'http', 'web']) -> Generator[TestClient, None, None]: ...
+    
+    @contextmanager
+    def __call__(self, service: Path, transport: Transport) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]: ...
 
 @contextmanager
 def open_subprocess(cmd: list[Any], log: logging.Logger)  -> Generator[subprocess.Popen[str], Any, None]:
@@ -233,7 +234,7 @@ def open_service(request,
     test_name = request.node.name
 
     @contextmanager
-    def _service(service: Path, transport: Transport)-> Generator[TestClient | BothClients, None, None]:
+    def _service(service: Path, transport: Transport)-> Generator[TestClient | tuple[TestClient, TestClient], None, None]:
         '''
         Service context manager.
 
@@ -241,7 +242,7 @@ def open_service(request,
             service: Path to service script to run
             transport: Transport mechanism to use ('stdio', 'http', 'web', 'both')
         Yields:
-            TestClient | BothClients: Function(s) to interact with the service
+            TestClient | tuple[TestClient, TestClient]: Function(s) to interact with the service
         '''
         def _client(url: str) -> str:
             '''
@@ -350,13 +351,8 @@ def open_service(request,
                 try:
                     time.sleep(0.5)  # Give server a moment to start
                     
-                    # Create both clients object
-                    class _BothClients:
-                        def __init__(self):
-                            self.web = _web_client
-                            self.mcp = _client
-                    
-                    yield _BothClients()
+                    # Yield tuple of (mcp_client, web_client) for unpacking
+                    yield (_client, _web_client)
                 finally:
                     log.info(f"Terminating unified service process for {test_name}")
                     proc.terminate()
