@@ -85,8 +85,9 @@ def create_unified_app(static_dir: str = "web", service_logger=None) -> FastAPI:
     async def health_check():
         return {"status": "healthy", "service": "unified_service"}
 
-    # Mount MCP service at /mcp path
-    app.mount("/mcp", mcp_service.mcp.app)
+    # Include MCP service routes at /mcp path
+    # Use include_router instead of mount for FastMCP integration
+    app.include_router(mcp_service.mcp.router, prefix="/mcp")
     if service_logger:
         log_route_mounting(service_logger, "/mcp", "mcp_service")
 
