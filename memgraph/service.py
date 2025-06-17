@@ -85,11 +85,10 @@ def create_unified_app(static_dir: str = "web", service_logger=None) -> FastAPI:
     async def health_check():
         return {"status": "healthy", "service": "unified_service"}
 
-    # TODO: Add MCP service routes when mcp_service.py is expanded
-    # For now, placeholder for MCP endpoints
-    @app.get("/mcp/health")
-    async def mcp_health():
-        return {"status": "healthy", "service": "mcp_service"}
+    # Mount MCP service at /mcp path
+    app.mount("/mcp", mcp_service.mcp)
+    if service_logger:
+        log_route_mounting(service_logger, "/mcp", "mcp_service")
 
     if service_logger:
         service_logger.logger.info("Unified service routes configured")
