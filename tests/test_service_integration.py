@@ -2,7 +2,7 @@
 import json
 import pytest
 
-@pytest.mark.parametrize("transport", [ "web", "http"])
+@pytest.mark.parametrize("transport", [ "web", "http", "stdio", "both" ])
 def test_unified_service_starts(open_service,
                                 service_py,
                                 transport,
@@ -33,13 +33,13 @@ def test_unified_service_mcp_routes(open_service,
         assert web_health_data["status"] == "healthy"
         assert web_health_data["service"] == "unified_service"
         log.info("Web health endpoint working")
-        
+
         # Test MCP endpoints with client.js
         mcp_health_response = mcp_client("mcp/health")
         # Note: client.js response format may be different, check for expected content
         assert "healthy" in mcp_health_response or "mcp_service" in mcp_health_response
         log.info("MCP health endpoint working")
-        
+
         log.info("Both web and MCP endpoints verified")
 
 
@@ -54,21 +54,21 @@ def test_unified_service_both_routes_same_port(open_service,
         health_response = web_client('health')
         assert health_response != ''
         assert "healthy" in health_response
-        
+
         index_response = web_client('')  # index.html
         assert index_response != ''
         assert "html" in index_response.lower()
         log.info("Web routes working")
-        
-        # Test MCP routes  
+
+        # Test MCP routes
         log.info("Testing MCP routes")
         mcp_health_response = mcp_client('mcp/health')
         assert mcp_health_response != ''
         # MCP client.js may return different format, just check it's not empty
-        
+
         # Note: mcp/tool/list_tools may not be implemented yet, comment out for now
         # mcp_tools_response = mcp_client('mcp/tool/list_tools')
         # assert mcp_tools_response != ''
         log.info("MCP routes working")
-        
+
         log.info("Both web and MCP routes verified on same port")

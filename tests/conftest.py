@@ -200,7 +200,7 @@ class ServiceOpener(Protocol):
     @overload
     @contextmanager
     def __call__(self, service: Path, transport: Literal['stdio', 'http', 'web']) -> Generator[TestClient, None, None]: ...
-    
+
     @contextmanager
     def __call__(self, service: Path, transport: Transport) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]: ...
 
@@ -236,11 +236,11 @@ def open_service(request,
     @overload
     @contextmanager
     def _service(service: Path, transport: Literal['both']) -> Generator[tuple[TestClient, TestClient], None, None]: ...
-    
+
     @overload
     @contextmanager
     def _service(service: Path, transport: Literal['stdio', 'http', 'web']) -> Generator[TestClient, None, None]: ...
-    
+
     @contextmanager
     def _service(service: Path, transport: Transport) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]:
         '''
@@ -252,7 +252,7 @@ def open_service(request,
         Yields:
             TestClient | tuple[TestClient, TestClient]: Function(s) to interact with the service
         '''
-        def _client(url: str) -> str:
+        def _mcp_client(url: str) -> str:
             '''
             Client function to interact with service via MCP over stdio or HTTP.
             Args:
@@ -261,7 +261,9 @@ def open_service(request,
                 str: Response text from client.js subprocess
             '''
             match transport:
-                case 'http':
+                case 'stdio':
+                    pass
+                case _:
                     url = f'http://localhost:{port}/{url}'
             log.info(f"Starting client subprocess for {url}")
 
@@ -290,9 +292,7 @@ def open_service(request,
             Returns:
                 str: Response text from HTTP GET request
             '''
-            match transport:
-                case 'http'|'web':
-                    url = f'http://localhost:{port}/{url}'
+            url = f'http://localhost:{port}/{url}'
             log.info(f"Starting web client request for {url}")
             try:
                 response = requests.get(url, timeout=1.0)
@@ -307,7 +307,7 @@ def open_service(request,
 
         match transport:
             case 'stdio':
-                yield _client
+                yield _mcp_client
             case 'http':
                 proc = subprocess.Popen([
                     "python", str(service),
@@ -320,7 +320,7 @@ def open_service(request,
                 log.info(f"Started service process PID: {proc.pid}")
                 try:
                     time.sleep(0.5)  # Give server a moment to start
-                    yield _client
+                    yield _mcp_client
                 finally:
                     log.info(f"Terminating service process for {test_name}")
                     proc.terminate()
@@ -360,7 +360,7 @@ def open_service(request,
                     time.sleep(0.5)  # Give server a moment to start
 
                     # Yield tuple of (mcp_client, web_client) for unpacking
-                    yield (_client, _web_client)
+                    yield (_mcp_client, _web_client)
                 finally:
                     log.info(f"Terminating unified service process for {test_name}")
                     proc.terminate()
