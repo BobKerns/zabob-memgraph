@@ -74,7 +74,6 @@ backup/
 .dockerignore
 
 node_modules/
-package-lock.json
 
 memory.json
 tests/out
