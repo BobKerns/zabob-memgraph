@@ -41,11 +41,11 @@ zabob-memgraph/
 ### Code Style
 
 - **Python Version**: Requires Python 3.12+
-- **Formatting**: Use Black with line length 88 (note: target version is py39 in config)
+- **Formatting**: Use Black with line length 88
 - **Import Sorting**: Use isort with Black profile (line length 88)
-- **Linting**: Use ruff with line length 120 (py312 target version)
+- **Linting**: Use ruff with line length 120, target version py312
 - **Type Checking**: Use mypy with strict mode enabled (Python 3.12)
-- **Note**: There is a line length discrepancy between Black (88) and ruff (120) in the configuration
+- **Configuration Note**: Black is configured for line length 88, while ruff allows up to 120 characters. Follow Black's 88 character limit when formatting code to maintain consistency.
 - **Docstrings**: Use triple-quoted docstrings for modules, classes, and functions
 - **String Quotes**: Prefer double quotes for strings (Black default)
 - **Naming Conventions**:
@@ -247,7 +247,7 @@ async def endpoint_name() -> ResponseType:
 - When in doubt about implementation details, ask for clarification via issue comments
 - Always test Docker deployments after making server changes
 - Verify thread-safety for any changes to database operations
-- **Configuration Note**: Black and ruff have different line length settings (88 vs 120). Black's py39 target is for compatibility while the project requires Python 3.12+. Follow Black's 88 character limit when formatting code.
+- **Line Length**: Black enforces 88 characters, ruff allows up to 120. Prefer Black's formatting (88 chars) for consistency.
 
 ## Questions or Clarifications
 
