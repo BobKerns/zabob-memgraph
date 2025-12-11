@@ -22,7 +22,10 @@ zabob-memgraph/
 │   ├── server.py                 # FastAPI application
 │   ├── sqlite_backend.py         # Thread-safe SQLite backend
 │   ├── knowledge_live.py         # Knowledge graph data layer
-│   ├── *_mcp_client.py           # Various MCP client implementations
+│   ├── *_mcp_client.py           # MCP client implementations (docker, stdio, subprocess, real, etc.)
+│   ├── simple_mcp_bridge.py      # Simple MCP bridge implementation
+│   ├── fastmcp_client.py         # FastMCP client
+│   ├── mcp_protocol_client.py    # MCP protocol client
 │   └── web/                      # Static web assets for visualization
 ├── tests/                        # Test suite
 ├── docs/                         # Documentation and images
@@ -92,9 +95,9 @@ zabob-memgraph/
 ### Quality Checks
 
 ```bash
-# Run type checking and linting
+# Run type checking and linting (runs both mypy and ruff check)
 ./check_types.py
-# Or individually:
+# Or run individually:
 uv run mypy --strict memgraph/
 uv run ruff check memgraph/
 
