@@ -61,7 +61,7 @@ def get_config_dir() -> Path:
     read/write access across processes.
     """
     config_dir = os.getenv('MEMGRAPH_CONFIG_DIR',
-                           str(Path.home() / '.zabob-memgraph'))
+                           str(Path.home() / '.zabob' / 'memgraph'))
     return Path(config_dir)
 
 

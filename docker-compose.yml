@@ -3,18 +3,19 @@ version: '3.8'
 services:
   zabob-memgraph:
     build: .
+    init: true
     ports:
       - "6789:6789"
     volumes:
       # Mount user's home config directory for shared database access
       # This enables hybrid usage: docker and local Python can share the same database
-      # Database, config, and logs all stored in ~/.zabob-memgraph
-      - ${HOME}/.zabob-memgraph:/app/.zabob-memgraph
+      # Database, config, and logs all stored in ~/.zabob/memgraph
+      - ${HOME}/.zabob/memgraph:/app/.zabob/memgraph
     environment:
       # Container is automatically detected via DOCKER_CONTAINER env var
       MEMGRAPH_HOST: 0.0.0.0
       MEMGRAPH_PORT: 6789
-      MEMGRAPH_DATABASE_PATH: /app/.zabob-memgraph/data/knowledge_graph.db
+      MEMGRAPH_DATABASE_PATH: /app/.zabob/memgraph/data/knowledge_graph.db
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:6789/health')\""]

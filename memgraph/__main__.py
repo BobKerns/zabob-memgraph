@@ -35,7 +35,7 @@ console = Console()
 
 # Configuration
 DEFAULT_PORT = 6789
-CONFIG_DIR = Path.home() / ".zabob-memgraph"
+CONFIG_DIR = Path.home() / ".zabob" / "memgraph"
 DOCKER_IMAGE = "zabob-memgraph:latest"
 
 
@@ -524,18 +524,18 @@ def start_docker_server(config_dir: Path, port: int | None, host: str, detach: b
 def is_dev_environment() -> bool:
     """Check if running in development environment"""
     project_root = Path(__file__).parent.parent
-    
+
     # Check for .git directory
     if (project_root / ".git").exists():
         return True
-    
+
     # Check for dev dependencies
     try:
         import watchfiles  # noqa
         return True
     except ImportError:
         pass
-    
+
     return False
 
 
@@ -543,31 +543,45 @@ def is_dev_environment() -> bool:
 @click.command()
 @click.option('--port', type=int, default=None, help='Port to run on')
 @click.option('--host', default='localhost', help='Host to bind to')
-@click.option('--reload', is_flag=True, help='Enable auto-reload on code changes')
+@click.option('--reload', is_flag=True, help='Enable auto-reload on code changes (dev only)')
 @click.pass_context
 def run(ctx, port: int | None, host: str, reload: bool):
-    """Run server in development mode with optional auto-reload"""
+    """Run server in foreground (for stdio mode or development)
+    
+    Unlike 'start', this runs the server in the foreground and blocks.
+    Use this for:
+    - stdio mode with AI assistants
+    - Development with --reload
+    - Docker containers (doesn't spawn background process)
+    
+    For background daemon, use 'start' instead.
+    """
     config_dir: Path = ctx.obj['config_dir']
     config_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Load config and find port
+
+    # Load config
     config = load_config(config_dir)
-    if port is None:
+    
+    # If port explicitly specified, disable auto port finding
+    if port is not None:
+        console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")
+    else:
         port = config.get('port', DEFAULT_PORT)
         if not is_port_available(port, host):
             port = find_free_port(port)
             config['port'] = port
             save_config(config_dir, config)
-    
-    console.print(f"🚀 Starting development server on {host}:{port}")
+            console.print(f"📍 Using available port {port}")
+
+    console.print(f"🚀 Starting server on {host}:{port}")
     if reload:
         console.print("🔄 Auto-reload enabled")
-    
+
     # Build command
     cmd = ['uvicorn', 'main:app', f'--host={host}', f'--port={port}']
     if reload:
         cmd.append('--reload')
-    
+
     try:
         subprocess.run(cmd, check=True)
     except KeyboardInterrupt:
@@ -584,11 +598,11 @@ def build(tag: str, no_cache: bool):
     if no_cache:
         cmd.append('--no-cache')
     cmd.append(str(project_root))
-    
+
     console.print(f"🐳 Building Docker image: {tag}")
     if no_cache:
         console.print("♻️  Building without cache")
-    
+
     try:
         subprocess.run(cmd, check=True)
         console.print(f"✅ Image built successfully: {tag}")
@@ -647,7 +661,7 @@ def clean():
     """Clean build artifacts and cache"""
     project_root = Path(__file__).parent.parent
     console.print("🧹 Cleaning build artifacts...")
-    
+
     patterns = [
         '**/__pycache__',
         '**/*.pyc',
@@ -659,7 +673,7 @@ def clean():
         '.mypy_cache',
         '.ruff_cache',
     ]
-    
+
     count = 0
     for pattern in patterns:
         for path in project_root.glob(pattern):
@@ -668,12 +682,13 @@ def clean():
             else:
                 path.unlink()
             count += 1
-    
+
     console.print(f"✅ Cleaned {count} items")
 
 
 # Add commands to the CLI group
 cli.add_command(start)
+cli.add_command(run)  # Available in all modes (stdio, development, production)
 cli.add_command(stop)
 cli.add_command(restart)
 cli.add_command(status)
@@ -683,7 +698,6 @@ cli.add_command(open_browser, name="open")
 
 # Add development commands if in dev environment
 if is_dev_environment():
-    cli.add_command(run)
     cli.add_command(build)
     cli.add_command(lint)
     cli.add_command(format_code)

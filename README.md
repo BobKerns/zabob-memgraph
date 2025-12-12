@@ -53,11 +53,10 @@ Add to your Claude Desktop MCP config:
     "zabob-memgraph": {
       "command": "docker",
       "args": [
-        "run", "--rm", "-i",
+        "run", "--rm", "-it", "--init",
         "-p", "6789:6789",
-        "-v", "${HOME}/.zabob-memgraph:/app/.zabob-memgraph",
-        "bobkerns/zabob-memgraph:latest",
-        "stdio"
+        "-v", "${HOME}/.zabob/memgraph:/app/.zabob/memgraph",
+        "bobkerns/zabob-memgraph:latest"
       ]
     }
   }
@@ -139,10 +138,10 @@ zabob-memgraph run --reload
 
 ### Data Directory
 
-Configuration and data are stored in `~/.zabob-memgraph/`:
+Configuration and data are stored in `~/.zabob/memgraph/`:
 
 ```text
-~/.zabob-memgraph/
+~/.zabob/memgraph/
 ├── config.json           # Server configuration
 ├── server_info.json      # Current server status
 ├── memgraph.log          # Application logs
@@ -164,7 +163,7 @@ The `config.json` file supports these options:
   "log_level": "INFO",
   "backup_on_start": true,
   "max_backups": 5,
-  "data_dir": "~/.zabob-memgraph/data"
+  "data_dir": "~/.zabob/memgraph/data"
 }
 ```
 
@@ -328,7 +327,7 @@ zabob-memgraph test
 
 ```bash
 # View real-time logs
-tail -f ~/.zabob-memgraph/memgraph.log
+tail -f ~/.zabob/memgraph/memgraph.log
 
 # Monitor server health
 zabob-memgraph monitor

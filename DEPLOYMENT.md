@@ -18,12 +18,14 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
 **Purpose**: Direct integration with AI assistants via stdin/stdout
 
 **Characteristics**:
+
 - Communicates via stdin/stdout using MCP protocol
 - **Still listens on HTTP port** for web UI access
 - Suitable for single-user desktop integration
 - **Cannot share knowledge base across systems** (local only)
 
 **Use Cases**:
+
 - Claude Desktop integration
 - Local AI assistant workflows
 - Development and testing
@@ -33,6 +35,7 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
 **Purpose**: Network-accessible server with web UI
 
 **Characteristics**:
+
 - HTTP/SSE transport for MCP protocol
 - Web visualization interface
 - **Can share knowledge base across systems**
@@ -40,6 +43,7 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
 - Thread-safe SQLite with WAL mode
 
 **Use Cases**:
+
 - Desktop + Laptop scenario (shared KB)
 - Team collaboration
 - Production deployments
@@ -57,9 +61,9 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
     "zabob-memgraph": {
       "command": "docker",
       "args": [
-        "run", "--rm", "-i",
+        "run", "--rm", "-it", "--init",
         "-p", "6789:6789",
-        "-v", "${HOME}/.zabob-memgraph:/app/.zabob-memgraph",
+        "-v", "${HOME}/.zabob/memgraph:/app/.zabob/memgraph",
         "bobkerns/zabob-memgraph:latest",
         "stdio"
       ]
@@ -69,11 +73,13 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
 ```
 
 **Pros**:
+
 - No Python installation required
 - Isolated environment
 - Easy updates (`docker pull`)
 
 **Cons**:
+
 - Requires Docker
 - stdio mode limits sharing to local machine
 - **Note**: Port is still exposed for web UI access
@@ -94,8 +100,8 @@ pipx install zabob-memgraph
 {
   "mcpServers": {
     "zabob-memgraph": {
-      "command": "zabob-memgraph-server",
-      "args": ["stdio"]
+      "command": "zabob-memgraph",
+      "args": ["run"]
     }
   }
 }
@@ -109,18 +115,20 @@ pipx install zabob-memgraph
   "mcpServers": {
     "zabob-memgraph": {
       "command": "uvx",
-      "args": ["zabob-memgraph-server", "stdio"]
+      "args": ["zabob-memgraph", "run"]
     }
   }
 }
 ```
 
 **Pros**:
+
 - Lightweight installation
 - System Python not affected
 - Automatic dependency management
 
 **Cons**:
+
 - stdio mode limits sharing to local machine
 - Requires pipx or uv
 
@@ -137,12 +145,13 @@ services:
     ports:
       - "6789:6789"
     volumes:
-      - ~/.zabob-memgraph:/app/.zabob-memgraph
+      - ~/.zabob/memgraph:/app/.zabob/memgraph
     environment:
       - MEMGRAPH_HOST=0.0.0.0
       - MEMGRAPH_PORT=6789
       - MEMGRAPH_LOG_LEVEL=INFO
     restart: unless-stopped
+    init: true
 
 # Start server
 docker-compose up -d
@@ -155,6 +164,7 @@ open http://localhost:6789
 ```
 
 **Pros**:
+
 - **Shares knowledge base across systems** (Desktop + Laptop)
 - Production-ready
 - Easy scaling
@@ -162,10 +172,12 @@ open http://localhost:6789
 - Volume persistence
 
 **Cons**:
+
 - Requires Docker
 - Network configuration for remote access
 
 **Multi-System Setup**:
+
 ```bash
 # On server (always-on machine)
 docker-compose up -d
@@ -185,21 +197,23 @@ export MEMGRAPH_URL=http://server:6789
 
 ```bash
 # Install development dependencies
-./zabob-memgraph-dev.py install
+uv sync
 
 # Run with auto-reload (development)
-./zabob-memgraph-dev.py run --reload --port 6789
+zabob-memgraph run --reload --port 6789
 
 # Or run in production mode
 zabob-memgraph start --port 6789
 ```
 
 **Pros**:
+
 - Fast iteration
 - Direct code access
 - No containerization overhead
 
 **Cons**:
+
 - Requires Python 3.12+
 - Manual dependency management
 - Not suitable for production
@@ -215,10 +229,11 @@ Run both a development server (with hot reload) and a production server:
 zabob-memgraph start --port 6789
 
 # Development server (port 6790)
-./zabob-memgraph-dev.py run --reload --port 6790
+zabob-memgraph run --reload --port 6790
 ```
 
 **Opening Web UI** (picks first available server):
+
 ```bash
 # Opens whichever server is running
 zabob-memgraph open
@@ -232,15 +247,18 @@ zabob-memgraph open
 **Setup**: HTTP server on always-on machine, clients on multiple devices
 
 ```bash
-# On server/NAS (192.168.1.100)
+# On server (always-on machine)
 docker-compose up -d
 
-# On desktop - configure AI assistant
+# On desktop - configure AI assistant to connect to server
 {
   "mcpServers": {
     "zabob-memgraph": {
-      "command": "mcp-client-http",
-      "args": ["http://192.168.1.100:6789/mcp"]
+      "command": "uvx",
+      "args": ["zabob-memgraph", "run"]
+      "env": {
+        "MEMGRAPH_URL": "http://192.168.1.100:6789"
+      }
     }
   }
 }
@@ -249,8 +267,11 @@ docker-compose up -d
 {
   "mcpServers": {
     "zabob-memgraph": {
-      "command": "mcp-client-http",
-      "args": ["http://192.168.1.100:6789/mcp"]
+      "command": "uvx",
+      "args": ["zabob-memgraph", "run"]
+      "env": {
+        "MEMGRAPH_URL": "http://192.168.1.100:6789"
+      }
     }
   }
 }
@@ -260,6 +281,7 @@ docker-compose up -d
 ```
 
 **Benefits**:
+
 - Single source of truth
 - Synchronized knowledge across devices
 - Accessible from anywhere on network
@@ -267,7 +289,7 @@ docker-compose up -d
 
 ## Deployment Decision Tree
 
-```
+```tree
 Do you need to share KB across multiple systems?
 │
 ├─ NO (single system)
@@ -319,7 +341,7 @@ zabob-memgraph start --port 8080
 # Docker
 docker run -p 8080:6789 zabob-memgraph
 
-# Config file (~/.zabob-memgraph/config.json)
+# Config file (~/.zabob/memgraph/config.json)
 {
   "port": 8080,
   "host": "localhost"
@@ -363,8 +385,8 @@ zabob-memgraph open
 | `MEMGRAPH_PORT` | Server port | `6789` |
 | `MEMGRAPH_MODE` | `stdio` or `server` | `server` |
 | `MEMGRAPH_LOG_LEVEL` | Log level | `INFO` |
-| `MEMGRAPH_CONFIG_DIR` | Config directory | `~/.zabob-memgraph` |
-| `MEMGRAPH_DATABASE_PATH` | DB file path | `~/.zabob-memgraph/data/knowledge_graph.db` |
+| `MEMGRAPH_CONFIG_DIR` | Config directory | `~/.zabob/memgraph` |
+| `MEMGRAPH_DATABASE_PATH` | DB file path | `~/.zabob/memgraph/data/knowledge_graph.db` |
 | `DOCKER_CONTAINER` | Running in Docker | (auto-detected) |
 
 ## Troubleshooting
@@ -438,8 +460,8 @@ zabob-memgraph start --docker --detach
 {
   "mcpServers": {
     "zabob-memgraph": {
-      "command": "mcp-client-http",
-      "args": ["http://localhost:6789/mcp"]
+      "command": "zabob-memgraph",
+      "args": ["run"]
     }
   }
 }
@@ -451,12 +473,13 @@ zabob-memgraph start --docker --detach
 
 ```bash
 # Backup your data
-cp -r ~/.zabob-memgraph ~/.zabob-memgraph.backup
+cp -r ~/.zabob/memgraph ~/.zabob/memgraph.backup
 
 # Start Docker with volume mount
 docker run -d \
   -p 6789:6789 \
-  -v ~/.zabob-memgraph:/app/.zabob-memgraph \
+  -v ~/.zabob/memgraph:/app/.zabob/memgraph \
+  --init \
   bobkerns/zabob-memgraph:latest
 
 # Data is automatically migrated!
@@ -510,11 +533,11 @@ server {
 
 3. **Regular backups**
    - Automatic on server start
-   - Manual: `cp ~/.zabob-memgraph/data/knowledge_graph.db backup.db`
+   - Manual: `cp ~/.zabob/memgraph/data/knowledge_graph.db backup.db`
 
 4. **Monitor server health**
    - `zabob-memgraph monitor`
-   - Check logs: `tail -f ~/.zabob-memgraph/memgraph.log`
+   - Check logs: `tail -f ~/.zabob/memgraph/memgraph.log`
 
 5. **Test endpoints**
    - `zabob-memgraph test`
@@ -531,6 +554,7 @@ server {
 - **Browser opening**: Works in all modes (manual in Docker)
 
 Choose the deployment pattern that fits your needs:
+
 - Quick start → stdio with Docker
 - Minimal impact → stdio with pipx/uvx
 - Desktop + Laptop → HTTP server with Docker

@@ -42,7 +42,7 @@ LAUNCHER_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/zabob-memg
               default=Path.home() / ".local" / "bin",
               help="Directory to install launcher script")
 @click.option("--config-dir", type=click.Path(path_type=Path),
-              default=Path.home() / ".zabob-memgraph",
+              default=Path.home() / ".zabob" / "memgraph",
               help="Configuration directory")
 @click.option("--check-deps", is_flag=True,
               help="Only check dependencies, don't install")
@@ -253,7 +253,7 @@ def create_initial_config(config_dir: Path) -> None:
 
 @click.command()
 @click.option("--config-dir", type=click.Path(path_type=Path),
-              default=Path.home() / ".zabob-memgraph",
+              default=Path.home() / ".zabob" / "memgraph",
               help="Configuration directory")
 def uninstall(config_dir: Path):
     """Uninstall Zabob Memgraph"""

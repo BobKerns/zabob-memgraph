@@ -23,7 +23,7 @@ mcp = FastMCP(
 # Get database path from environment or use default in config directory
 db_path = os.getenv('MEMGRAPH_DATABASE_PATH')
 if not db_path:
-    config_dir = Path.home() / ".zabob-memgraph"
+    config_dir = Path.home() / ".zabob" / "memgraph"
     db_path = str(config_dir / "data" / "knowledge_graph.db")
 
 DB = SQLiteKnowledgeGraphDB(
@@ -178,11 +178,11 @@ async def open_browser(node_id: str | None = None) -> dict:
 
     try:
         # Get server info to find the correct port
-        config_dir = Path.home() / ".zabob-memgraph"
+        config_dir = Path.home() / ".zabob" / "memgraph"
         info_file = config_dir / "server_info.json"
 
         port = None
-        
+
         if info_file.exists():
             # Read server info
             info = json.loads(info_file.read_text())
