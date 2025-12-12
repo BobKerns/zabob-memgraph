@@ -6,7 +6,6 @@ Minimal FastAPI server focused solely on serving static web assets.
 Sibling to mcp_service.py - handles web content while MCP service handles data.
 """
 
-import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -42,7 +41,7 @@ def setup_static_routes(static_dir: str = "web", service_logger=None, target_app
     """
     if target_app is None:
         target_app = app
-        
+
     static_path = Path(static_dir)
 
     if service_logger:
@@ -95,20 +94,20 @@ def create_app(static_dir: str = "web", service_logger=None) -> FastAPI:
     async def lifespan(app: FastAPI):
         async with service_async_context(service_logger):
             yield
-    
+
     app = FastAPI(
         title="Knowledge Graph Web Service",
         description="Static content server for knowledge graph visualization",
         version="1.0.0",
         lifespan=lifespan
     )
-    
+
     if service_logger:
         log_app_creation(service_logger, "web", {
             "static_dir": static_dir,
             "title": "Knowledge Graph Web Service"
         })
-    
+
     setup_static_routes(static_dir, service_logger, app)
     return app
 
@@ -137,16 +136,16 @@ def main(
         "reload": reload,
         "log_file": log_file
     }
-    
+
     with service_setup_context("web_service", args, log_file) as service_logger:
         try:
             # Use create_app instead of global app for better encapsulation
             app_instance = create_app(static_dir, service_logger)
             log_server_start(service_logger, host, port)
-            
+
             # Configure uvicorn logging to use same log file
             uvicorn_config = configure_uvicorn_logging(log_file)
-            
+
             uvicorn.run(
                 app_instance,
                 host=host,
@@ -155,7 +154,7 @@ def main(
                 reload=reload,
                 **uvicorn_config
             )
-            
+
         except FileNotFoundError as e:
             service_logger.logger.error(f"Configuration error: {e}")
             service_logger.logger.error(f"Please ensure the '{static_dir}' directory exists and contains web assets.")

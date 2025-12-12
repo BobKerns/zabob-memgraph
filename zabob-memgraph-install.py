@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "click>=8.1.0",
-#     "requests>=2.32.0",
-#     "rich>=13.9.0",
+#     "click>=8.3.1",
+#     "requests>=2.32.5",
+#     "rich>=14.2.0",
 # ]
 # ///
 """
@@ -139,7 +139,7 @@ def check_dependencies(skip_docker: bool = False) -> bool:
     if shutil.which("uv"):
         try:
             result = subprocess.run(["uv", "--version"],
-                                  capture_output=True, text=True, check=True)
+                                    capture_output=True, text=True, check=True)
             version = result.stdout.strip()
             console.print(f"✅ uv {version}")
         except subprocess.CalledProcessError:
@@ -155,7 +155,7 @@ def check_dependencies(skip_docker: bool = False) -> bool:
         if shutil.which("docker"):
             try:
                 result = subprocess.run(["docker", "--version"],
-                                      capture_output=True, text=True, check=True)
+                                        capture_output=True, text=True, check=True)
                 version = result.stdout.strip()
                 console.print(f"✅ Docker available: {version}")
             except subprocess.CalledProcessError:

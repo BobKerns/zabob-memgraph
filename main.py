@@ -1,11 +1,13 @@
-#!/usr/bin/env uv run --script
+#!/usr/bin/env -Suv run --script
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
 #     "aiofiles",
 #     "fastapi",
+#     "fastmcp",
 #     "jinja2",
 #     "mcp",
+#     "memgraph",
 #     "pydantic",
 #     "uvicorn[standard]",
 # ]
@@ -13,8 +15,10 @@
 """
 Main entry point for the Zabob Memgraph Knowledge Graph Server
 
-This serves as both the standalone script entry point and the Docker container entrypoint.
-Handles database operations, backups, and configuration that shouldn't be in the launcher.
+This serves as both the standalone script entry point and the
+Docker container entrypoint.
+Handles database operations, backups, and configuration that
+shouldn't be in the launcher.
 """
 
 import json
@@ -25,10 +29,7 @@ import sys
 import time
 from pathlib import Path
 
-# Add the package to the path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from memgraph.server import run_server
+from memgraph.service import main as run_server
 
 
 def setup_logging(log_level: str = "INFO") -> None:
@@ -52,11 +53,12 @@ def setup_logging(log_level: str = "INFO") -> None:
 def get_config_dir() -> Path:
     """Get configuration directory from environment or default
 
-    This directory is shared between host and container for daemon coordination,
-    enabling write-ahead-logging and simultaneous read/write access across processes.
+    This directory is shared between host and container for daemon
+    coordination, enabling write-ahead-logging and simultaneous
+    read/write access across processes.
     """
     config_dir = os.getenv('MEMGRAPH_CONFIG_DIR',
-                        str(Path.home() / '.zabob-memgraph'))
+                           str(Path.home() / '.zabob-memgraph'))
     return Path(config_dir)
 
 
@@ -90,7 +92,7 @@ def backup_database() -> None:
 
             # Keep only the 5 most recent backups
             backups = sorted(backup_dir.glob("knowledge_graph_*.db"),
-                            key=lambda x: x.stat().st_mtime, reverse=True)
+                             key=lambda x: x.stat().st_mtime, reverse=True)
             for old_backup in backups[5:]:
                 old_backup.unlink()
                 logging.info(f"Removed old backup {old_backup}")
@@ -147,6 +149,7 @@ def main():
     host = os.getenv('MEMGRAPH_HOST', config['host'])
     port = int(os.getenv('MEMGRAPH_PORT', str(config['port'])))
     log_level = os.getenv('MEMGRAPH_LOG_LEVEL', config['log_level'])
+    static_dir = os.getenv('MEMGRAPH_STATIC_DIR', 'memgraph/web')
 
     # Setup logging
     setup_logging(log_level)
@@ -170,7 +173,7 @@ def main():
 
     # Start the server
     try:
-        run_server(host=host, port=port)
+        run_server(host=host, port=port, static_dir=static_dir)
 
     except KeyboardInterrupt:
         logging.info("Server stopped by user")

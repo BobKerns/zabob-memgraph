@@ -2,23 +2,17 @@
 """
 Unified ASGI service combining web and MCP functionality.
 
-Mounts both web_service routes (static content) and mcp_service routes (MCP protocol)
-on a single ASGI server for integrated operation.
+Mounts web routes onto FastMCP's HTTP app for integrated operation.
 """
 
-import logging
 from pathlib import Path
-from fastapi import FastAPI
 import uvicorn
 import click
-from contextlib import asynccontextmanager
 
 # Use absolute imports
-import memgraph.web_service as web_service
 import memgraph.mcp_service as mcp_service
 from memgraph.service_logging import (
     service_setup_context,
-    service_async_context,
     log_app_creation,
     log_route_mounting,
     log_server_start,
@@ -26,36 +20,40 @@ from memgraph.service_logging import (
 )
 
 
-def create_unified_app(static_dir: str = "web", service_logger=None) -> FastAPI:
+def create_unified_app(static_dir: str = "memgraph/web", service_logger=None):
     """
-    Create unified FastAPI application with both web and MCP routes.
+    Create unified application with both web and MCP routes.
+
+    Uses FastMCP's http_app() as the base and adds web routes to it.
 
     Args:
-        static_dir: Directory containing static web assets
+        static_dir: Directory containing static web assets (default: memgraph/web)
         service_logger: Logger instance for tracking app creation
 
     Returns:
-        Configured FastAPI application with both route collections
+        Configured Starlette/FastAPI application with both route collections
     """
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        async with service_async_context(service_logger):
-            yield
+    # Start with FastMCP's HTTP app which provides /mcp endpoint
+    app = mcp_service.mcp.http_app()
 
-    app = FastAPI(
-        title="Knowledge Graph Unified Service",
-        description="Combined web content and MCP protocol server",
-        version="1.0.0",
-        lifespan=lifespan
+    # Add CORS middleware to allow requests from browsers
+    from starlette.middleware.cors import CORSMiddleware as StarletteCORS
+    app.add_middleware(
+        StarletteCORS,
+        allow_origins=["*"],  # Allow all origins for development
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     if service_logger:
         log_app_creation(service_logger, "unified", {
             "static_dir": static_dir,
-            "title": "Knowledge Graph Unified Service"
+            "title": "Knowledge Graph with MCP",
+            "base": "FastMCP http_app"
         })
 
-    # Set up static routes directly on our app
+    # Set up static routes
     static_path = Path(static_dir)
 
     if not static_path.exists():
@@ -65,33 +63,55 @@ def create_unified_app(static_dir: str = "web", service_logger=None) -> FastAPI:
         raise FileNotFoundError(error_msg)
 
     # Mount static files directory
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import FileResponse
-    from fastapi import HTTPException
+    from starlette.staticfiles import StaticFiles
+    from starlette.responses import FileResponse, JSONResponse
+    from starlette.routing import Route
 
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     if service_logger:
         log_route_mounting(service_logger, "/static", str(static_dir))
 
-    # Add web service routes
-    @app.get("/")
-    async def serve_index():
+    # Add web service routes using Starlette's routing
+    async def serve_index(request):
         index_path = static_path / "index.html"
         if not index_path.exists():
-            raise HTTPException(status_code=404, detail="index.html not found")
+            return JSONResponse({"error": "index.html not found"}, status_code=404)
         return FileResponse(index_path)
 
-    @app.get("/health")
-    async def health_check():
-        return {"status": "healthy", "service": "unified_service"}
+    async def health_check(request):
+        return JSONResponse({"status": "healthy", "service": "unified_service"})
 
-    # Mount MCP service at /mcp path using .http_app() method
-    mcp_app = mcp_service.mcp.http_app()
-    app.mount("/mcp", mcp_app)
-    if service_logger:
-        log_route_mounting(service_logger, "/mcp", "mcp_service")
+    # REST API endpoints that bridge to MCP backend
+    async def get_knowledge_graph(request):
+        """Get the complete knowledge graph in D3 format"""
+        try:
+            data = await mcp_service.DB.read_graph()
+            return JSONResponse(data)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    async def search_graph(request):
+        """Search the knowledge graph"""
+        try:
+            q = request.query_params.get('q', '')
+            results = await mcp_service.DB.search_nodes(query=q)
+            return JSONResponse(results)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    # Add routes to the Starlette app
+    app.routes.extend([
+        Route("/", serve_index),
+        Route("/health", health_check),
+        Route("/api/knowledge-graph", get_knowledge_graph),
+        Route("/api/search", search_graph),
+    ])
 
     if service_logger:
+        log_route_mounting(service_logger, "/", "index (web UI)")
+        log_route_mounting(service_logger, "/health", "health check")
+        log_route_mounting(service_logger, "/api/knowledge-graph", "REST API")
+        log_route_mounting(service_logger, "/api/search", "REST API")
         service_logger.logger.info("Unified service routes configured")
 
     return app
@@ -100,7 +120,7 @@ def create_unified_app(static_dir: str = "web", service_logger=None) -> FastAPI:
 def main(
     host: str = "localhost",
     port: int = 8080,
-    static_dir: str = "web",
+    static_dir: str = "memgraph/web",
     log_file: str | None = None
 ):
     """
@@ -109,7 +129,7 @@ def main(
     Args:
         host: Host to bind to (default: localhost)
         port: Port to listen on (default: 8080)
-        static_dir: Directory containing static web assets (default: "web")
+        static_dir: Directory containing static web assets (default: memgraph/web)
         log_file: Log file path (default: None, logs to stderr)
     """
     args = {
@@ -148,7 +168,7 @@ if __name__ == "__main__":
     @click.command()
     @click.option("--host", default="localhost", help="Host to bind to")
     @click.option("--port", type=int, default=8080, help="Port to listen on")
-    @click.option("--static-dir", default="web", help="Static files directory")
+    @click.option("--static-dir", default="memgraph/web", help="Static files directory")
     @click.option("--log-file", help="Log file path (default: stderr)")
     def cli(host: str, port: int, static_dir: str, log_file: str | None):
         """Knowledge Graph Unified Service - Web + MCP on single port."""

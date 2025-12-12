@@ -14,6 +14,7 @@ import os
 import stat
 import time
 import requests
+import sys
 from pathlib import Path
 
 def remove_readonly(func, path, _):
@@ -89,11 +90,71 @@ def service_py(package_dir: Path) -> Path:
 
 @pytest.fixture(scope="session")
 def port():
+    """Find a free port for testing"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('', 0))
         s.listen(1)
         port = s.getsockname()[1]
     return port
+
+@pytest.fixture(scope="session")
+def test_server(port, tmp_path_factory):
+    """Start a test server with temporary database on a free port"""
+    # Create temporary directory for test database
+    temp_dir = tmp_path_factory.mktemp("test_db")
+    db_path = temp_dir / "test_knowledge_graph.db"
+
+    # Set environment variables for test server
+    env = os.environ.copy()
+    env["MEMGRAPH_PORT"] = str(port)
+    env["MEMGRAPH_HOST"] = "localhost"
+    env["MEMGRAPH_DATABASE_PATH"] = str(db_path)
+    env["MEMGRAPH_LOG_LEVEL"] = "WARNING"  # Reduce log noise in tests
+
+    # Get path to main.py
+    project_dir = Path(__file__).parent.parent
+    main_py = project_dir / "main.py"
+
+    if not main_py.exists():
+        pytest.fail(f"main.py not found at {main_py}")
+
+    # Start the server process
+    process = subprocess.Popen(
+        [sys.executable, str(main_py)],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
+    # Wait for server to be ready (max 10 seconds)
+    start_time = time.time()
+    server_ready = False
+    base_url = f"http://localhost:{port}"
+
+    while time.time() - start_time < 10:
+        try:
+            response = requests.get(f"{base_url}/health", timeout=1)
+            if response.status_code == 200:
+                server_ready = True
+                break
+        except (requests.ConnectionError, requests.Timeout):
+            time.sleep(0.1)
+
+    if not server_ready:
+        process.terminate()
+        stdout, stderr = process.communicate(timeout=5)
+        pytest.fail(f"Test server failed to start on port {port}\nStdout: {stdout}\nStderr: {stderr}")
+
+    yield {"port": port, "base_url": base_url, "db_path": db_path}
+
+    # Cleanup: terminate server
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
 
 @pytest.fixture
 def test_output_dir(test_dir: Path, request, tmp_path: Path) -> Generator[Path, None, None]:

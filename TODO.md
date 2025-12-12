@@ -1,3 +1,5 @@
+![zabob-banner,  AI Memory](docs/images/zabob-banner.jpg)
+
 # Zabob Memgraph - Project State Analysis
 
 This document analyzes the current state of the project compared to the `main` branch, identifying areas needing attention for local deployment and PyPI publishing.
@@ -5,6 +7,7 @@ This document analyzes the current state of the project compared to the `main` b
 ## Summary of Changes from Main Branch
 
 The current branch contains significant refactoring work with **43 files changed** including:
+
 - **+3,305 lines added / -1,782 lines removed**
 - Major architectural shift from multiple MCP client implementations to a unified service architecture
 - Addition of Node.js/JavaScript components for client-side functionality
@@ -15,6 +18,7 @@ The current branch contains significant refactoring work with **43 files changed
 ## 🔴 Critical Issues (Blocking)
 
 ### 1. Broken Main Entry Point
+
 **Status:** ❌ Broken
 
 The `main.py` imports `from memgraph.server import run_server`, but `server.py` has been renamed to `server_old.py`. This means the main entry point is completely non-functional.
@@ -27,6 +31,7 @@ from memgraph.server import run_server
 **Fix Required:** Update `main.py` to use the new service architecture (`memgraph.service`) or restore the original `server.py`.
 
 ### 2. Broken Package Initialization
+
 **Status:** ❌ Broken
 
 `memgraph/__init__.py` has been modified to export nothing (`__all__ = []`) and references the removed `server.py`:
@@ -40,9 +45,11 @@ __all__ = []
 **Fix Required:** Update `__init__.py` to properly export the new service components.
 
 ### 3. Development Script References Non-Existent Module
+
 **Status:** ❌ Broken
 
 `zabob-memgraph-dev.py` line 97 references `memgraph.server:app` which no longer exists:
+
 ```python
 cmd = ["uv", "run", "uvicorn", "memgraph.server:app", ...]
 ```
@@ -99,6 +106,7 @@ The test failure is a symptom of the broken service architecture.
 ## 🟢 Documentation State
 
 ### README.md
+
 - ✅ Comprehensive documentation exists
 - ✅ Installation instructions present
 - ✅ API endpoints documented
@@ -106,6 +114,7 @@ The test failure is a symptom of the broken service architecture.
 - ⚠️ Some example commands may not work with current code state
 
 ### License
+
 - ✅ MIT License properly configured
 
 ### PyPI Publishing Requirements
@@ -125,7 +134,9 @@ The test failure is a symptom of the broken service architecture.
 ## 📦 Architecture Analysis
 
 ### Removed Components (from main)
+
 These files were deleted from the original architecture:
+
 - `memgraph/docker_mcp_client.py`
 - `memgraph/fastmcp_client.py`
 - `memgraph/mcp_client.py`
@@ -137,6 +148,7 @@ These files were deleted from the original architecture:
 - `tests/test_placeholder.py`
 
 ### New Components Added
+
 - `memgraph/service.py` - New unified ASGI service
 - `memgraph/mcp_service.py` - FastMCP-based MCP service
 - `memgraph/web_service.py` - Web content serving
@@ -150,7 +162,9 @@ These files were deleted from the original architecture:
 - `tests/test_web_service.py` - Web service tests
 
 ### Architectural Intent
+
 The refactoring appears to be moving toward:
+
 1. A unified service that combines web and MCP functionality
 2. FastMCP-based implementation instead of custom MCP clients
 3. Better separation of concerns (logging, web, MCP as separate modules)

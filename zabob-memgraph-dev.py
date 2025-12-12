@@ -2,10 +2,10 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "click>=8.1.0",
-#     "psutil>=6.1.0",
-#     "requests>=2.32.0",
-#     "rich>=13.9.0",
+#     "click>=8.3.1",
+#     "psutil>=7.1.3",
+#     "requests>=2.32.5",
+#     "rich>=14.2.0",
 # ]
 # ///
 """
@@ -41,7 +41,8 @@ def dev():
 
 
 @click.command()
-@click.option("--force", is_flag=True, help="Force reinstall even if already installed")
+@click.option("--force", is_flag=True,
+              help="Force reinstall even if already installed")
 def install(force: bool):
     """Install development dependencies and setup environment"""
     console.print("🔧 Setting up development environment...")
@@ -201,7 +202,7 @@ def docker_stop():
     console.print("🛑 Stopping Docker Compose services...")
     try:
         subprocess.run(["docker", "compose", "down"],
-                      cwd=PROJECT_DIR, check=True)
+                       cwd=PROJECT_DIR, check=True)
         console.print("✅ Services stopped")
     except subprocess.CalledProcessError as e:
         console.print(f"❌ Failed to stop services: {e}")
@@ -244,7 +245,7 @@ def test():
 
     try:
         subprocess.run(["uv", "run", "pytest", "-v"],
-                      cwd=PROJECT_DIR, check=True)
+                       cwd=PROJECT_DIR, check=True)
         console.print("✅ All tests passed")
     except subprocess.CalledProcessError:
         console.print("❌ Some tests failed")
@@ -277,7 +278,7 @@ def lint():
         try:
             console.print(f"   Running {name}...")
             subprocess.run(cmd, cwd=PROJECT_DIR, check=True,
-                          capture_output=True)
+                           capture_output=True)
             console.print(f"   ✅ {name} passed")
         except subprocess.CalledProcessError:
             console.print(f"   ❌ {name} failed")
@@ -298,7 +299,7 @@ def format_code():
     if shutil.which("ruff"):
         try:
             subprocess.run(["uv", "run", "ruff", "format", "."],
-                          cwd=PROJECT_DIR, check=True)
+                           cwd=PROJECT_DIR, check=True)
             console.print("✅ Code formatted with ruff")
         except subprocess.CalledProcessError:
             console.print("❌ Formatting failed")
@@ -306,7 +307,7 @@ def format_code():
     elif shutil.which("black"):
         try:
             subprocess.run(["uv", "run", "black", "."],
-                          cwd=PROJECT_DIR, check=True)
+                           cwd=PROJECT_DIR, check=True)
             console.print("✅ Code formatted with black")
         except subprocess.CalledProcessError:
             console.print("❌ Formatting failed")
@@ -348,7 +349,7 @@ def logs():
     console.print("📋 Showing logs...")
     try:
         subprocess.run(["docker", "compose", "logs", "-f"],
-                      cwd=PROJECT_DIR, check=True)
+                       cwd=PROJECT_DIR, check=True)
     except KeyboardInterrupt:
         console.print("\\n👋 Stopped following logs")
     except subprocess.CalledProcessError as e:

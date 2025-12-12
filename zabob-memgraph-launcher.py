@@ -2,10 +2,10 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "click>=8.1.0",
-#     "psutil>=6.1.0",
-#     "requests>=2.32.0",
-#     "rich>=13.9.0",
+#     "click>=8.3.1",
+#     "psutil>=7.1.3",
+#     "requests>=2.32.5",
+#     "rich>=14.2.0",
 # ]
 # ///
 """
@@ -89,7 +89,7 @@ def stop(ctx):
         # Stop Docker container
         try:
             subprocess.run(['docker', 'stop', info['docker_container']],
-                         check=True, capture_output=True)
+                           check=True, capture_output=True)
             console.print(f"✅ Stopped Docker container {info['docker_container']}")
         except subprocess.CalledProcessError as e:
             console.print(f"❌ Failed to stop Docker container: {e}")
@@ -143,7 +143,7 @@ def monitor(ctx, interval: int):
     base_url = f"http://localhost:{info['port']}"
 
     console.print(Panel(f"Monitoring server at {base_url} (Ctrl+C to stop)",
-                       title="📡 Server Monitor"))
+                        title="📡 Server Monitor"))
 
     try:
         while True:
@@ -267,7 +267,7 @@ def is_server_running(config_dir: Path) -> bool:
             # Check Docker container
             cmd = ['docker', 'inspect', '-f', '{{.State.Running}}', info['docker_container']]
             result = subprocess.run(cmd,
-                                  capture_output=True, text=True)
+                                    capture_output=True, text=True)
             return bool(result.stdout.strip())
         else:
             # Check local process
@@ -359,7 +359,7 @@ def start_docker_server(config_dir: Path, port: int | None, host: str, detach: b
 
     # Check if image exists
     result = subprocess.run(['docker', 'images', '-q', DOCKER_IMAGE],
-                          capture_output=True, text=True)
+                            capture_output=True, text=True)
     if not result.stdout.strip():
         console.print(f"❌ Docker image {DOCKER_IMAGE} not found.")
         console.print("Please build the image first with: docker build -t zabob-memgraph .")
@@ -386,7 +386,7 @@ def start_docker_server(config_dir: Path, port: int | None, host: str, detach: b
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             container_id = result.stdout.strip()
             save_server_info(config_dir, port=port, docker_container=container_name,
-                           container_id=container_id, host=host)
+                             container_id=container_id, host=host)
             console.print(f"✅ Docker container started: {container_name}")
             console.print(f"🌐 Web interface: http://{host}:{port}")
         else:
