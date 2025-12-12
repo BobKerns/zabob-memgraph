@@ -105,6 +105,7 @@ def test_zoom_to_node_from_context_menu(page: Page, base_url: str):
 
     # Check that zoom was applied (scale should be 1)
     transform = page.locator("#graph svg g").first.get_attribute("transform")
+    assert transform is not None, "Transform should be applied after zoom to node"
     assert "scale(1)" in transform, f"Scale should be 1 after zoom to node, got: {transform}"
 
     # Context menu should be hidden
@@ -309,6 +310,7 @@ def test_zoom_to_node_button_in_details(page: Page, base_url: str):
 
     # Check that zoom was applied (scale should be 1)
     transform = page.locator("#graph svg g").first.get_attribute("transform")
+    assert transform is not None, "Transform should be applied after zoom to node from details"
     assert "scale(1)" in transform, f"Scale should be 1 after zoom, got: {transform}"
 
 
@@ -358,6 +360,7 @@ def test_responsive_layout(page: Page, base_url: str):
 def test_health_endpoint(page: Page, base_url: str):
     """Test that the health endpoint is accessible"""
     response = page.goto(f"{base_url}/health")
+    assert response is not None, "Response should not be None"
     assert response.status == 200
 
     # Check JSON response
@@ -369,6 +372,7 @@ def test_health_endpoint(page: Page, base_url: str):
 def test_api_knowledge_graph_endpoint(page: Page, base_url: str):
     """Test that the API endpoint returns valid data"""
     response = page.goto(f"{base_url}/api/knowledge-graph")
+    assert response is not None, "Response should not be None"
     assert response.status == 200
 
     json_data = response.json()

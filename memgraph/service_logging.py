@@ -9,7 +9,8 @@ import logging
 import sys
 import os
 from contextlib import contextmanager, asynccontextmanager
-from typing import Any, Generator
+from collections.abc import Generator, AsyncGenerator
+from typing import Any
 import signal
 import atexit
 
@@ -83,7 +84,7 @@ def service_setup_context(
 @asynccontextmanager
 async def service_async_context(
     service_logger: ServiceLogger | None,
-) -> Any:
+) -> AsyncGenerator[Any, None]:
     """
     Context manager for async service phase (FastAPI lifespan).
 

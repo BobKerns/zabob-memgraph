@@ -48,7 +48,8 @@
         "-n",
         "auto",
         "--dist=worksteal"
-    ]
+    ],
+    "python.analysis.typeCheckingMode": "standard"
     },
     "mcp": {
         "servers": {
