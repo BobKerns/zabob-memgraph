@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi",
-    "uvicorn[standard]>=0.38.0",
+    "uvicorn>=0.38.0",
     "mcp>=1.22",
     "fastmcp>=2.13.3",
     "pydantic>=2.12.5",
@@ -39,6 +39,7 @@ zabob-memgraph-server = "main:main"
 [project.optional-dependencies]
 dev = [
     "playwright>=1.49.1",
+    "watchfiles>=0.24.0",
 ]
 
 [tool.setuptools.packages.find]
