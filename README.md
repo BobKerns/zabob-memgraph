@@ -2,7 +2,9 @@
 
 # Zabob Memgraph - Knowledge Graph Server
 
-A Model Context Protocol (MCP) server that provides HTTP endpoints for knowledge graph visualization and interaction. Part of the Zabob AI assistant ecosystem, designed for thread-safe multi-client support with Docker deployment.
+A Model Context Protocol (MCP) server for persistent knowledge graph storage with interactive web visualization. Part of the Zabob AI assistant ecosystem, designed for thread-safe multi-client support with Docker deployment.
+
+**📖 See [USAGE_PATTERNS.md](USAGE_PATTERNS.md) for detailed deployment options**
 
 Imagine a future where your AI assistant not only can talk to you, but can remember important things, and can show you everything it remembers.
 
@@ -12,47 +14,52 @@ Imagine a future where your AI assistant not only can talk to you, but can remem
 
 ## Features
 
-- **Thread-safe SQLite backend** - Prevents database locking issues with multiple clients
-- **HTTP REST API** - JSON endpoints for programmatic access
-- **Interactive D3.js visualization** - Web-based graph exploration
-- **MCP protocol support** - Compatible with MCP clients and Claude Desktop
-- **Docker deployment** - Containerized for easy deployment
-- **Intelligent port management** - Automatic port assignment and process tracking
-- **Database backups** - Automatic periodic backups with rotation
-- **Full-text search** - Search across entities and observations
-- **Click-based CLI** - Modern command-line interface with rich output
+- **MCP Protocol** - Standard Model Context Protocol for AI assistant integration
+- **Multiple Transports** - HTTP/SSE for server mode, stdio for Claude Desktop
+- **Thread-safe SQLite backend** - WAL mode for concurrent access without locking
+- **Interactive D3.js visualization** - Real-time graph exploration via web UI
+- **Docker deployment** - Multiple deployment patterns (HTTP server, stdio, local)
+- **Persistent storage** - Database with automatic backups and rotation
+- **Full-text search** - Search across entities, observations, and relations
+- **Modern tooling** - esbuild bundler, Python type checking, comprehensive tests
 
 ## Quick Start
 
-### Simple Installation
+### Docker Compose (Recommended)
 
 ```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Clone repository
+git clone https://github.com/BobKerns/zabob-memgraph.git
+cd zabob-memgraph
 
-# Download and install zabob-memgraph
-curl -LsSf https://raw.githubusercontent.com/your-username/zabob-memgraph/main/zabob-memgraph-install.py | uv run --script -
+# Start HTTP server with web UI
+docker-compose up -d
 
-# Start the server
-zabob-memgraph start
-
-# Check status
-zabob-memgraph status
+# Access web UI at http://localhost:8080
+# MCP endpoint at http://localhost:8080/mcp
 ```
 
-### Docker Usage
+### Claude Desktop Integration
 
-```bash
-# Download launcher
-curl -LO https://raw.githubusercontent.com/your-username/zabob-memgraph/main/zabob-memgraph-launcher.py
-chmod +x zabob-memgraph-launcher.py
+Add to your Claude Desktop MCP config:
 
-# Start with Docker
-./zabob-memgraph-launcher.py start --docker
-
-# Monitor the server
-./zabob-memgraph-launcher.py monitor
+```json
+{
+  "mcpServers": {
+    "zabob-memgraph": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "${HOME}/.zabob-memgraph:/app/.zabob-memgraph",
+        "bobkerns/zabob-memgraph:latest",
+        "stdio"
+      ]
+    }
+  }
+}
 ```
+
+**See [USAGE_PATTERNS.md](USAGE_PATTERNS.md) for more deployment options**
 
 ## Usage
 
@@ -92,6 +99,10 @@ cd zabob-memgraph
 
 # Set up development environment
 ./zabob-memgraph-dev.py install
+
+# Build web UI bundle (required before first run)
+pnpm install
+pnpm run build:web
 
 # Run in development mode with auto-reload
 ./zabob-memgraph-dev.py run --reload
@@ -153,65 +164,35 @@ export MEMGRAPH_LOG_LEVEL=DEBUG
 export MEMGRAPH_CONFIG_DIR=/custom/path
 ```
 
-## API Endpoints
+## MCP Tools
 
-### Core Endpoints
+Zabob Memgraph provides these MCP tools for AI assistants:
+
+- **create_entities** - Create new entities with observations
+- **create_relations** - Create relationships between entities
+- **add_observations** - Add observations to existing entities
+- **read_graph** - Read the complete knowledge graph
+- **search_nodes** - Full-text search across entities and observations
+- **delete_entities** - Remove entities and their relations
+- **delete_relations** - Remove specific relationships
+- **get_stats** - Get graph statistics
+
+### HTTP Endpoints
+
+When running in HTTP server mode:
 
 - `GET /` - Web visualization interface
-- `GET /api/knowledge-graph` - Complete graph data in D3 format
-- `GET /api/entities` - All entities
-- `GET /api/search?q=query` - Search entities and observations
-- `POST /api/entities` - Create new entities
-- `POST /api/relations` - Create new relations
+- `POST /mcp` - MCP protocol endpoint (SSE transport)
 - `GET /health` - Health check
 
-### Example API Usage
+### Using MCP Tools
 
-```bash
-# Get all graph data
-curl http://localhost:8080/api/knowledge-graph
+MCP tools are called through the protocol. Example using the web UI:
+1. Open http://localhost:8080
+2. View entities and relations in the interactive graph
+3. Search, zoom, and explore your knowledge graph
 
-# Search for entities
-curl "http://localhost:8080/api/search?q=project"
-
-# Create new entities
-curl -X POST http://localhost:8080/api/entities \\
-  -H "Content-Type: application/json" \\
-  -d '[{
-    "name": "My Project",
-    "entityType": "project",
-    "observations": ["Initial observation"]
-  }]'
-```
-
-## MCP Integration
-
-### Claude Desktop Configuration
-
-Add to your MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "zabob-memgraph": {
-      "command": "zabob-memgraph",
-      "args": ["start", "--port", "8080"],
-      "env": {
-        "MEMGRAPH_HOST": "localhost"
-      }
-    }
-  }
-}
-```
-
-### Server Mode
-
-For network-based MCP access:
-
-```bash
-# Start server that both MCP clients and HTTP clients can access
-zabob-memgraph start --host 0.0.0.0 --port 8080
-```
+For Claude Desktop integration, tools are automatically available after configuration.
 
 ## Architecture
 
@@ -228,15 +209,22 @@ The server uses SQLite with proper locking for concurrent access:
 
 ```text
 zabob-memgraph/
-├── zabob-memgraph-launcher.py    # Main launcher (process management)
-├── zabob-memgraph-dev.py         # Development commands
-├── zabob-memgraph-install.py     # Installation script
+├── zabob-memgraph-dev.py         # Development CLI
 ├── main.py                       # Server entrypoint
 ├── memgraph/                     # Core package
-│   ├── server.py                 # FastAPI application
-│   ├── knowledge.py              # Data access layer
-│   └── ...
-└── install-uv.sh                 # uv installation helper
+│   ├── service.py                # Unified ASGI service (MCP + HTTP)
+│   ├── mcp_service.py            # FastMCP server implementation
+│   ├── knowledge_live.py         # Knowledge graph data layer
+│   ├── sqlite_backend.py         # Thread-safe SQLite backend
+│   ├── web/                      # Static web assets
+│   │   ├── index.html
+│   │   ├── graph.bundle.js       # Bundled web UI (built)
+│   │   └── style.css
+│   └── web-src/                  # Web UI source
+│       ├── mcp-client.js         # Browser MCP client
+│       └── graph.js              # D3.js visualization
+├── docker-compose.yml            # Docker Compose config
+└── Dockerfile                    # Container definition
 ```
 
 ## Development
