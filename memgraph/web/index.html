@@ -7,6 +7,16 @@
     <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" type="image/x-icon" href="/static/favicon.png">
     <link rel="mask-icon" href="/static/favicon.png" color="#000000">
+    
+    <!-- Import map for MCP SDK -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@modelcontextprotocol/sdk/client/index.js": "/static/vendor/@modelcontextprotocol/sdk/client/index.js",
+            "@modelcontextprotocol/sdk/client/streamableHttp.js": "/static/vendor/@modelcontextprotocol/sdk/client/streamableHttp.js"
+        }
+    }
+    </script>
 </head>
 <body>
     <div id="graph"></div>
@@ -52,10 +62,9 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@modelcontextprotocol/sdk@latest/dist/client/index.js"></script>
-    <script src="/static/client.js"></script>
-    <script src="/static/graph.js"></script>
-    <script>
+    <script type="module" src="/static/mcp-client.js"></script>
+    <script type="module" src="/static/graph.js"></script>
+    <script type="module">
         // Initialize the graph when page loads
         document.addEventListener('DOMContentLoaded', async () => {
             await loadKnowledgeGraph();

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-'''
+"""
 A FastAPI application for Memgraph with a web interface.
-'''
+"""
 
 import logging
 from fastmcp import FastMCP
@@ -23,7 +23,7 @@ DB = SQLiteKnowledgeGraphDB(
 
 
 @mcp.tool
-async def read_graph(name: str = 'default') -> dict:
+async def read_graph(name: str = "default") -> dict:
     """
     Read the complete knowledge graph from the database.
 
@@ -111,10 +111,7 @@ async def create_relations(relations: list[dict]) -> dict:
     """
     logger.info(f"Creating {len(relations)} relations")
     await DB.create_relations(relations)
-    return {
-        "created": len(relations),
-        "relations": [f"{r.get('source')} -> {r.get('target')}" for r in relations]
-    }
+    return {"created": len(relations), "relations": [f"{r.get('source')} -> {r.get('target')}" for r in relations]}
 
 
 @mcp.tool
@@ -131,19 +128,22 @@ async def add_observations(entity_name: str, observations: list[str]) -> dict:
     """
     logger.info(f"Adding {len(observations)} observations to {entity_name}")
     # Create a pseudo-entity update with new observations
-    await DB.create_entities([{
-        "name": entity_name,
-        "entityType": "update",  # Will merge with existing
-        "observations": observations
-    }])
-    return {
-        "entity": entity_name,
-        "added": len(observations)
-    }
+    await DB.create_entities(
+        [
+            {
+                "name": entity_name,
+                "entityType": "update",  # Will merge with existing
+                "observations": observations,
+            }
+        ]
+    )
+    return {"entity": entity_name, "added": len(observations)}
+
 
 if __name__ == "__main__":
     # Run the MCP server
     import sys
+
     try:
         mcp.run()
     except KeyboardInterrupt:

@@ -16,7 +16,7 @@ from memgraph.service_logging import (
     log_app_creation,
     log_route_mounting,
     log_server_start,
-    configure_uvicorn_logging
+    configure_uvicorn_logging,
 )
 
 
@@ -38,6 +38,7 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger=None):
 
     # Add CORS middleware to allow requests from browsers
     from starlette.middleware.cors import CORSMiddleware as StarletteCORS
+
     app.add_middleware(
         StarletteCORS,
         allow_origins=["*"],  # Allow all origins for development
@@ -47,11 +48,11 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger=None):
     )
 
     if service_logger:
-        log_app_creation(service_logger, "unified", {
-            "static_dir": static_dir,
-            "title": "Knowledge Graph with MCP",
-            "base": "FastMCP http_app"
-        })
+        log_app_creation(
+            service_logger,
+            "unified",
+            {"static_dir": static_dir, "title": "Knowledge Graph with MCP", "base": "FastMCP http_app"},
+        )
 
     # Set up static routes
     static_path = Path(static_dir)
@@ -81,48 +82,23 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger=None):
     async def health_check(request):
         return JSONResponse({"status": "healthy", "service": "unified_service"})
 
-    # REST API endpoints that bridge to MCP backend
-    async def get_knowledge_graph(request):
-        """Get the complete knowledge graph in D3 format"""
-        try:
-            data = await mcp_service.DB.read_graph()
-            return JSONResponse(data)
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
-
-    async def search_graph(request):
-        """Search the knowledge graph"""
-        try:
-            q = request.query_params.get('q', '')
-            results = await mcp_service.DB.search_nodes(query=q)
-            return JSONResponse(results)
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
-
     # Add routes to the Starlette app
-    app.routes.extend([
-        Route("/", serve_index),
-        Route("/health", health_check),
-        Route("/api/knowledge-graph", get_knowledge_graph),
-        Route("/api/search", search_graph),
-    ])
+    app.routes.extend(
+        [
+            Route("/", serve_index),
+            Route("/health", health_check),
+        ]
+    )
 
     if service_logger:
         log_route_mounting(service_logger, "/", "index (web UI)")
         log_route_mounting(service_logger, "/health", "health check")
-        log_route_mounting(service_logger, "/api/knowledge-graph", "REST API")
-        log_route_mounting(service_logger, "/api/search", "REST API")
         service_logger.logger.info("Unified service routes configured")
 
     return app
 
 
-def main(
-    host: str = "localhost",
-    port: int = 8080,
-    static_dir: str = "memgraph/web",
-    log_file: str | None = None
-):
+def main(host: str = "localhost", port: int = 8080, static_dir: str = "memgraph/web", log_file: str | None = None):
     """
     Run the unified service.
 
@@ -132,12 +108,7 @@ def main(
         static_dir: Directory containing static web assets (default: memgraph/web)
         log_file: Log file path (default: None, logs to stderr)
     """
-    args = {
-        "host": host,
-        "port": port,
-        "static_dir": static_dir,
-        "log_file": log_file
-    }
+    args = {"host": host, "port": port, "static_dir": static_dir, "log_file": log_file}
 
     with service_setup_context("unified_service", args, log_file) as service_logger:
         try:
@@ -147,13 +118,7 @@ def main(
             # Configure uvicorn logging to use same log file
             uvicorn_config = configure_uvicorn_logging(log_file)
 
-            uvicorn.run(
-                app,
-                host=host,
-                port=port,
-                log_level="info",
-                **uvicorn_config
-            )
+            uvicorn.run(app, host=host, port=port, log_level="info", **uvicorn_config)
 
         except FileNotFoundError as e:
             service_logger.logger.error(f"Configuration error: {e}")
@@ -165,6 +130,7 @@ def main(
 
 
 if __name__ == "__main__":
+
     @click.command()
     @click.option("--host", default="localhost", help="Host to bind to")
     @click.option("--port", type=int, default=8080, help="Port to listen on")
@@ -172,12 +138,7 @@ if __name__ == "__main__":
     @click.option("--log-file", help="Log file path (default: stderr)")
     def cli(host: str, port: int, static_dir: str, log_file: str | None):
         """Knowledge Graph Unified Service - Web + MCP on single port."""
-        exit_code = main(
-            host=host,
-            port=port,
-            static_dir=static_dir,
-            log_file=log_file
-        )
+        exit_code = main(host=host, port=port, static_dir=static_dir, log_file=log_file)
 
         if exit_code:
             exit(exit_code)

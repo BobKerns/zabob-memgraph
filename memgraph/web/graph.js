@@ -1,7 +1,9 @@
 /**
  * Knowledge Graph D3.js Visualization
- * HTTP-based client that fetches data from the MCP server
+ * MCP-based client that fetches data from the MCP server
  */
+
+import { initMCPClient, readGraph, searchNodes } from './mcp-client.js';
 
 // Global variables
 const width = window.innerWidth;
@@ -108,18 +110,13 @@ async function loadKnowledgeGraph() {
     console.log('Starting to load knowledge graph...');
 
     try {
-        // Fetch graph data from REST API
-        console.log('Fetching from /api/knowledge-graph...');
-        const response = await fetch('/api/knowledge-graph');
-        console.log('Response status:', response.status, response.statusText);
+        // Initialize MCP client if needed
+        console.log('Initializing MCP client...');
+        await initMCPClient();
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('API error response:', errorText);
-            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
+        // Fetch graph data from MCP server
+        console.log('Reading graph via MCP...');
+        const data = await readGraph('default');
         console.log('Data loaded:', data.entities?.length || 0, 'entities,', data.relations?.length || 0, 'relations');
         const loadTime = Math.round(performance.now() - startTime);
 
@@ -435,11 +432,11 @@ async function performServerSearch(query) {
     if (!query.trim() || query.length < 2) return [];
 
     try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        if (!response.ok) {
-            throw new Error(`Search failed: ${response.statusText}`);
-        }
-        const data = await response.json();
+        // Initialize MCP client if needed
+        await initMCPClient();
+
+        // Search via MCP
+        const data = await searchNodes(query);
 
         // Convert backend format to search results
         const results = [];
@@ -859,3 +856,15 @@ document.getElementById('searchInput').addEventListener('keydown', function(e) {
         }
     }
 });
+
+// Expose functions to global scope for inline onclick handlers
+window.loadKnowledgeGraph = loadKnowledgeGraph;
+window.fitToScreen = fitToScreen;
+window.centerGraph = centerGraph;
+window.toggleSimulation = toggleSimulation;
+window.toggleSearch = toggleSearch;
+window.refreshData = refreshData;
+window.zoomToNode = zoomToNode;
+window.showNodeDetails = showNodeDetails;
+window.clearSearch = clearSearch;
+window.closeDetail = closeDetail;
