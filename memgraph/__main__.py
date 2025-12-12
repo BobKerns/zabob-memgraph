@@ -577,8 +577,8 @@ def run(ctx, port: int | None, host: str, reload: bool):
     if reload:
         console.print("🔄 Auto-reload enabled")
 
-    # Build command
-    cmd = ['uvicorn', 'main:app', f'--host={host}', f'--port={port}']
+    # Build command - use the memgraph.service module
+    cmd = ['uvicorn', 'memgraph.service:app', f'--host={host}', f'--port={port}']
     if reload:
         cmd.append('--reload')
 

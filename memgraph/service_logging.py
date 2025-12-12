@@ -17,7 +17,7 @@ import atexit
 class ServiceLogger:
     """Centralized service logging with startup/shutdown tracking."""
 
-    def __init__(self, service_name: str, log_file: str|None = None):
+    def __init__(self, service_name: str, log_file: str | None = None):
         self.service_name = service_name
         self.log_file = log_file
         self.logger = self._setup_logging()
@@ -58,7 +58,7 @@ class ServiceLogger:
 
 
 @contextmanager
-def service_setup_context(service_name: str, args: dict[str, Any], log_file: str|None = None):
+def service_setup_context(service_name: str, args: dict[str, Any], log_file: str | None = None):
     """
     Context manager for synchronous service setup phase.
 
@@ -130,6 +130,7 @@ def log_server_start(service_logger: ServiceLogger, host: str, port: int) -> Non
     """Log server start details."""
     service_logger.logger.info(f"Starting server on {host}:{port}")
     service_logger.logger.info(f"Server URL: http://{host}:{port}")
+
 
 def configure_uvicorn_logging(log_file: str | None) -> dict:
     """Configure uvicorn logging to use the same log file as the service."""
