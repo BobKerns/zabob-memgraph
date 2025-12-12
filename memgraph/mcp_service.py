@@ -83,7 +83,7 @@ async def get_stats() -> dict[str, Any]:
 
 
 @mcp.tool
-async def create_entities(entities: list[dict]) -> dict[str, Any]:
+async def create_entities(entities: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Create new entities in the knowledge graph.
 
@@ -104,7 +104,7 @@ async def create_entities(entities: list[dict]) -> dict[str, Any]:
 
 
 @mcp.tool
-async def create_relations(relations: list[dict]) -> dict[str, Any]:
+async def create_relations(relations: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Create new relations between entities in the knowledge graph.
 

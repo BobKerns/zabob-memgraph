@@ -6,6 +6,8 @@ Minimal FastAPI server focused solely on serving static web assets.
 Sibling to mcp_service.py - handles web content while MCP service handles data.
 """
 
+from typing import Any, AsyncGenerator
+
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -30,7 +32,7 @@ app = FastAPI(
 )
 
 
-def setup_static_routes(static_dir: str = "web", service_logger=None, target_app=None):
+def setup_static_routes(static_dir: str = "web", service_logger: Any = None, target_app: Any = None) -> None:
     """
     Configure static file serving.
 
@@ -63,8 +65,8 @@ def setup_static_routes(static_dir: str = "web", service_logger=None, target_app
         log_route_mounting(service_logger, "/static", str(static_dir))
 
     # Serve index.html at root
-    @target_app.get("/")
-    async def serve_index():
+    @target_app.get("/")  # type: ignore[untyped-decorator]
+    async def serve_index() -> FileResponse:
         index_path = static_path / "index.html"
         if service_logger:
             service_logger.logger.info(f"Serving index from: {str(index_path)}")
@@ -74,12 +76,12 @@ def setup_static_routes(static_dir: str = "web", service_logger=None, target_app
         return FileResponse(index_path)
 
     # Health check endpoint
-    @target_app.get("/health")
-    async def health_check():
+    @target_app.get("/health")  # type: ignore[untyped-decorator]
+    async def health_check() -> dict[str, str]:
         return {"status": "healthy", "service": "web_service"}
 
 
-def create_app(static_dir: str = "web", service_logger=None) -> FastAPI:
+def create_app(static_dir: str = "web", service_logger: Any = None) -> FastAPI:
     """
     Create configured FastAPI application.
 
@@ -91,7 +93,7 @@ def create_app(static_dir: str = "web", service_logger=None) -> FastAPI:
         Configured FastAPI application
     """
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         async with service_async_context(service_logger):
             yield
 
@@ -118,7 +120,7 @@ def main(
     static_dir: str = "web",
     reload: bool = False,
     log_file: str | None = None
-):
+) -> int:
     """
     Run the web service.
 
@@ -154,6 +156,7 @@ def main(
                 reload=reload,
                 **uvicorn_config
             )
+            return 0
 
         except FileNotFoundError as e:
             service_logger.logger.error(f"Configuration error: {e}")
@@ -173,7 +176,7 @@ if __name__ == "__main__":
     @click.option("--static-dir", default="web", help="Static files directory")
     @click.option("--reload", is_flag=True, help="Enable auto-reload")
     @click.option("--log-file", help="Log file path (default: stderr)")
-    def cli(host: str, port: int, static_dir: str, reload: bool, log_file: str | None):
+    def cli(host: str, port: int, static_dir: str, reload: bool, log_file: str | None) -> None:
         """Knowledge Graph Web Service - Static content server."""
         exit_code = main(
             host=host,
