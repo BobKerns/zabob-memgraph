@@ -34,6 +34,7 @@ def test_web_service_health_check(web_service_py,
 
 def test_web_service_starts(web_service_py, web_content, port, log, service_log):
     """Test that web service starts without errors"""
+    import requests
 
     log.info(f"Starting test_web_service_starts on port {port}")
 
@@ -46,8 +47,25 @@ def test_web_service_starts(web_service_py, web_content, port, log, service_log)
 
     log.info(f"Started web service process PID: {proc.pid}")
 
+    # Wait for server to be ready (max 10 seconds)
+    start_time = time.time()
+    server_ready = False
+    while time.time() - start_time < 10:
+        try:
+            response = requests.get(f"http://localhost:{port}/health", timeout=1)
+            if response.status_code == 200:
+                server_ready = True
+                log.info("Server health check passed")
+                break
+        except (requests.ConnectionError, requests.Timeout):
+            time.sleep(0.1)
+    
+    if not server_ready:
+        proc.terminate()
+        log.error("Server failed to start within 10 seconds")
+        raise AssertionError(f"Test server failed to start on port {port}")
+
     try:
-        time.sleep(0.5)
         # If process is still running, it started successfully
         if proc.poll() is None:
             log.info("Web service process still running - startup successful")

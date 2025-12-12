@@ -14,6 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 def run_mypy():
     """Run mypy type checking"""
     print("🔍 Running mypy type checking...")
@@ -25,6 +26,7 @@ def run_mypy():
     ], cwd=Path(__file__).parent)
     return result.returncode == 0
 
+
 def run_ruff():
     """Run ruff linting"""
     print("🔍 Running ruff linting...")
@@ -32,6 +34,7 @@ def run_ruff():
         "ruff", "check", "memgraph/"
     ], cwd=Path(__file__).parent)
     return result.returncode == 0
+
 
 def main():
     print("🚀 Running type checking and linting...")
@@ -44,6 +47,7 @@ def main():
     else:
         print("❌ Issues found - check output above")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

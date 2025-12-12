@@ -5,7 +5,6 @@ import json
 import subprocess
 from collections.abc import Generator
 from typing import Any, Literal, Protocol, cast, overload
-from psutil.tests import sh
 import pytest
 import shutil
 import socket
@@ -17,16 +16,18 @@ import requests
 import sys
 from pathlib import Path
 
+
 def remove_readonly(func, path, _):
     """Clear the readonly bit and reattempt the removal"""
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
+
 @pytest.fixture
 def log(request: pytest.FixtureRequest, client_log):
     """Create client-side logger for test process"""
     # Create a dedicated logger for this test
-    logger = logging.getLogger(f"client")
+    logger = logging.getLogger("client")
     logger.setLevel(logging.INFO)
 
     # Remove any existing handlers to avoid duplicates
@@ -43,50 +44,60 @@ def log(request: pytest.FixtureRequest, client_log):
 
     return logger
 
+
 @pytest.fixture
 def service_log(test_output_dir: Path) -> Path:
     """Path to service log file"""
     return test_output_dir / 'service.log'
+
 
 @pytest.fixture
 def client_log(test_output_dir: Path) -> Path:
     """Path to client log file"""
     return test_output_dir / 'client.log'
 
+
 @pytest.fixture
 def test_dir() -> Path:
     """Directory containing the test files"""
     return Path(__file__).parent
+
 
 @pytest.fixture
 def project_dir(test_dir: Path) -> Path:
     """Root project directory"""
     return test_dir.parent
 
+
 @pytest.fixture
 def package_dir(project_dir: Path) -> Path:
     """Package directory (memgraph)"""
     return project_dir / 'memgraph'
+
 
 @pytest.fixture
 def web_service_py(package_dir: Path) -> Path:
     """Path to web_service.py module within package"""
     return package_dir / 'web_service.py'
 
+
 @pytest.fixture
 def http_service_py(package_dir: Path) -> Path:
     """Path to MCP via streaming HTTP http_service.py module within package"""
     return package_dir / 'web_service.py'
+
 
 @pytest.fixture
 def stdio_service_py(package_dir: Path) -> Path:
     """Path to MCP via stdio stdio_service.py module within package"""
     return package_dir / 'stdio_service.py'
 
+
 @pytest.fixture
 def service_py(package_dir: Path) -> Path:
     """Path to unified service.py module within package"""
     return package_dir / 'service.py'
+
 
 @pytest.fixture(scope="session")
 def port():
@@ -96,6 +107,7 @@ def port():
         s.listen(1)
         port = s.getsockname()[1]
     return port
+
 
 @pytest.fixture(scope="session")
 def test_server(port, tmp_path_factory):
@@ -156,6 +168,7 @@ def test_server(port, tmp_path_factory):
         process.kill()
         process.wait()
 
+
 @pytest.fixture
 def test_output_dir(test_dir: Path, request, tmp_path: Path) -> Generator[Path, None, None]:
     """Create test output directory for artifacts"""
@@ -180,6 +193,7 @@ def test_output_dir(test_dir: Path, request, tmp_path: Path) -> Generator[Path, 
     except Exception as e:
         logging.warning(f"Failed to copy test artifacts: {e}")
 
+
 @pytest.fixture
 def web_content(package_dir: Path, tmp_path: Path) -> Path:
     """Copy actual web content to temporary directory"""
@@ -191,34 +205,30 @@ def web_content(package_dir: Path, tmp_path: Path) -> Path:
 
     shutil.copytree(source_web, dest_web)
 
-    # Copy Node.js dependencies for client.js subprocess testing
-    project_root = package_dir.parent
-    package_json = project_root / 'package.json'
-    node_modules = project_root / 'node_modules'
-
-    shutil.copy2(package_json, tmp_path / 'package.json')
-
-    if node_modules.exists():
-        shutil.copytree(node_modules, tmp_path / 'node_modules')
-    else:
-        logging.warning(f"node_modules not found at {node_modules} - Node.js tests may fail")
+    # Note: node_modules not needed for web service tests.
+    # The web service serves static files (HTML/CSS/JS) that run in the browser,
+    # not Node.js server-side code.
 
     return dest_web
+
 
 @pytest.fixture
 def index_html(web_content: Path) -> Path:
     """Path to index.html in web content"""
     return web_content / 'index.html'
 
+
 @pytest.fixture
 def client_js(web_content: Path) -> Path:
     """Path to client.js in web content"""
     return web_content / 'client.js'
 
+
 @pytest.fixture
 def static_files(web_content: Path) -> list[Path]:
     """Generator of static files in web content"""
     return list(web_content.rglob('*'))
+
 
 type Transport = Literal['stdio', 'http', 'web', 'both']
 '''
@@ -228,6 +238,7 @@ Value indicating transport mechanism for MCP service
 - 'web': Regular web HTP requests
 - 'both': Both web and MCP clients available
 '''
+
 
 class TestClient(Protocol):
     '''
@@ -240,7 +251,9 @@ class TestClient(Protocol):
     '''
     def __call__(self, url: str) -> str: ...
 
-_node_js_path: Path|None = None
+
+_node_js_path: Path | None = None
+
 
 @pytest.fixture
 def node_js() -> Path:
@@ -253,20 +266,25 @@ def node_js() -> Path:
         _node_js_path = Path(loc)
     return _node_js_path
 
+
 class ServiceOpener(Protocol):
     @overload
     @contextmanager
-    def __call__(self, service: Path, transport: Literal['both']) -> Generator[tuple[TestClient, TestClient], None, None]: ...
+    def __call__(self, service: Path, transport: Literal['both']
+                 ) -> Generator[tuple[TestClient, TestClient], None, None]: ...
 
     @overload
     @contextmanager
-    def __call__(self, service: Path, transport: Literal['stdio', 'http', 'web']) -> Generator[TestClient, None, None]: ...
+    def __call__(self, service: Path, transport: Literal['stdio', 'http', 'web']
+                 ) -> Generator[TestClient, None, None]: ...
 
     @contextmanager
-    def __call__(self, service: Path, transport: Transport) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]: ...
+    def __call__(self, service: Path, transport: Transport
+                 ) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]: ...
+
 
 @contextmanager
-def open_subprocess(cmd: list[Any], log: logging.Logger)  -> Generator[subprocess.Popen[str], Any, None]:
+def open_subprocess(cmd: list[Any], log: logging.Logger) -> Generator[subprocess.Popen[str], Any, None]:
     cmd = [str(c) for c in cmd]
     log.info(f"Starting subprocess: {' '.join(cmd)}")
     proc = subprocess.Popen(cmd, text=True)
@@ -276,7 +294,7 @@ def open_subprocess(cmd: list[Any], log: logging.Logger)  -> Generator[subproces
     finally:
         log.info(f"Terminating subprocess PID: {proc.pid}")
         proc.terminate()
-        #proc.communicate()
+        # proc.communicate()
 
 
 @pytest.fixture
@@ -303,7 +321,8 @@ def open_service(request,
     def _service(service: Path, transport: Literal['stdio', 'http', 'web']) -> Generator[TestClient, None, None]: ...
 
     @contextmanager
-    def _service(service: Path, transport: Transport) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]:
+    def _service(service: Path, transport: Transport
+                 ) -> Generator[TestClient | tuple[TestClient, TestClient], None, None]:
         '''
         Service context manager.
 
@@ -329,16 +348,16 @@ def open_service(request,
             log.info(f"Starting client subprocess for {url}")
 
             cmd = [node_js, client_js,
-                '--service-path', str(client_js),
-                '--transport', 'http',
-                "--url", url,
-                ]
+                   '--service-path', str(client_js),
+                   '--transport', 'http',
+                   "--url", url,
+                   ]
             with open_subprocess(cmd, log) as proc:
                 proc.wait()
                 stderr = proc.stderr
                 if stderr is not None:
-                    while l := stderr.readline():
-                        log.info(f"client.js: {l}")
+                    while line := stderr.readline():
+                        log.info(f"client.js: {line}")
                 stdout = proc.stdout
                 if stdout is None:
                     return ''
@@ -379,14 +398,32 @@ def open_service(request,
                                             text=True,)
 
                 log.info(f"Started service process PID: {proc.pid}")
+                
+                # Wait for server to be ready (max 10 seconds)
+                start_time = time.time()
+                server_ready = False
+                while time.time() - start_time < 10:
+                    try:
+                        response = requests.get(f"http://localhost:{port}/health", timeout=1)
+                        if response.status_code == 200:
+                            server_ready = True
+                            log.info("Server health check passed")
+                            break
+                    except (requests.ConnectionError, requests.Timeout):
+                        time.sleep(0.1)
+                
+                if not server_ready:
+                    proc.terminate()
+                    log.error("Server failed to start within 10 seconds")
+                    pytest.fail(f"Test server failed to start on port {port}")
+                
                 try:
-                    time.sleep(0.5)  # Give server a moment to start
                     yield _mcp_client
                 finally:
                     log.info(f"Terminating service process for {test_name}")
                     proc.terminate()
                     proc.wait()
-                    #proc.communicate()
+                    # proc.communicate()
 
             case 'web':
                 proc = subprocess.Popen([
@@ -398,13 +435,31 @@ def open_service(request,
                                             text=True,)
 
                 log.info(f"Started service process PID: {proc.pid}")
+                
+                # Wait for server to be ready (max 10 seconds)
+                start_time = time.time()
+                server_ready = False
+                while time.time() - start_time < 10:
+                    try:
+                        response = requests.get(f"http://localhost:{port}/health", timeout=1)
+                        if response.status_code == 200:
+                            server_ready = True
+                            log.info("Server health check passed")
+                            break
+                    except (requests.ConnectionError, requests.Timeout):
+                        time.sleep(0.1)
+                
+                if not server_ready:
+                    proc.terminate()
+                    log.error("Server failed to start within 10 seconds")
+                    pytest.fail(f"Test server failed to start on port {port}")
+                
                 try:
-                    time.sleep(0.5)
                     yield _web_client
                 finally:
                     log.info(f"Terminating service process for {test_name}")
                     proc.terminate()
-                    #proc.communicate()
+                    # proc.communicate()
 
             case 'both':
                 # Start unified service and provide both web and MCP clients
@@ -416,6 +471,26 @@ def open_service(request,
                 ],
                                             text=True,)
 
+                log.info(f"Started service process PID: {proc.pid}")
+                
+                # Wait for server to be ready (max 10 seconds)
+                start_time = time.time()
+                server_ready = False
+                while time.time() - start_time < 10:
+                    try:
+                        response = requests.get(f"http://localhost:{port}/health", timeout=1)
+                        if response.status_code == 200:
+                            server_ready = True
+                            log.info("Server health check passed")
+                            break
+                    except (requests.ConnectionError, requests.Timeout):
+                        time.sleep(0.1)
+                
+                if not server_ready:
+                    proc.terminate()
+                    log.error("Server failed to start within 10 seconds")
+                    pytest.fail(f"Test server failed to start on port {port}")
+
                 log.info(f"Started unified service process PID: {proc.pid}")
                 try:
                     time.sleep(0.5)  # Give server a moment to start
@@ -426,8 +501,9 @@ def open_service(request,
                     log.info(f"Terminating unified service process for {test_name}")
                     proc.terminate()
                     proc.wait()
-                    #proc.communicate()
+                    # proc.communicate()
     return _service
+
 
 @pytest.fixture
 def check_static_site(open_service, log, web_content):
