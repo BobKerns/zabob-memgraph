@@ -15,6 +15,7 @@ Replaces Makefile functionality with Python/Click commands for better
 cross-platform compatibility and maintainability.
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -23,6 +24,7 @@ import time
 from pathlib import Path
 
 import click
+import psutil
 import requests
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -32,6 +34,57 @@ console = Console()
 PROJECT_DIR = Path(__file__).parent
 DOCKER_IMAGE = "zabob-memgraph:latest"
 DOCKER_COMPOSE_FILE = PROJECT_DIR / "docker-compose.yml"
+CONFIG_DIR = Path.home() / ".zabob-memgraph"
+
+
+def get_database_path() -> Path:
+    """Get database path from environment or default"""
+    db_path = os.getenv('MEMGRAPH_DATABASE_PATH')
+    if db_path:
+        return Path(db_path)
+    return CONFIG_DIR / "data" / "knowledge_graph.db"
+
+
+def backup_database() -> None:
+    """Create a backup of the database if it exists"""
+    backup_dir = CONFIG_DIR / "backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    db_file = get_database_path()
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+
+    if db_file.exists():
+        timestamp = int(time.time())
+        backup_file = backup_dir / f"knowledge_graph_{timestamp}.db"
+
+        try:
+            shutil.copy2(db_file, backup_file)
+            console.print(f"💾 Database backup created: {backup_file.name}")
+
+            # Keep only last 5 backups
+            backups = sorted(backup_dir.glob("knowledge_graph_*.db"))
+            if len(backups) > 5:
+                for old_backup in backups[:-5]:
+                    old_backup.unlink()
+                    console.print(f"🗑️  Removed old backup: {old_backup.name}")
+        except Exception as e:
+            console.print(f"⚠️  Could not backup database: {e}")
+
+
+def save_server_info(port: int, pid: int) -> None:
+    """Save server information to config directory"""
+    info_file = CONFIG_DIR / "server_info.json"
+    info = {
+        "port": port,
+        "pid": pid,
+        "timestamp": int(time.time()),
+        "mode": "development"
+    }
+    try:
+        info_file.write_text(json.dumps(info, indent=2))
+        console.print(f"📝 Server info saved: port={port}, pid={pid}")
+    except Exception as e:
+        console.print(f"⚠️  Could not save server info: {e}")
 
 
 @click.group()
@@ -89,6 +142,9 @@ def run(port: int, host: str, reload: bool):
     if reload:
         console.print("🔄 Auto-reload enabled")
 
+    # Create database backup before starting
+    backup_database()
+
     # Set environment variables
     env = os.environ.copy()
     env['MEMGRAPH_HOST'] = host
@@ -103,7 +159,15 @@ def run(port: int, host: str, reload: bool):
         cmd.extend(["--reload", "--reload-dir", "memgraph"])
 
     try:
-        subprocess.run(cmd, cwd=PROJECT_DIR, env=env, check=True)
+        # Start the process
+        process = subprocess.Popen(cmd, cwd=PROJECT_DIR, env=env)
+
+        # Give it a moment to start, then save server info
+        time.sleep(1)
+        save_server_info(port, process.pid)
+
+        # Wait for process to complete
+        process.wait()
     except KeyboardInterrupt:
         console.print("\\n👋 Development server stopped")
     except subprocess.CalledProcessError as e:
@@ -134,6 +198,9 @@ def restart(port: int, host: str):
     except Exception as e:
         console.print(f"⚠️  Could not check for existing process: {e}")
 
+    # Create database backup before restarting
+    backup_database()
+
     # Start new server
     console.print(f"🚀 Starting server on {host}:{port}")
     env = os.environ.copy()
@@ -145,7 +212,15 @@ def restart(port: int, host: str):
            "--host", host, "--port", str(port), "--reload", "--reload-dir", "memgraph"]
 
     try:
-        subprocess.run(cmd, cwd=PROJECT_DIR, env=env, check=True)
+        # Start the process
+        process = subprocess.Popen(cmd, cwd=PROJECT_DIR, env=env)
+
+        # Give it a moment to start, then save server info
+        time.sleep(1)
+        save_server_info(port, process.pid)
+
+        # Wait for process to complete
+        process.wait()
     except KeyboardInterrupt:
         console.print("\n👋 Server stopped")
     except subprocess.CalledProcessError as e:
