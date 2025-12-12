@@ -153,15 +153,15 @@ async def add_observations(entity_name: str, observations: list[str]) -> dict:
 async def open_browser(node_id: str | None = None) -> dict:
     """
     Open a browser window to visualize the knowledge graph.
-    
+
     Reads the server URL from server_info.json and opens it in the default browser.
     Optionally focuses on a specific node if node_id is provided.
-    
+
     Note: Only available when running locally, not in Docker containers.
-    
+
     Args:
         node_id (str, optional): ID of a specific node to focus on in the visualization
-        
+
     Returns:
         dict: Status of the operation with URL that was opened
     """
@@ -173,43 +173,43 @@ async def open_browser(node_id: str | None = None) -> dict:
             "hint": "Connect from the host machine at the exposed port (usually http://localhost:6789)",
             "url": None
         }
-    
+
     try:
         # Get server info to find the correct port
         config_dir = Path.home() / ".zabob-memgraph"
         info_file = config_dir / "server_info.json"
-        
+
         if not info_file.exists():
             return {
                 "success": False,
                 "error": "Server info not found. Is the server running?",
                 "url": None
             }
-        
+
         # Read server info
         info = json.loads(info_file.read_text())
         port = info.get('port', 6789)
-        
+
         # Build URL
         url = f"http://localhost:{port}"
         if node_id:
             url += f"#{node_id}"
-        
+
         # Open browser
         webbrowser.open(url)
-        
+
         logger.info(f"Opened browser to {url}")
-        
+
         message = "Browser opened to knowledge graph visualization"
         if node_id:
             message += f" focused on node {node_id}"
-        
+
         return {
             "success": True,
             "url": url,
             "message": message
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to open browser: {e}")
         return {

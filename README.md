@@ -4,7 +4,9 @@
 
 A Model Context Protocol (MCP) server for persistent knowledge graph storage with interactive web visualization. Part of the Zabob AI assistant ecosystem, designed for thread-safe multi-client support with Docker deployment.
 
-**📖 See [USAGE_PATTERNS.md](USAGE_PATTERNS.md) for detailed deployment options**
+**📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment options**
+
+**📖 See [USAGE_PATTERNS.md](USAGE_PATTERNS.md) for usage examples**
 
 Imagine a future where your AI assistant not only can talk to you, but can remember important things, and can show you everything it remembers.
 
@@ -43,6 +45,8 @@ docker-compose up -d
 
 Add to your Claude Desktop MCP config:
 
+**stdio mode (local only)**:
+
 ```json
 {
   "mcpServers": {
@@ -50,6 +54,7 @@ Add to your Claude Desktop MCP config:
       "command": "docker",
       "args": [
         "run", "--rm", "-i",
+        "-p", "6789:6789",
         "-v", "${HOME}/.zabob-memgraph:/app/.zabob-memgraph",
         "bobkerns/zabob-memgraph:latest",
         "stdio"
@@ -59,7 +64,10 @@ Add to your Claude Desktop MCP config:
 }
 ```
 
-**See [USAGE_PATTERNS.md](USAGE_PATTERNS.md) for more deployment options**
+**HTTP mode (shareable across systems)**:
+See [DEPLOYMENT.md](DEPLOYMENT.md) for multi-system setup.
+
+**📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment options**
 
 ## Usage
 

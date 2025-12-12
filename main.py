@@ -168,11 +168,11 @@ def is_port_available(port: int, host: str = 'localhost') -> bool:
 
 def main():
     """Main entry point with environment configuration support
-    
+
     Supports two modes:
     - HTTP server mode (default): Runs HTTP/SSE server on specified port
     - stdio mode: Runs MCP stdio transport for Claude Desktop integration
-    
+
     Mode is determined by:
     1. Command line argument: 'stdio' or 'server'
     2. Environment variable: MEMGRAPH_MODE=stdio|server
@@ -182,7 +182,7 @@ def main():
     mode = os.getenv('MEMGRAPH_MODE', 'server')
     if len(sys.argv) > 1 and sys.argv[1] == 'stdio':
         mode = 'stdio'
-    
+
     # Load configuration
     config = load_config()
 
