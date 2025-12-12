@@ -123,35 +123,34 @@ def test_server(port, tmp_path_factory):
     env["MEMGRAPH_DATABASE_PATH"] = str(db_path)
     env["MEMGRAPH_LOG_LEVEL"] = "WARNING"  # Reduce log noise in tests
 
-    # Get path to main.py
+    # Start the server process using module execution
     project_dir = Path(__file__).parent.parent
-    main_py = project_dir / "main.py"
-
-    if not main_py.exists():
-        pytest.fail(f"main.py not found at {main_py}")
 
     # Start the server process
     process = subprocess.Popen(
-        [sys.executable, str(main_py)],
+        [sys.executable, "-m", "memgraph", "run", "--port", str(port)],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
+        cwd=str(project_dir)
     )
 
-    # Wait for server to be ready (max 10 seconds)
+    # Wait for server to be ready (max 15 seconds with retries)
     start_time = time.time()
     server_ready = False
     base_url = f"http://localhost:{port}"
 
-    while time.time() - start_time < 10:
+    while time.time() - start_time < 15:
         try:
-            response = requests.get(f"{base_url}/health", timeout=1)
+            response = requests.get(f"{base_url}/health", timeout=2)
             if response.status_code == 200:
                 server_ready = True
+                # Extra wait to ensure server is fully ready
+                time.sleep(0.5)
                 break
         except (requests.ConnectionError, requests.Timeout):
-            time.sleep(0.1)
+            time.sleep(0.2)
 
     if not server_ready:
         process.terminate()
@@ -167,6 +166,70 @@ def test_server(port, tmp_path_factory):
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
+
+
+@pytest.fixture(scope="session")
+def populated_test_server(test_server):
+    """Test server with sample data populated
+
+    Note: Populates database using sync wrapper to avoid event loop conflicts.
+    """
+    from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB
+    import asyncio
+    import threading
+
+    # Get database path from test_server fixture
+    db_path = test_server["db_path"]
+
+    # Create database instance
+    db = SQLiteKnowledgeGraphDB(db_path=str(db_path))
+
+    # Create sample data in a separate thread to avoid event loop conflicts
+    def populate_data():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Create sample entities
+            loop.run_until_complete(db.create_entities([
+                {
+                    "name": "Python",
+                    "entityType": "Language",
+                    "observations": ["High-level programming language", "Dynamic typing"]
+                },
+                {
+                    "name": "FastAPI",
+                    "entityType": "Framework",
+                    "observations": ["Modern web framework", "Built on Starlette"]
+                },
+                {
+                    "name": "SQLite",
+                    "entityType": "Database",
+                    "observations": ["Embedded database", "ACID compliant"]
+                }
+            ]))
+
+            # Create sample relations
+            loop.run_until_complete(db.create_relations([
+                {
+                    "from_entity": "FastAPI",
+                    "to": "Python",
+                    "relationType": "written_in"
+                },
+                {
+                    "from_entity": "FastAPI",
+                    "to": "SQLite",
+                    "relationType": "supports"
+                }
+            ]))
+        finally:
+            loop.close()
+
+    # Run in a separate thread to avoid pytest-asyncio conflicts
+    thread = threading.Thread(target=populate_data)
+    thread.start()
+    thread.join()
+
+    return test_server
 
 
 @pytest.fixture

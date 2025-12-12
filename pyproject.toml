@@ -142,3 +142,23 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Enable playwright plugin
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+# Register custom markers
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+# Playwright configuration
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

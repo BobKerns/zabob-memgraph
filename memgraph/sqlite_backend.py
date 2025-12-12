@@ -10,7 +10,7 @@ import json
 import os
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -305,7 +305,7 @@ class SQLiteKnowledgeGraphDB:
 
                 imported_entities = 0
                 imported_relations = 0
-                timestamp = datetime.utcnow().isoformat()
+                timestamp = datetime.now(UTC).isoformat()
 
                 with sqlite3.connect(self.db_path) as conn:
                     # Import entities
@@ -393,7 +393,7 @@ class SQLiteKnowledgeGraphDB:
     async def create_entities(self, entities: list[dict[str, Any]]) -> None:
         """Create new entities in the database"""
         async with self._lock:
-            timestamp = datetime.utcnow().isoformat()
+            timestamp = datetime.now(UTC).isoformat()
 
             with sqlite3.connect(self.db_path) as conn:
                 for entity in entities:
@@ -420,7 +420,7 @@ class SQLiteKnowledgeGraphDB:
     async def create_relations(self, relations: list[dict[str, Any]]) -> None:
         """Create new relations in the database"""
         async with self._lock:
-            timestamp = datetime.utcnow().isoformat()
+            timestamp = datetime.now(UTC).isoformat()
 
             with sqlite3.connect(self.db_path) as conn:
                 for relation in relations:
