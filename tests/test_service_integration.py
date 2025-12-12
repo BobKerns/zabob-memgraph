@@ -24,7 +24,11 @@ def test_unified_service_web_routes(open_service,
         assert client('index.html') != ''
 
 
-@pytest.mark.skip(reason="MCP client.js tests not yet working - out of scope for vector search")
+@pytest.mark.skip(
+    reason="MCP client.js is hardcoded to call specific MCP tools, "
+    "not generic HTTP endpoints. Need to rewrite tests to properly test MCP tools "
+    "or create a generic HTTP test client."
+)
 def test_unified_service_mcp_routes(open_service,
                                     service_py,
                                     log,
@@ -47,7 +51,11 @@ def test_unified_service_mcp_routes(open_service,
         log.info("Both web and MCP endpoints verified")
 
 
-@pytest.mark.skip(reason="MCP client.js tests not yet working - out of scope for vector search")
+@pytest.mark.skip(
+    reason="MCP client.js is hardcoded to call specific MCP tools, "
+    "not generic HTTP endpoints. Need to rewrite tests to properly test MCP tools "
+    "or create a generic HTTP test client."
+)
 def test_unified_service_both_routes_same_port(open_service,
                                                service_py,
                                                log,

@@ -1,8 +1,8 @@
 # test_web_service.py - Web service tests
-import anyio
 import json
 import time
 import subprocess
+
 
 def test_serves_static_files(check_static_site,
                              web_service_py,
@@ -59,7 +59,7 @@ def test_web_service_starts(web_service_py, web_content, port, log, service_log)
                 break
         except (requests.ConnectionError, requests.Timeout):
             time.sleep(0.1)
-    
+
     if not server_ready:
         proc.terminate()
         log.error("Server failed to start within 10 seconds")

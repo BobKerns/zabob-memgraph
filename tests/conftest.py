@@ -398,7 +398,7 @@ def open_service(request,
                                             text=True,)
 
                 log.info(f"Started service process PID: {proc.pid}")
-                
+
                 # Wait for server to be ready (max 10 seconds)
                 start_time = time.time()
                 server_ready = False
@@ -411,12 +411,12 @@ def open_service(request,
                             break
                     except (requests.ConnectionError, requests.Timeout):
                         time.sleep(0.1)
-                
+
                 if not server_ready:
                     proc.terminate()
                     log.error("Server failed to start within 10 seconds")
                     pytest.fail(f"Test server failed to start on port {port}")
-                
+
                 try:
                     yield _mcp_client
                 finally:
@@ -435,7 +435,7 @@ def open_service(request,
                                             text=True,)
 
                 log.info(f"Started service process PID: {proc.pid}")
-                
+
                 # Wait for server to be ready (max 10 seconds)
                 start_time = time.time()
                 server_ready = False
@@ -448,12 +448,12 @@ def open_service(request,
                             break
                     except (requests.ConnectionError, requests.Timeout):
                         time.sleep(0.1)
-                
+
                 if not server_ready:
                     proc.terminate()
                     log.error("Server failed to start within 10 seconds")
                     pytest.fail(f"Test server failed to start on port {port}")
-                
+
                 try:
                     yield _web_client
                 finally:
@@ -472,7 +472,7 @@ def open_service(request,
                                             text=True,)
 
                 log.info(f"Started service process PID: {proc.pid}")
-                
+
                 # Wait for server to be ready (max 10 seconds)
                 start_time = time.time()
                 server_ready = False
@@ -485,7 +485,7 @@ def open_service(request,
                             break
                     except (requests.ConnectionError, requests.Timeout):
                         time.sleep(0.1)
-                
+
                 if not server_ready:
                     proc.terminate()
                     log.error("Server failed to start within 10 seconds")

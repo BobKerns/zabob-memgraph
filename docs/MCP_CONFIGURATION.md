@@ -7,12 +7,14 @@ Zabob Memgraph provides both REST API endpoints and MCP (Model Context Protocol)
 ## Server Architecture
 
 The server mounts web routes on top of FastMCP's HTTP app:
+
 - **MCP Protocol**: `http://localhost:8080/mcp` (SSE transport)
 - **Web UI**: `http://localhost:8080/`
 - **REST API**: `http://localhost:8080/api/*`
 - **Health Check**: `http://localhost:8080/health`
 
 This architecture allows:
+
 - ✅ Multiple clients accessing the same shared SQLite database
 - ✅ No process spawning overhead
 - ✅ Web UI and MCP tools use the same data
@@ -68,10 +70,12 @@ The following MCP tools are available:
 Read the complete knowledge graph.
 
 **Parameters:**
+
 - `name` (str, optional): Graph identifier (default: "foo")
 - `val2` (dict, optional): Additional parameters
 
 **Returns:**
+
 - Complete graph data with entities, relations, and observations
 
 ### `search_nodes`
@@ -79,9 +83,11 @@ Read the complete knowledge graph.
 Search the knowledge graph for entities and relations.
 
 **Parameters:**
+
 - `query` (str): Search query string
 
 **Returns:**
+
 - Search results with matching entities and their metadata
 
 ## REST API (Alternative)
@@ -95,6 +101,7 @@ curl http://localhost:8080/api/knowledge-graph
 ```
 
 **Response:**
+
 ```json
 {
   "entities": [...],
@@ -109,6 +116,7 @@ curl "http://localhost:8080/api/search?q=your+query"
 ```
 
 **Response:**
+
 ```json
 {
   "results": [
@@ -137,6 +145,7 @@ curl -H "Accept: text/event-stream" http://localhost:8080/mcp
 ### Expected Response
 
 The MCP endpoint will respond with:
+
 - SSE headers: `Content-Type: text/event-stream`
 - JSON-RPC messages for the MCP protocol
 
@@ -175,6 +184,7 @@ The server uses SQLite with WAL mode for thread-safe concurrent access. If you s
 ```
 
 Update `mcp.json`:
+
 ```json
 {
   "url": "http://localhost:9000/mcp"
@@ -188,6 +198,7 @@ Update `mcp.json`:
 ```
 
 Update `mcp.json`:
+
 ```json
 {
   "url": "http://localhost:8080/mcp"
