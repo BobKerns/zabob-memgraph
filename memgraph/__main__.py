@@ -9,16 +9,12 @@
 # ]
 # ///
 """
-Zabob Memgraph Launcher
+Zabob Memgraph CLI
 
-A launcher script for the Zabob Memgraph knowledge graph server.
-Handles port management, process tracking, and Docker integration.
+Command-line interface for the Zabob Memgraph knowledge graph server.
 """
 
-import json
-import os
 import shutil
-import socket
 import subprocess
 import sys
 import time
@@ -31,6 +27,19 @@ import requests
 from rich.console import Console
 from rich.panel import Panel
 
+from memgraph.launcher import (
+    cleanup_server_info,
+    find_free_port,
+    get_server_info,
+    is_dev_environment,
+    is_port_available,
+    is_server_running,
+    load_launcher_config,
+    save_launcher_config,
+    start_docker_server,
+    start_local_server,
+)
+
 console = Console()
 
 # Configuration
@@ -41,10 +50,14 @@ DOCKER_IMAGE = "zabob-memgraph:latest"
 
 @click.group()
 @click.version_option()
-@click.option("--config-dir", type=click.Path(path_type=Path),
-              default=CONFIG_DIR, help="Configuration directory")
+@click.option(
+    "--config-dir",
+    type=click.Path(path_type=Path),
+    default=CONFIG_DIR,
+    help="Configuration directory",
+)
 @click.pass_context
-def cli(ctx, config_dir: Path):
+def cli(ctx: click.Context, config_dir: Path) -> None:
     """Zabob Memgraph - Knowledge Graph Server"""
     ctx.ensure_object(dict)
     ctx.obj['config_dir'] = config_dir
@@ -57,28 +70,32 @@ def cli(ctx, config_dir: Path):
 @click.option("--docker", is_flag=True, help="Run using Docker")
 @click.option("--detach", "-d", is_flag=True, help="Run in background (Docker only)")
 @click.pass_context
-def start(ctx, port: int | None, host: str, docker: bool, detach: bool):
+def start(
+    ctx: click.Context, port: int | None, host: str, docker: bool, detach: bool
+) -> None:
     """Start the Zabob Memgraph server"""
-    config_dir = ctx.obj['config_dir']
+    config_dir: Path = ctx.obj['config_dir']
 
     # Check if server is already running
     if is_server_running(config_dir):
         info = get_server_info(config_dir)
-        console.print(f"❌ Server already running on port {info['port']} (PID: {info['pid']})")
+        console.print(
+            f"❌ Server already running on port {info['port']} (PID: {info.get('pid', 'N/A')})"
+        )
         console.print("Use 'zabob-memgraph stop' to stop it first")
         sys.exit(1)
 
     if docker:
-        start_docker_server(config_dir, port, host, detach)
+        start_docker_server(config_dir, port, host, detach, console, DOCKER_IMAGE)
     else:
-        start_local_server(config_dir, port, host)
+        start_local_server(config_dir, port, host, console)
 
 
 @click.command()
 @click.pass_context
-def stop(ctx):
+def stop(ctx: click.Context) -> None:
     """Stop the Zabob Memgraph server"""
-    config_dir = ctx.obj['config_dir']
+    config_dir: Path = ctx.obj['config_dir']
 
     if not is_server_running(config_dir):
         console.print("❌ No server running")
@@ -89,8 +106,11 @@ def stop(ctx):
     if info.get('docker_container'):
         # Stop Docker container
         try:
-            subprocess.run(['docker', 'stop', info['docker_container']],
-                           check=True, capture_output=True)
+            subprocess.run(
+                ['docker', 'stop', info['docker_container']],
+                check=True,
+                capture_output=True,
+            )
             console.print(f"✅ Stopped Docker container {info['docker_container']}")
         except subprocess.CalledProcessError as e:
             console.print(f"❌ Failed to stop Docker container: {e}")
@@ -98,118 +118,109 @@ def stop(ctx):
     else:
         # Stop local process
         try:
-            psutil.Process(info['pid']).terminate()
-            console.print(f"✅ Stopped server (PID: {info['pid']})")
-        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            pid = info.get('pid')
+            if pid:
+                process = psutil.Process(pid)
+                process.terminate()
+                process.wait(timeout=10)
+                console.print(f"✅ Server stopped (PID: {pid})")
+            else:
+                console.print("❌ No PID found in server info")
+                sys.exit(1)
+        except psutil.NoSuchProcess:
+            console.print("❌ Process not found")
+        except psutil.TimeoutExpired:
+            console.print("⚠️  Process didn't stop gracefully, killing...")
+            process.kill()
+            console.print("✅ Server killed")
+        except Exception as e:
             console.print(f"❌ Failed to stop server: {e}")
+            sys.exit(1)
 
-    # Clean up server info
     cleanup_server_info(config_dir)
 
 
 @click.command()
-@click.pass_context
-@click.option("--port", type=int, default=None, help="Port to run on")
+@click.option("--port", type=int, help="Specific port to use")
 @click.option("--host", default="localhost", help="Host to bind to")
-@click.option("--docker", is_flag=True, help="Use Docker")
-@click.option("--detach", is_flag=True, default=True, help="Run in background")
-def restart(ctx, port: int | None, host: str, docker: bool, detach: bool):
+@click.option("--docker", is_flag=True, help="Run using Docker")
+@click.option("--detach", "-d", is_flag=True, help="Run in background (Docker only)")
+@click.pass_context
+def restart(
+    ctx: click.Context, port: int | None, host: str, docker: bool, detach: bool
+) -> None:
     """Restart the Zabob Memgraph server"""
-    config_dir = ctx.obj['config_dir']
+    config_dir: Path = ctx.obj['config_dir']
 
-    # Stop if running
     if is_server_running(config_dir):
-        console.print("🛑 Stopping existing server...")
         ctx.invoke(stop)
-        time.sleep(1)
+        console.print("⏳ Waiting for server to stop...")
+        time.sleep(2)
 
-    # Start server
-    console.print("🚀 Starting server...")
     ctx.invoke(start, port=port, host=host, docker=docker, detach=detach)
 
 
 @click.command()
 @click.pass_context
-def open_browser(ctx):
-    """Open browser to the knowledge graph visualization
+def open_browser(ctx: click.Context) -> None:
+    """Open browser to the knowledge graph interface"""
+    config_dir: Path = ctx.obj['config_dir']
 
-    If multiple servers are running, opens the first one found.
-    """
-    config_dir = ctx.obj['config_dir']
+    if not is_server_running(config_dir):
+        console.print("❌ No server running")
+        console.print("Start the server first with: zabob-memgraph start")
+        sys.exit(1)
 
-    # Try to get info from server_info.json first
     info = get_server_info(config_dir)
+    url = f"http://{info.get('host', 'localhost')}:{info['port']}"
 
-    if info and is_server_running(config_dir):
-        # Check if running in Docker
-        if info.get('docker_container'):
-            port = info.get('port', 6789)
-            host = info.get('host', 'localhost')
-            url = f"http://{host}:{port}"
-            console.print("⚠️  Server is running in Docker container")
-            console.print(f"   Open browser manually to: {url}")
-            sys.exit(0)
-
-        port = info.get('port', 6789)
-        host = info.get('host', 'localhost')
-        url = f"http://{host}:{port}"
-    else:
-        # server_info.json doesn't exist or server not running
-        # Scan for any server on common ports
-        console.print("📡 Scanning for running servers...")
-        found = False
-        for port in range(6789, 6800):
-            try:
-                response = requests.get(f"http://localhost:{port}/health", timeout=1)
-                if response.status_code == 200:
-                    url = f"http://localhost:{port}"
-                    console.print(f"✅ Found server on port {port}")
-                    found = True
-                    break
-            except requests.RequestException:
-                continue
-
-        if not found:
-            console.print("❌ No server running. Start with 'zabob-memgraph start'")
-            sys.exit(1)
-
-    console.print(f"🌐 Opening browser to {url}")
-    try:
-        webbrowser.open(url)
-        console.print("✅ Browser opened")
-    except Exception as e:
-        console.print(f"⚠️  Could not open browser: {e}")
-        console.print(f"   Please open manually: {url}")
+    console.print(f"🌐 Opening {url} in your browser...")
+    webbrowser.open(url)
 
 
 @click.command()
 @click.pass_context
-def status(ctx):
+def status(ctx: click.Context) -> None:
     """Check server status"""
-    config_dir = ctx.obj['config_dir']
+    config_dir: Path = ctx.obj['config_dir']
 
     if is_server_running(config_dir):
         info = get_server_info(config_dir)
-        console.print(Panel(f"""
-Server Status: [green]RUNNING[/green]
-Port: {info['port']}
-PID: {info.get('pid', 'N/A')}
-Docker: {info.get('docker_container', 'No')}
-Started: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(info.get('timestamp', time.time())))}
 
-Web Interface: http://localhost:{info['port']}
-""", title="Zabob Memgraph Server"))
+        status_lines = ["Server Status: [green]RUNNING[/green]"]
+
+        if info.get('docker_container'):
+            status_lines.append(f"Container: {info['docker_container']}")
+            if info.get('container_id'):
+                status_lines.append(f"Container ID: {info['container_id'][:12]}")
+        else:
+            status_lines.append(f"PID: {info.get('pid', 'N/A')}")
+
+        status_lines.append(f"Port: {info.get('port', 'N/A')}")
+        status_lines.append(f"Host: {info.get('host', 'localhost')}")
+        status_lines.append(
+            f"Web Interface: http://{info.get('host', 'localhost')}:{info['port']}"
+        )
+
+        console.print(
+            Panel("\n".join(status_lines), title="Zabob Memgraph Server")
+        )
     else:
-        console.print(Panel("Server Status: [red]NOT RUNNING[/red]", title="Zabob Memgraph Server"))
+        console.print(
+            Panel(
+                "Server Status: [red]NOT RUNNING[/red]",
+                title="Zabob Memgraph Server",
+            )
+        )
         sys.exit(1)
 
 
 @click.command()
 @click.option("--interval", default=5, help="Check interval in seconds")
 @click.pass_context
-def monitor(ctx, interval: int):
+def monitor(ctx: click.Context, interval: int) -> None:
     """Monitor server health"""
-    config_dir = ctx.obj['config_dir']
+    config_dir: Path = ctx.obj['config_dir']
 
     if not is_server_running(config_dir):
         console.print("❌ No server running to monitor")
@@ -218,8 +229,12 @@ def monitor(ctx, interval: int):
     info = get_server_info(config_dir)
     base_url = f"http://localhost:{info['port']}"
 
-    console.print(Panel(f"Monitoring server at {base_url} (Ctrl+C to stop)",
-                        title="📡 Server Monitor"))
+    console.print(
+        Panel(
+            f"Monitoring server at {base_url} (Ctrl+C to stop)",
+            title="📡 Server Monitor",
+        )
+    )
 
     try:
         while True:
@@ -230,22 +245,24 @@ def monitor(ctx, interval: int):
                     console.print(f"[green]{timestamp}[/green] ✅ Server healthy")
                 else:
                     timestamp = time.strftime("%H:%M:%S")
-                    console.print(f"[red]{timestamp}[/red] ❌ Server unhealthy "
-                                  "- HTTP {response.status_code}")
+                    console.print(
+                        f"[red]{timestamp}[/red] ❌ Server unhealthy - "
+                        f"HTTP {response.status_code}"
+                    )
             except requests.RequestException:
                 timestamp = time.strftime("%H:%M:%S")
                 console.print(f"[red]{timestamp}[/red] ❌ Server unreachable")
 
             time.sleep(interval)
     except KeyboardInterrupt:
-        console.print("\\n👋 Monitoring stopped")
+        console.print("\n👋 Monitoring stopped")
 
 
 @click.command()
 @click.pass_context
-def test(ctx):
+def test(ctx: click.Context) -> None:
     """Test server endpoints"""
-    config_dir = ctx.obj['config_dir']
+    config_dir: Path = ctx.obj['config_dir']
 
     if not is_server_running(config_dir):
         console.print("❌ No server running to test")
@@ -254,298 +271,48 @@ def test(ctx):
     info = get_server_info(config_dir)
     base_url = f"http://localhost:{info['port']}"
 
-    console.print(Panel(f"Testing server at {base_url}", title="🧪 Server Test"))
+    console.print(Panel("Testing server endpoints...", title="🧪 Endpoint Tests"))
 
-    tests_passed = 0
-    total_tests = 4
-
-    # Test health endpoint
-    try:
-        response = requests.get(f"{base_url}/health", timeout=5)
-        if response.status_code == 200:
-            console.print("✅ Health check passed")
-            tests_passed += 1
-        else:
-            console.print(f"❌ Health check failed: {response.status_code}")
-    except requests.RequestException as e:
-        console.print(f"❌ Health check error: {e}")
-
-    # Test knowledge graph endpoint
-    try:
-        response = requests.get(f"{base_url}/api/knowledge-graph", timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            console.print(f"✅ Knowledge graph OK - {len(data.get('nodes', []))} entities")
-            tests_passed += 1
-        else:
-            console.print(f"❌ Knowledge graph failed: {response.status_code}")
-    except requests.RequestException as e:
-        console.print(f"❌ Knowledge graph error: {e}")
-
-    # Test search endpoint
-    try:
-        response = requests.get(f"{base_url}/api/search?q=test", timeout=5)
-        if response.status_code == 200:
-            console.print("✅ Search endpoint working")
-            tests_passed += 1
-        else:
-            console.print(f"❌ Search failed: {response.status_code}")
-    except requests.RequestException as e:
-        console.print(f"❌ Search error: {e}")
-
-    # Test entity creation
-    test_entity = {
-        "name": f"Test Entity {int(time.time())}",
-        "entityType": "test",
-        "observations": ["Created by launcher test"]
-    }
-
-    try:
-        response = requests.post(f"{base_url}/api/entities", json=[test_entity], timeout=5)
-        if response.status_code == 200:
-            console.print("✅ Entity creation working")
-            tests_passed += 1
-        else:
-            console.print(f"❌ Entity creation failed: {response.status_code}")
-    except requests.RequestException as e:
-        console.print(f"❌ Entity creation error: {e}")
-
-    console.print(f"\\n🎯 Tests passed: {tests_passed}/{total_tests}")
-
-    if tests_passed == total_tests:
-        console.print("🎉 All tests passed!")
-    else:
-        sys.exit(1)
-
-
-def find_free_port(start_port: int = DEFAULT_PORT) -> int:
-    """Find a free port starting from start_port"""
-    for port in range(start_port, start_port + 100):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('localhost', port))
-                return port
-        except OSError:
-            continue
-    raise RuntimeError(f"Could not find a free port in range {start_port}-{start_port + 100}")
-
-
-def is_port_available(port: int, host: str = 'localhost') -> bool:
-    """Check if a port is available"""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((host, port))
-            return True
-    except OSError:
-        return False
-
-
-def load_config(config_dir: Path) -> dict:
-    """Load configuration from file or return defaults"""
-    config_file = config_dir / "config.json"
-    defaults = {
-        "host": "localhost",
-        "port": DEFAULT_PORT,
-        "log_level": "INFO",
-        "data_dir": str(config_dir / "data")
-    }
-
-    if config_file.exists():
-        try:
-            with open(config_file) as f:
-                user_config = json.load(f)
-                defaults.update(user_config)
-        except Exception as e:
-            console.print(f"⚠️  Could not load config: {e}")
-
-    return defaults
-
-
-def save_config(config_dir: Path, config: dict) -> None:
-    """Save configuration to file"""
-    config_file = config_dir / "config.json"
-    try:
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
-    except Exception as e:
-        console.print(f"⚠️  Could not save config: {e}")
-
-
-def is_server_running(config_dir: Path) -> bool:
-    """Check if server is running"""
-    info_file = config_dir / "server_info.json"
-    if not info_file.exists():
-        return False
-
-    try:
-        info = json.loads(info_file.read_text())
-
-        if info.get('docker_container'):
-            # Check Docker container
-            cmd = ['docker', 'inspect', '-f', '{{.State.Running}}', info['docker_container']]
-            result = subprocess.run(cmd,
-                                    capture_output=True, text=True)
-            return bool(result.stdout.strip())
-        else:
-            # Check local process
-            return psutil.pid_exists(info['pid']) and psutil.Process(info['pid']).is_running()
-    except (json.JSONDecodeError, KeyError, psutil.NoSuchProcess):
-        return False
-
-
-def get_server_info(config_dir: Path) -> dict:
-    """Get server information"""
-    info_file = config_dir / "server_info.json"
-    if info_file.exists():
-        return json.loads(info_file.read_text())
-    return {}
-
-
-def save_server_info(config_dir: Path, **info) -> None:
-    """Save server information"""
-    info_file = config_dir / "server_info.json"
-    info['timestamp'] = time.time()
-    info_file.write_text(json.dumps(info, indent=2))
-
-
-def cleanup_server_info(config_dir: Path) -> None:
-    """Clean up server info files"""
-    for file in ['server_info.json', 'port', 'pid']:
-        (config_dir / file).unlink(missing_ok=True)
-
-
-def start_local_server(config_dir: Path, port: int | None, host: str) -> None:
-    """Start local server using main.py"""
-    if not port:
-        port = find_free_port()
-
-    console.print(f"🚀 Starting Zabob Memgraph server on {host}:{port}")
-
-    # Check if main.py exists
-    main_py = Path("main.py")
-    if not main_py.exists():
-        console.print("❌ main.py not found. Are you in the correct directory?")
-        sys.exit(1)
-
-    # Start server process
-    try:
-        env = os.environ.copy()
-        env['MEMGRAPH_PORT'] = str(port)
-        env['MEMGRAPH_HOST'] = host
-        env['MEMGRAPH_CONFIG_DIR'] = str(config_dir)
-
-        process = subprocess.Popen(
-            ['uv', 'run', 'main.py'],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
-        )
-
-        # Wait a moment for startup
-        time.sleep(2)
-
-        if process.poll() is None:  # Process is still running
-            save_server_info(config_dir, port=port, pid=process.pid, host=host)
-            console.print("✅ Server started successfully!")
-            console.print(f"📝 PID: {process.pid}")
-            console.print(f"🌐 Web interface: http://{host}:{port}")
-            console.print(f"📁 Config: {config_dir}")
-        else:
-            console.print("❌ Server failed to start")
-            if process.stdout:
-                output = process.stdout.read().decode()
-                console.print(f"Output: {output}")
-            sys.exit(1)
-
-    except Exception as e:
-        console.print(f"❌ Failed to start server: {e}")
-        sys.exit(1)
-
-
-def start_docker_server(config_dir: Path, port: int | None, host: str, detach: bool) -> None:
-    """Start server using Docker"""
-    if not port:
-        port = find_free_port()
-
-    console.print(f"🐳 Starting Zabob Memgraph server in Docker on {host}:{port}")
-
-    # Check if Docker is available
-    if not shutil.which("docker"):
-        console.print("❌ Docker not found. Please install Docker first.")
-        sys.exit(1)
-
-    # Check if image exists
-    result = subprocess.run(['docker', 'images', '-q', DOCKER_IMAGE],
-                            capture_output=True, text=True)
-    if not result.stdout.strip():
-        console.print(f"❌ Docker image {DOCKER_IMAGE} not found.")
-        console.print("Please build the image first with: docker build -t zabob-memgraph .")
-        sys.exit(1)
-
-    # Generate container name
-    container_name = f"zabob-memgraph-{port}"
-
-    # Start container
-    cmd = [
-        'docker', 'run',
-        '--name', container_name,
-        '-p', f"{port}:8080",
-        '-v', f"{config_dir}:/app/.zabob-memgraph"
+    # Test endpoints
+    endpoints = [
+        ("/", "Web UI"),
+        ("/health", "Health check"),
+        ("/mcp", "MCP endpoint"),
     ]
 
-    if detach:
-        cmd.append('-d')
+    all_passed = True
 
-    cmd.append(DOCKER_IMAGE)
+    for path, description in endpoints:
+        url = f"{base_url}{path}"
+        try:
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                console.print(f"✅ {description}: {url}")
+            else:
+                console.print(
+                    f"❌ {description}: {url} - HTTP {response.status_code}"
+                )
+                all_passed = False
+        except requests.RequestException as e:
+            console.print(f"❌ {description}: {url} - {e}")
+            all_passed = False
 
-    try:
-        if detach:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            container_id = result.stdout.strip()
-            save_server_info(config_dir, port=port, docker_container=container_name,
-                             container_id=container_id, host=host)
-            console.print(f"✅ Docker container started: {container_name}")
-            console.print(f"🌐 Web interface: http://{host}:{port}")
-        else:
-            save_server_info(config_dir, port=port, docker_container=container_name, host=host)
-            console.print(f"🌐 Web interface: http://{host}:{port}")
-            subprocess.run(cmd, check=True)
-
-    except subprocess.CalledProcessError as e:
-        console.print(f"❌ Failed to start Docker container: {e}")
+    if all_passed:
+        console.print("\n✅ All tests passed!")
+    else:
+        console.print("\n❌ Some tests failed")
         sys.exit(1)
-    except KeyboardInterrupt:
-        console.print("\\n👋 Stopping container...")
-        subprocess.run(['docker', 'stop', container_name], capture_output=True)
-        cleanup_server_info(config_dir)
 
 
-# Development environment detection
-def is_dev_environment() -> bool:
-    """Check if running in development environment"""
-    project_root = Path(__file__).parent.parent
-
-    # Check for .git directory
-    if (project_root / ".git").exists():
-        return True
-
-    # Check for dev dependencies
-    try:
-        import watchfiles  # noqa
-        return True
-    except ImportError:
-        pass
-
-    return False
-
-
-# Development-only commands
+# Development commands
 @click.command()
 @click.option('--port', type=int, default=None, help='Port to run on')
 @click.option('--host', default='localhost', help='Host to bind to')
-@click.option('--reload', is_flag=True, help='Enable auto-reload on code changes (dev only)')
+@click.option(
+    '--reload', is_flag=True, help='Enable auto-reload on code changes (dev only)'
+)
 @click.pass_context
-def run(ctx, port: int | None, host: str, reload: bool):
+def run(ctx: click.Context, port: int | None, host: str, reload: bool) -> None:
     """Run server in foreground (for stdio mode or development)
 
     Unlike 'start', this runs the server in the foreground and blocks.
@@ -560,7 +327,7 @@ def run(ctx, port: int | None, host: str, reload: bool):
     config_dir.mkdir(parents=True, exist_ok=True)
 
     # Load config
-    config = load_config(config_dir)
+    config = load_launcher_config(config_dir)
 
     # If port explicitly specified, disable auto port finding
     if port is not None:
@@ -570,7 +337,7 @@ def run(ctx, port: int | None, host: str, reload: bool):
         if not is_port_available(port, host):
             port = find_free_port(port)
             config['port'] = port
-            save_config(config_dir, config)
+            save_launcher_config(config_dir, config)
             console.print(f"📍 Using available port {port}")
 
     console.print(f"🚀 Starting server on {host}:{port}")
@@ -585,13 +352,13 @@ def run(ctx, port: int | None, host: str, reload: bool):
     try:
         subprocess.run(cmd, check=True)
     except KeyboardInterrupt:
-        console.print("\\n👋 Server stopped")
+        console.print("\n👋 Server stopped")
 
 
 @click.command()
 @click.option('--tag', default='zabob-memgraph:latest', help='Docker image tag')
 @click.option('--no-cache', is_flag=True, help='Build without cache')
-def build(tag: str, no_cache: bool):
+def build(tag: str, no_cache: bool) -> None:
     """Build Docker image"""
     project_root = Path(__file__).parent.parent
     cmd = ['docker', 'build', '-t', tag]
@@ -612,23 +379,19 @@ def build(tag: str, no_cache: bool):
 
 
 @click.command()
-def lint():
+def lint() -> None:
     """Run linting checks (ruff, mypy)"""
     project_root = Path(__file__).parent.parent
     console.print("🔍 Running linters...")
 
     # Run ruff
-    console.print("\\n📝 Checking with ruff...")
-    result = subprocess.run(
-        ['uv', 'run', 'ruff', 'check', 'memgraph/'],
-        cwd=project_root
-    )
+    console.print("\n📝 Checking with ruff...")
+    result = subprocess.run(['uv', 'run', 'ruff', 'check', 'memgraph/'], cwd=project_root)
 
     # Run mypy
-    console.print("\\n🔬 Checking with mypy...")
+    console.print("\n🔬 Checking with mypy...")
     result2 = subprocess.run(
-        ['uv', 'run', 'mypy', '--strict', 'memgraph/'],
-        cwd=project_root
+        ['uv', 'run', 'mypy', '--strict', 'memgraph/'], cwd=project_root
     )
 
     if result.returncode == 0 and result2.returncode == 0:
@@ -638,15 +401,13 @@ def lint():
 
 
 @click.command(name="format")
-def format_code():
+def format_code() -> None:
     """Format code with ruff"""
     project_root = Path(__file__).parent.parent
     console.print("✨ Formatting code with ruff...")
 
     result = subprocess.run(
-        ['uv', 'run', 'ruff', 'format', '.'],
-        cwd=project_root,
-        check=False
+        ['uv', 'run', 'ruff', 'format', '.'], cwd=project_root, check=False
     )
 
     if result.returncode == 0:
@@ -657,7 +418,7 @@ def format_code():
 
 
 @click.command()
-def clean():
+def clean() -> None:
     """Clean build artifacts and cache"""
     project_root = Path(__file__).parent.parent
     console.print("🧹 Cleaning build artifacts...")
