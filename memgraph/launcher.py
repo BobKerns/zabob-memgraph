@@ -5,12 +5,17 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import psutil
 
 
-def find_free_port(start_port: int = 6789) -> int:
+DEFAULT_PORT: Literal[6789] = 6789
+CONFIG_DIR: Path = Path.home() / ".zabob" / "memgraph"
+DOCKER_IMAGE: str = "zabob-memgraph:latest"
+
+
+def find_free_port(start_port: int = DEFAULT_PORT) -> int:
     """Find a free port starting from start_port"""
     for port in range(start_port, start_port + 100):
         try:
@@ -39,9 +44,9 @@ def load_launcher_config(config_dir: Path) -> dict[str, Any]:
     config_file = config_dir / "launcher_config.json"
 
     defaults: dict[str, Any] = {
-        "default_port": 6789,
+        "default_port": DEFAULT_PORT,
         "default_host": "localhost",
-        "docker_image": "zabob-memgraph:latest",
+        "docker_image": DOCKER_IMAGE,
     }
 
     if config_file.exists():
@@ -141,7 +146,9 @@ def start_local_server(
         console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")
     else:
         launcher_config = load_launcher_config(config_dir)
-        port = launcher_config.get('port', config.get('port', 6789))
+        port = launcher_config.get('port', config.get('port', DEFAULT_PORT))
+        if not isinstance(port, int):
+            port = DEFAULT_PORT
         if not is_port_available(port, host):
             port = find_free_port(port)
             launcher_config['port'] = port
@@ -191,7 +198,9 @@ def start_docker_server(
     launcher_config = load_launcher_config(config_dir)
 
     if port is None:
-        port = launcher_config.get('port', 6789)
+        port = launcher_config.get('port', DEFAULT_PORT)
+        if not isinstance(port, int):
+            port = DEFAULT_PORT
         if not is_port_available(port, host):
             port = find_free_port(port)
             launcher_config['port'] = port

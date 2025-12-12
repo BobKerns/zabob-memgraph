@@ -38,14 +38,14 @@ from memgraph.launcher import (
     save_launcher_config,
     start_docker_server,
     start_local_server,
+    DEFAULT_PORT,
+    CONFIG_DIR,
+    DOCKER_IMAGE,
 )
 
 console = Console()
 
 # Configuration
-DEFAULT_PORT = 6789
-CONFIG_DIR = Path.home() / ".zabob" / "memgraph"
-DOCKER_IMAGE = "zabob-memgraph:latest"
 
 
 @click.group()
