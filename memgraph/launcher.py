@@ -116,13 +116,13 @@ def stop(ctx):
 def restart(ctx, port: int | None, host: str, docker: bool, detach: bool):
     """Restart the Zabob Memgraph server"""
     config_dir = ctx.obj['config_dir']
-    
+
     # Stop if running
     if is_server_running(config_dir):
         console.print("🛑 Stopping existing server...")
         ctx.invoke(stop)
         time.sleep(1)
-    
+
     # Start server
     console.print("🚀 Starting server...")
     ctx.invoke(start, port=port, host=host, docker=docker, detach=detach)
@@ -133,13 +133,13 @@ def restart(ctx, port: int | None, host: str, docker: bool, detach: bool):
 def open_browser(ctx):
     """Open browser to the knowledge graph visualization"""
     config_dir = ctx.obj['config_dir']
-    
+
     if not is_server_running(config_dir):
         console.print("❌ No server running. Start with 'zabob-memgraph start'")
         sys.exit(1)
-    
+
     info = get_server_info(config_dir)
-    
+
     # Check if running in Docker
     if info.get('docker_container'):
         port = info.get('port', 6789)
@@ -148,11 +148,11 @@ def open_browser(ctx):
         console.print("⚠️  Server is running in Docker container")
         console.print(f"   Open browser manually to: {url}")
         sys.exit(0)
-    
+
     port = info.get('port', 6789)
     host = info.get('host', 'localhost')
     url = f"http://{host}:{port}"
-    
+
     console.print(f"🌐 Opening browser to {url}")
     try:
         webbrowser.open(url)

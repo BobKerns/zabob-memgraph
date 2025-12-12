@@ -188,6 +188,7 @@ When running in HTTP server mode:
 ### Using MCP Tools
 
 MCP tools are called through the protocol. Example using the web UI:
+
 1. Open http://localhost:6789
 2. View entities and relations in the interactive graph
 3. Search, zoom, and explore your knowledge graph

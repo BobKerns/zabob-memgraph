@@ -26,7 +26,6 @@ import webbrowser
 from pathlib import Path
 
 import click
-import psutil
 import requests
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -98,7 +97,7 @@ def load_config() -> dict:
         "log_level": "INFO",
         "data_dir": str(CONFIG_DIR / "data")
     }
-    
+
     if config_file.exists():
         try:
             with open(config_file) as f:
@@ -106,7 +105,7 @@ def load_config() -> dict:
                 defaults.update(user_config)
         except Exception as e:
             console.print(f"⚠️  Could not load config: {e}")
-    
+
     return defaults
 
 
@@ -147,7 +146,7 @@ def get_server_url() -> str | None:
     info_file = CONFIG_DIR / "server_info.json"
     if not info_file.exists():
         return None
-    
+
     try:
         info = json.loads(info_file.read_text())
         port = info.get('port', 6789)
@@ -206,28 +205,28 @@ def install(force: bool):
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
 def run(port: int | None, host: str, reload: bool):
     """Run the development server
-    
+
     After server starts and you've added data, use './zabob-memgraph-dev.py open'
     to visualize your knowledge graph in a browser.
     """
     # Load config to get preferred port
     config = load_config()
-    
+
     # Use provided port, or config port, or find a free one
     if port is None:
         port = config['port']
-    
+
     # Check if port is available, find a free one if not
     if not is_port_available(port, host):
         console.print(f"⚠️  Port {port} is not available, finding a free port...")
         port = find_free_port(port)
         console.print(f"✅ Using port {port} instead")
-        
+
         # Save the new port to config for future use
         config['port'] = port
         save_config(config)
         console.print(f"📝 Saved port {port} to configuration")
-    
+
     console.print(f"🚀 Starting development server on {host}:{port}")
     console.print("💡 Tip: Use './zabob-memgraph-dev.py open' to view graph in browser")
 
@@ -273,10 +272,10 @@ def run(port: int | None, host: str, reload: bool):
 def restart(port: int | None, host: str):
     """Restart the development server"""
     console.print("🔄 Restarting development server...")
-    
+
     # Load config to get current port
     config = load_config()
-    
+
     # Use provided port or config port
     if port is None:
         port = config['port']
@@ -296,13 +295,13 @@ def restart(port: int | None, host: str):
             time.sleep(1)
     except Exception as e:
         console.print(f"⚠️  Could not check for existing process: {e}")
-    
+
     # Check if port is available after killing, find a free one if not
     if not is_port_available(port, host):
         console.print(f"⚠️  Port {port} is still not available, finding a free port...")
         port = find_free_port(port)
         console.print(f"✅ Using port {port} instead")
-        
+
         # Save the new port to config for future use
         config['port'] = port
         save_config(config)
@@ -592,7 +591,7 @@ def open_browser():
         console.print("❌ No server info found. Is the server running?")
         console.print("   Start the server with: ./zabob-memgraph-dev.py run")
         sys.exit(1)
-    
+
     console.print(f"🌐 Opening browser to {url}")
     try:
         webbrowser.open(url)

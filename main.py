@@ -16,7 +16,9 @@
 Main entry point for the Zabob Memgraph Knowledge Graph Server
 
 This serves as both the standalone script entry point and the
-Docker container entrypoint.
+Docker container entrypoint. Supports both HTTP server mode and
+stdio mode for MCP protocol.
+
 Handles database operations, backups, and configuration that
 shouldn't be in the launcher.
 """
@@ -165,7 +167,22 @@ def is_port_available(port: int, host: str = 'localhost') -> bool:
 
 
 def main():
-    """Main entry point with environment configuration support"""
+    """Main entry point with environment configuration support
+    
+    Supports two modes:
+    - HTTP server mode (default): Runs HTTP/SSE server on specified port
+    - stdio mode: Runs MCP stdio transport for Claude Desktop integration
+    
+    Mode is determined by:
+    1. Command line argument: 'stdio' or 'server'
+    2. Environment variable: MEMGRAPH_MODE=stdio|server
+    3. Default: server mode
+    """
+    # Check for stdio mode
+    mode = os.getenv('MEMGRAPH_MODE', 'server')
+    if len(sys.argv) > 1 and sys.argv[1] == 'stdio':
+        mode = 'stdio'
+    
     # Load configuration
     config = load_config()
 
@@ -188,7 +205,7 @@ def main():
         logging.warning(f"Port {port} is not available, finding a free port...")
         port = find_free_port(requested_port)
         logging.info(f"Using port {port} instead")
-        
+
         # Save the new port to config so future starts use it
         config['port'] = port
         save_config(config)
@@ -207,9 +224,15 @@ def main():
     data_dir = Path(config['data_dir'])
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Start the server
+    # Start the server in the appropriate mode
     try:
-        run_server(host=host, port=port, static_dir=static_dir)
+        if mode == 'stdio':
+            logging.info("Starting in stdio mode for MCP protocol")
+            # Note: HTTP server still runs for web UI access
+            # stdio is handled by the MCP service internally
+            run_server(host=host, port=port, static_dir=static_dir, mode='stdio')
+        else:
+            run_server(host=host, port=port, static_dir=static_dir)
 
     except KeyboardInterrupt:
         logging.info("Server stopped by user")
