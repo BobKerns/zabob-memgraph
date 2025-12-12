@@ -55,6 +55,15 @@ dev = [
 where = ["."]
 include = ["memgraph*"]
 
+[tool.setuptools.package-data]
+memgraph = [
+    "web/*.html",
+    "web/*.css",
+    "web/*.js",
+    "web/*.js.map",
+    "web/*.png",
+]
+
 [tool.black]
 line-length = 120
 target-version = ['py313']
