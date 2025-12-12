@@ -139,6 +139,16 @@ def open_browser(ctx):
         sys.exit(1)
     
     info = get_server_info(config_dir)
+    
+    # Check if running in Docker
+    if info.get('docker_container'):
+        port = info.get('port', 6789)
+        host = info.get('host', 'localhost')
+        url = f"http://{host}:{port}"
+        console.print("⚠️  Server is running in Docker container")
+        console.print(f"   Open browser manually to: {url}")
+        sys.exit(0)
+    
     port = info.get('port', 6789)
     host = info.get('host', 'localhost')
     url = f"http://{host}:{port}"

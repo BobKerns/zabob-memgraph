@@ -157,12 +157,23 @@ async def open_browser(node_id: str | None = None) -> dict:
     Reads the server URL from server_info.json and opens it in the default browser.
     Optionally focuses on a specific node if node_id is provided.
     
+    Note: Only available when running locally, not in Docker containers.
+    
     Args:
         node_id (str, optional): ID of a specific node to focus on in the visualization
         
     Returns:
         dict: Status of the operation with URL that was opened
     """
+    # Check if we're in a Docker container
+    if os.getenv('DOCKER_CONTAINER') or os.path.exists('/.dockerenv'):
+        return {
+            "success": False,
+            "error": "Browser opening is not available when running in a Docker container.",
+            "hint": "Connect from the host machine at the exposed port (usually http://localhost:6789)",
+            "url": None
+        }
+    
     try:
         # Get server info to find the correct port
         config_dir = Path.home() / ".zabob-memgraph"
