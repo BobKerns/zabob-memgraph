@@ -98,34 +98,41 @@ zabob-memgraph stop
 
 ### Development Commands
 
-If you're developing or contributing to the project:
+The CLI automatically detects development environments and enables additional commands:
 
 ```bash
-# Clone the repository
+# Development commands (available when .git exists or dev dependencies installed)
+zabob-memgraph run --reload  # Run with auto-reload
+zabob-memgraph build         # Build Docker image
+zabob-memgraph lint          # Run type checking and linting
+zabob-memgraph format        # Format code with ruff
+zabob-memgraph clean         # Clean build artifacts
+
+# Production commands (always available)
+zabob-memgraph start         # Start server in background
+zabob-memgraph stop          # Stop server
+zabob-memgraph restart       # Restart server
+zabob-memgraph status        # Check server status
+zabob-memgraph open          # Open browser to web UI
+zabob-memgraph test          # Test all endpoints
+zabob-memgraph monitor       # Monitor server health
+```
+
+**Development Setup**:
+
+```bash
+# Clone repository
 git clone <repository-url>
 cd zabob-memgraph
 
-# Set up development environment
-./zabob-memgraph-dev.py install
+# Install dependencies (dev commands auto-enabled)
+uv sync
 
-# Build web UI bundle (required before first run)
-pnpm install
-pnpm run build:web
+# Build web UI
+pnpm install && pnpm run build:web
 
-# Run in development mode with auto-reload
-./zabob-memgraph-dev.py run --reload
-
-# Build Docker image
-./zabob-memgraph-dev.py build
-
-# Run tests
-./zabob-memgraph-dev.py test
-
-# Format code
-./zabob-memgraph-dev.py format
-
-# Clean up
-./zabob-memgraph-dev.py clean
+# Run with auto-reload
+zabob-memgraph run --reload
 ```
 
 ## Configuration
@@ -245,33 +252,39 @@ zabob-memgraph/
 git clone <repository-url>
 cd zabob-memgraph
 
-# Install dependencies
-./zabob-memgraph-dev.py install
+# Install dependencies (enables dev commands)
+uv sync
 
-# Run in development mode
-./zabob-memgraph-dev.py run --reload --port 6789
+# Build web UI
+pnpm install && pnpm run build:web
+
+# Run in development mode with auto-reload
+zabob-memgraph run --reload --port 6789
 
 # Run tests
-./zabob-memgraph-dev.py test
+zabob-memgraph test
 
 # Lint code
-./zabob-memgraph-dev.py lint
+zabob-memgraph lint
+
+# Format code
+zabob-memgraph format
 ```
 
 ### Docker Development
 
 ```bash
-# Build development image
-./zabob-memgraph-dev.py build
+# Build Docker image
+zabob-memgraph build
 
-# Run with Docker Compose
-./zabob-memgraph-dev.py docker-run
+# Run in Docker (if configured)
+zabob-memgraph start --docker --detach
 
-# View logs
-./zabob-memgraph-dev.py logs
+# Check status
+zabob-memgraph status
 
 # Stop services
-./zabob-memgraph-dev.py docker-stop
+zabob-memgraph stop
 ```
 
 ## Troubleshooting
