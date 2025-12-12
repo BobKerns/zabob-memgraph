@@ -9,7 +9,7 @@ import logging
 import sys
 import os
 from contextlib import contextmanager, asynccontextmanager
-from typing import Any
+from typing import Any, Generator
 import signal
 import atexit
 
@@ -58,7 +58,9 @@ class ServiceLogger:
 
 
 @contextmanager
-def service_setup_context(service_name: str, args: dict[str, Any], log_file: str | None = None):
+def service_setup_context(
+    service_name: str, args: dict[str, Any], log_file: str | None = None
+) -> Generator[ServiceLogger, None, None]:
     """
     Context manager for synchronous service setup phase.
 
@@ -79,7 +81,9 @@ def service_setup_context(service_name: str, args: dict[str, Any], log_file: str
 
 
 @asynccontextmanager
-async def service_async_context(service_logger):
+async def service_async_context(
+    service_logger: ServiceLogger | None,
+) -> Any:
     """
     Context manager for async service phase (FastAPI lifespan).
 
@@ -90,12 +94,12 @@ async def service_async_context(service_logger):
         yield
         return
 
-    def signal_handler(signum, frame):
+    def signal_handler(signum: int, frame: Any) -> None:
         service_logger.logger.info(f"Received signal {signum}, initiating graceful shutdown")
         service_logger.log_shutdown("signal")
         exit(128 + signum)
 
-    def exit_handler():
+    def exit_handler() -> None:
         service_logger.log_shutdown("exit")
 
     try:
@@ -132,7 +136,7 @@ def log_server_start(service_logger: ServiceLogger, host: str, port: int) -> Non
     service_logger.logger.info(f"Server URL: http://{host}:{port}")
 
 
-def configure_uvicorn_logging(log_file: str | None) -> dict:
+def configure_uvicorn_logging(log_file: str | None) -> dict[str, Any]:
     """Configure uvicorn logging to use the same log file as the service."""
     if log_file:
         # Configure uvicorn to log to the same file

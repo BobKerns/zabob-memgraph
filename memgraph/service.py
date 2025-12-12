@@ -11,16 +11,18 @@ import click
 
 # Use absolute imports
 import memgraph.mcp_service as mcp_service
+from typing import Any
 from memgraph.service_logging import (
     service_setup_context,
     log_app_creation,
     log_route_mounting,
     log_server_start,
     configure_uvicorn_logging,
+    ServiceLogger,
 )
 
 
-def create_unified_app(static_dir: str = "memgraph/web", service_logger=None):
+def create_unified_app(static_dir: str = "memgraph/web", service_logger: ServiceLogger | None = None) -> Any:
     """
     Create unified application with both web and MCP routes.
 
@@ -73,13 +75,13 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger=None):
         log_route_mounting(service_logger, "/static", str(static_dir))
 
     # Add web service routes using Starlette's routing
-    async def serve_index(request):
+    async def serve_index(request: Any) -> FileResponse | JSONResponse:
         index_path = static_path / "index.html"
         if not index_path.exists():
             return JSONResponse({"error": "index.html not found"}, status_code=404)
         return FileResponse(index_path)
 
-    async def health_check(request):
+    async def health_check(request: Any) -> JSONResponse:
         return JSONResponse({"status": "healthy", "service": "unified_service"})
 
     # Add routes to the Starlette app
@@ -128,6 +130,7 @@ def main(
             uvicorn_config = configure_uvicorn_logging(log_file)
 
             uvicorn.run(app, host=host, port=port, log_level="info", **uvicorn_config)
+            return 0
 
         except FileNotFoundError as e:
             service_logger.logger.error(f"Configuration error: {e}")
@@ -145,7 +148,7 @@ if __name__ == "__main__":
     @click.option("--port", type=int, default=6789, help="Port to listen on")
     @click.option("--static-dir", default="memgraph/web", help="Static files directory")
     @click.option("--log-file", help="Log file path (default: stderr)")
-    def cli(host: str, port: int, static_dir: str, log_file: str | None):
+    def cli(host: str, port: int, static_dir: str, log_file: str | None) -> None:
         """Knowledge Graph Unified Service - Web + MCP on single port."""
         exit_code = main(host=host, port=port, static_dir=static_dir, log_file=log_file)
 

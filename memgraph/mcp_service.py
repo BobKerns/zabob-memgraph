@@ -3,6 +3,7 @@
 A FastAPI application for Memgraph with a web interface.
 """
 
+from typing import Any
 import json
 import logging
 import os
@@ -32,7 +33,7 @@ DB = SQLiteKnowledgeGraphDB(
 
 
 @mcp.tool
-async def read_graph(name: str = "default") -> dict:
+async def read_graph(name: str = "default") -> dict[str, Any]:
     """
     Read the complete knowledge graph from the database.
 
@@ -50,7 +51,7 @@ async def read_graph(name: str = "default") -> dict:
 
 
 @mcp.tool
-async def search_nodes(query: str) -> dict:
+async def search_nodes(query: str) -> dict[str, Any]:
     """
     Search the knowledge graph for entities and relations matching the query.
 
@@ -67,7 +68,7 @@ async def search_nodes(query: str) -> dict:
 
 
 @mcp.tool
-async def get_stats() -> dict:
+async def get_stats() -> dict[str, Any]:
     """
     Get statistics about the knowledge graph.
 
@@ -82,7 +83,7 @@ async def get_stats() -> dict:
 
 
 @mcp.tool
-async def create_entities(entities: list[dict]) -> dict:
+async def create_entities(entities: list[dict]) -> dict[str, Any]:
     """
     Create new entities in the knowledge graph.
 
@@ -103,7 +104,7 @@ async def create_entities(entities: list[dict]) -> dict:
 
 
 @mcp.tool
-async def create_relations(relations: list[dict]) -> dict:
+async def create_relations(relations: list[dict]) -> dict[str, Any]:
     """
     Create new relations between entities in the knowledge graph.
 
@@ -124,7 +125,7 @@ async def create_relations(relations: list[dict]) -> dict:
 
 
 @mcp.tool
-async def add_observations(entity_name: str, observations: list[str]) -> dict:
+async def add_observations(entity_name: str, observations: list[str]) -> dict[str, Any]:
     """
     Add observations to an existing entity.
 
@@ -150,7 +151,7 @@ async def add_observations(entity_name: str, observations: list[str]) -> dict:
 
 
 @mcp.tool
-async def open_browser(node_id: str | None = None) -> dict:
+async def open_browser(node_id: str | None = None) -> dict[str, Any]:
     """
     Open a browser window to visualize the knowledge graph.
 
