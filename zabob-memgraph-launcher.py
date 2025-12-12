@@ -33,7 +33,7 @@ from rich.panel import Panel
 console = Console()
 
 # Configuration
-DEFAULT_PORT = 8080
+DEFAULT_PORT = 6789
 CONFIG_DIR = Path.home() / ".zabob-memgraph"
 DOCKER_IMAGE = "zabob-memgraph:latest"
 

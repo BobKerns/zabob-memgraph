@@ -98,13 +98,22 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger=None):
     return app
 
 
-def main(host: str = "localhost", port: int = 8080, static_dir: str = "memgraph/web", log_file: str | None = None):
+# Create app at module level for uvicorn auto-reload
+app = create_unified_app()
+
+
+def main(
+    host: str = "localhost",
+    port: int = 6789,
+    static_dir: str = "memgraph/web",
+    log_file: str | None = None
+) -> int:
     """
     Run the unified service.
 
     Args:
         host: Host to bind to (default: localhost)
-        port: Port to listen on (default: 8080)
+        port: Port to listen on (default: 6789)
         static_dir: Directory containing static web assets (default: memgraph/web)
         log_file: Log file path (default: None, logs to stderr)
     """
@@ -133,7 +142,7 @@ if __name__ == "__main__":
 
     @click.command()
     @click.option("--host", default="localhost", help="Host to bind to")
-    @click.option("--port", type=int, default=8080, help="Port to listen on")
+    @click.option("--port", type=int, default=6789, help="Port to listen on")
     @click.option("--static-dir", default="memgraph/web", help="Static files directory")
     @click.option("--log-file", help="Log file path (default: stderr)")
     def cli(host: str, port: int, static_dir: str, log_file: str | None):

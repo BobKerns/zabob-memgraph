@@ -68,8 +68,9 @@ def get_database_path() -> Path:
     if db_path:
         return Path(db_path)
 
-    # Default to current directory for backward compatibility
-    return Path("knowledge_graph.db")
+    # Default to config directory data folder
+    config_dir = get_config_dir()
+    return config_dir / "data" / "knowledge_graph.db"
 
 
 def backup_database() -> None:
@@ -110,7 +111,7 @@ def load_config() -> dict:
 
     defaults = {
         "host": "localhost",
-        "port": 8080,
+        "port": 6789,
         "log_level": "INFO",
         "backup_on_start": True,
         "max_backups": 5,

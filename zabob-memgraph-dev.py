@@ -19,6 +19,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import click
@@ -78,7 +79,7 @@ def install(force: bool):
 
 
 @click.command()
-@click.option("--port", type=int, default=8080, help="Port to run on")
+@click.option("--port", type=int, default=6789, help="Port to run on")
 @click.option("--host", default="localhost", help="Host to bind to")
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
 def run(port: int, host: str, reload: bool):
@@ -95,7 +96,7 @@ def run(port: int, host: str, reload: bool):
     env['MEMGRAPH_ENV'] = 'development'
 
     # Run with uvicorn for development
-    cmd = ["uv", "run", "uvicorn", "memgraph.server:app",
+    cmd = ["uv", "run", "uvicorn", "memgraph.service:app",
            "--host", host, "--port", str(port)]
 
     if reload:
@@ -107,6 +108,48 @@ def run(port: int, host: str, reload: bool):
         console.print("\\n👋 Development server stopped")
     except subprocess.CalledProcessError as e:
         console.print(f"❌ Server failed: {e}")
+        sys.exit(1)
+
+
+@click.command()
+@click.option("--port", type=int, default=6789, help="Port to run on")
+@click.option("--host", default="localhost", help="Host to bind to")
+def restart(port: int, host: str):
+    """Restart the development server"""
+    console.print("🔄 Restarting development server...")
+
+    # Find and kill existing process on port
+    try:
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True
+        )
+        if result.stdout.strip():
+            pids = result.stdout.strip().split('\n')
+            for pid in pids:
+                console.print(f"🛑 Stopping process {pid} on port {port}")
+                subprocess.run(["kill", pid], check=False)
+            time.sleep(1)
+    except Exception as e:
+        console.print(f"⚠️  Could not check for existing process: {e}")
+
+    # Start new server
+    console.print(f"🚀 Starting server on {host}:{port}")
+    env = os.environ.copy()
+    env['MEMGRAPH_HOST'] = host
+    env['MEMGRAPH_PORT'] = str(port)
+    env['MEMGRAPH_ENV'] = 'development'
+
+    cmd = ["uv", "run", "uvicorn", "memgraph.service:app",
+           "--host", host, "--port", str(port), "--reload", "--reload-dir", "memgraph"]
+
+    try:
+        subprocess.run(cmd, cwd=PROJECT_DIR, env=env, check=True)
+    except KeyboardInterrupt:
+        console.print("\n👋 Server stopped")
+    except subprocess.CalledProcessError as e:
+        console.print(f"❌ Restart failed: {e}")
         sys.exit(1)
 
 
@@ -166,7 +209,7 @@ def build(tag: str, no_cache: bool):
 
 
 @click.command()
-@click.option("--port", type=int, default=8080, help="Port to run on")
+@click.option("--port", type=int, default=6789, help="Port to run on")
 @click.option("--detach", "-d", is_flag=True, help="Run in background")
 def docker_run(port: int, detach: bool):
     """Run using Docker Compose"""
@@ -317,7 +360,7 @@ def format_code():
 
 
 @click.command()
-@click.option("--url", default="http://localhost:8080", help="Server URL to check")
+@click.option("--url", default="http://localhost:6789", help="Server URL to check")
 def health(url: str):
     """Check server health"""
     console.print(f"🏥 Checking server health at {url}")
@@ -359,6 +402,7 @@ def logs():
 # Add all commands to the group
 dev.add_command(install)
 dev.add_command(run)
+dev.add_command(restart)
 dev.add_command(build)
 dev.add_command(docker_run)
 dev.add_command(docker_stop)

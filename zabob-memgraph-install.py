@@ -234,7 +234,7 @@ def create_initial_config(config_dir: Path) -> None:
 
     initial_config = {
         "version": "1.0",
-        "default_port": 8080,
+        "default_port": 6789,
         "default_host": "localhost",
         "mode": "auto",  # auto, stdio, server
         "docker_image": "zabob-memgraph:latest",

@@ -114,7 +114,7 @@ def create_app(static_dir: str = "web", service_logger=None) -> FastAPI:
 
 def main(
     host: str = "localhost",
-    port: int = 8080,
+    port: int = 6789,
     static_dir: str = "web",
     reload: bool = False,
     log_file: str | None = None
@@ -124,7 +124,7 @@ def main(
 
     Args:
         host: Host to bind to (default: localhost)
-        port: Port to listen on (default: 8080)
+        port: Port to listen on (default: 6789)
         static_dir: Directory containing static web assets (default: "web")
         reload: Enable auto-reload for development (default: False)
         log_file: Log file path (default: None, logs to stderr)
@@ -169,7 +169,7 @@ if __name__ == "__main__":
 
     @click.command()
     @click.option("--host", default="localhost", help="Host to bind to")
-    @click.option("--port", type=int, default=8080, help="Port to listen on")
+    @click.option("--port", type=int, default=6789, help="Port to listen on")
     @click.option("--static-dir", default="web", help="Static files directory")
     @click.option("--reload", is_flag=True, help="Enable auto-reload")
     @click.option("--log-file", help="Log file path (default: stderr)")

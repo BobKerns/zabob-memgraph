@@ -1,17 +1,18 @@
 # MCP Configuration for Zabob Memgraph
 
+> **⚠️ NOTE**: This document is partially outdated. REST API endpoints have been removed. See [USAGE_PATTERNS.md](../USAGE_PATTERNS.md) for current deployment options.
+
 ## Overview
 
-Zabob Memgraph provides both REST API endpoints and MCP (Model Context Protocol) support for accessing the knowledge graph. The server uses FastMCP to expose MCP tools over HTTP with Server-Sent Events (SSE).
+Zabob Memgraph provides MCP (Model Context Protocol) support for accessing the knowledge graph. The server uses FastMCP to expose MCP tools over HTTP with Server-Sent Events (SSE).
 
 ## Server Architecture
 
-The server mounts web routes on top of FastMCP's HTTP app:
+The server provides these endpoints:
 
-- **MCP Protocol**: `http://localhost:8080/mcp` (SSE transport)
-- **Web UI**: `http://localhost:8080/`
-- **REST API**: `http://localhost:8080/api/*`
-- **Health Check**: `http://localhost:8080/health`
+- **MCP Protocol**: `http://localhost:6789/mcp` (SSE transport)
+- **Web UI**: `http://localhost:6789/`
+- **Health Check**: `http://localhost:6789/health`
 
 This architecture allows:
 
@@ -31,7 +32,7 @@ Add to your `mcp.json` file:
   "servers": {
     "zabob-memgraph": {
       "type": "sse",
-      "url": "http://localhost:8080/mcp"
+      "url": "http://localhost:6789/mcp"
     }
   }
 }
@@ -57,7 +58,7 @@ The server must be running for MCP clients to connect:
 ### Default Configuration
 
 - **Host**: `localhost`
-- **Port**: `8080`
+- **Port**: `6789`
 - **Config Directory**: `~/.zabob-memgraph/`
 - **Database**: `~/.zabob-memgraph/data/knowledge_graph.db`
 
@@ -90,32 +91,28 @@ Search the knowledge graph for entities and relations.
 
 - Search results with matching entities and their metadata
 
-## REST API (Alternative)
+## Using MCP Tools
 
-If MCP integration isn't available, use the REST API directly:
+### From VS Code
 
-### Get Complete Graph
+Once configured, the MCP tools are available in the VS Code command palette.
 
-```bash
-curl http://localhost:8080/api/knowledge-graph
+### Programmatically
+
+Use the MCP SDK to call tools:
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+
+const transport = new SSEClientTransport(
+  new URL('http://localhost:6789/mcp')
+);
+const client = new Client({ name: 'my-client', version: '1.0.0' });
+await client.connect(transport);
+
+const result = await client.callTool('read_graph', { name: 'main' });
 ```
-
-**Response:**
-
-```json
-{
-  "entities": [...],
-  "relations": [...]
-}
-```
-
-### Search Graph
-
-```bash
-curl "http://localhost:8080/api/search?q=your+query"
-```
-
-**Response:**
 
 ```json
 {
@@ -136,10 +133,10 @@ curl "http://localhost:8080/api/search?q=your+query"
 
 ```bash
 # Test health endpoint
-curl http://localhost:8080/health
+curl http://localhost:6789/health
 
 # Test MCP endpoint (expects SSE)
-curl -H "Accept: text/event-stream" http://localhost:8080/mcp
+curl -H "Accept: text/event-stream" http://localhost:6789/mcp
 ```
 
 ### Expected Response
@@ -154,7 +151,7 @@ The MCP endpoint will respond with:
 ### Port Already in Use
 
 ```bash
-# Check what's using port 8080
+# Check what's using port 6789
 ./zabob-memgraph-launcher.py status
 
 # Stop existing server
@@ -163,9 +160,9 @@ The MCP endpoint will respond with:
 
 ### MCP Connection Issues
 
-1. **Verify server is running**: `curl http://localhost:8080/health`
+1. **Verify server is running**: `curl http://localhost:6789/health`
 2. **Check logs**: `tail -f ~/.zabob-memgraph/memgraph.log`
-3. **Test MCP endpoint**: `curl -H "Accept: text/event-stream" http://localhost:8080/mcp`
+3. **Test MCP endpoint**: `curl -H "Accept: text/event-stream" http://localhost:6789/mcp`
 
 ### Database Access Issues
 
@@ -201,7 +198,7 @@ Update `mcp.json`:
 
 ```json
 {
-  "url": "http://localhost:8080/mcp"
+  "url": "http://localhost:6789/mcp"
 }
 ```
 

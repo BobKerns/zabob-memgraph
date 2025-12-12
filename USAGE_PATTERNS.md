@@ -8,8 +8,8 @@
 
 **What you get:**
 
-- HTTP server with web UI at http://localhost:8080
-- MCP protocol at http://localhost:8080/mcp
+- HTTP server with web UI at http://localhost:6789
+- MCP protocol at http://localhost:6789/mcp
 - Persistent database in Docker volume
 - Automatic backups
 - Multi-client access
@@ -22,7 +22,7 @@ docker-compose up -d
 
 # Or using docker directly
 docker run -d \
-  -p 8080:8080 \
+  -p 6789:6789 \
   -v zabob_memgraph_data:/data \
   --name zabob-memgraph \
   bobkerns/zabob-memgraph:latest
@@ -30,9 +30,9 @@ docker run -d \
 
 **Access:**
 
-- Web UI: http://localhost:8080
-- MCP endpoint: http://localhost:8080/mcp (SSE transport)
-- Health check: http://localhost:8080/health
+- Web UI: http://localhost:6789
+- MCP endpoint: http://localhost:6789/mcp (SSE transport)
+- Health check: http://localhost:6789/health
 
 **Use with Claude Desktop:**
 
@@ -40,7 +40,7 @@ docker run -d \
 {
   "mcpServers": {
     "zabob-memgraph": {
-      "url": "http://localhost:8080/mcp",
+      "url": "http://localhost:6789/mcp",
       "transport": {
         "type": "sse"
       }
@@ -117,7 +117,7 @@ docker run -d \
 uv sync
 
 # Development server with auto-reload
-./zabob-memgraph-dev.py run --reload --port 8080
+./zabob-memgraph-dev.py run --reload --port 6789
 
 # Or run stdio mode for testing
 uv run python main.py stdio
@@ -140,7 +140,7 @@ pnpm run build:web
 | MCP Protocol | ✅ (SSE) | ✅ (stdio) | ✅ (both) |
 | Persistent Data | ✅ (volume) | ✅ (~/.zabob) | ✅ (~/.zabob) |
 | Multi-client | ✅ | ❌ | ✅ |
-| Port Required | 8080 | None | 8080 (HTTP) |
+| Port Required | 6789 | None | 6789 (HTTP) |
 | Setup Complexity | Low | Lowest | Medium |
 | Resource Usage | Medium | Low | Medium |
 

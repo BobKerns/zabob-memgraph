@@ -35,8 +35,8 @@ cd zabob-memgraph
 # Start HTTP server with web UI
 docker-compose up -d
 
-# Access web UI at http://localhost:8080
-# MCP endpoint at http://localhost:8080/mcp
+# Access web UI at http://localhost:6789
+# MCP endpoint at http://localhost:6789/mcp
 ```
 
 ### Claude Desktop Integration
@@ -70,7 +70,7 @@ Add to your Claude Desktop MCP config:
 zabob-memgraph start
 
 # Start on specific port
-zabob-memgraph start --port 8080
+zabob-memgraph start --port 6789
 
 # Run in Docker
 zabob-memgraph start --docker --detach
@@ -144,7 +144,7 @@ The `config.json` file supports these options:
 
 ```json
 {
-  "default_port": 8080,
+  "default_port": 6789,
   "default_host": "localhost",
   "log_level": "INFO",
   "backup_on_start": true,
@@ -159,7 +159,7 @@ For Docker or advanced deployments:
 
 ```bash
 export MEMGRAPH_HOST=0.0.0.0
-export MEMGRAPH_PORT=8080
+export MEMGRAPH_PORT=6789
 export MEMGRAPH_LOG_LEVEL=DEBUG
 export MEMGRAPH_CONFIG_DIR=/custom/path
 ```
@@ -188,7 +188,7 @@ When running in HTTP server mode:
 ### Using MCP Tools
 
 MCP tools are called through the protocol. Example using the web UI:
-1. Open http://localhost:8080
+1. Open http://localhost:6789
 2. View entities and relations in the interactive graph
 3. Search, zoom, and explore your knowledge graph
 
@@ -240,7 +240,7 @@ cd zabob-memgraph
 ./zabob-memgraph-dev.py install
 
 # Run in development mode
-./zabob-memgraph-dev.py run --reload --port 8080
+./zabob-memgraph-dev.py run --reload --port 6789
 
 # Run tests
 ./zabob-memgraph-dev.py test

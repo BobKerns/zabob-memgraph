@@ -158,7 +158,7 @@ jobs:
         uv sync
 
         # Run integration tests
-        timeout 60 uv run dev_utils.py test --url http://localhost:8080
+        timeout 60 uv run dev_utils.py test --url http://localhost:6789
 
         # Check logs
         docker-compose logs

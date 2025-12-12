@@ -4,26 +4,21 @@ services:
   zabob-memgraph:
     build: .
     ports:
-      - "8080:8080"
+      - "6789:6789"
     volumes:
-      # Mount a volume for database storage
-      - zabob_memgraph_data:/data
-      # Mount user's home config directory for coordination and logging
-      # This enables daemon coordination and WAL simultaneous read/write access
+      # Mount user's home config directory for shared database access
+      # This enables hybrid usage: docker and local Python can share the same database
+      # Database, config, and logs all stored in ~/.zabob-memgraph
       - ${HOME}/.zabob-memgraph:/app/.zabob-memgraph
     environment:
       # Container is automatically detected via DOCKER_CONTAINER env var
       MEMGRAPH_HOST: 0.0.0.0
-      MEMGRAPH_PORT: 8080
-      MEMGRAPH_DATABASE_PATH: /data/knowledge_graph.db
+      MEMGRAPH_PORT: 6789
+      MEMGRAPH_DATABASE_PATH: /app/.zabob-memgraph/data/knowledge_graph.db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8080/health')\""] 
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:6789/health')\""]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-volumes:
-  zabob_memgraph_data:
-    driver: local

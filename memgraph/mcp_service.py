@@ -4,6 +4,8 @@ A FastAPI application for Memgraph with a web interface.
 """
 
 import logging
+import os
+from pathlib import Path
 from fastmcp import FastMCP
 
 from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB
@@ -16,9 +18,14 @@ mcp = FastMCP(
     instructions="A FastAPI application for Memgraph with a web interface.",
 )
 
+# Get database path from environment or use default in config directory
+db_path = os.getenv('MEMGRAPH_DATABASE_PATH')
+if not db_path:
+    config_dir = Path.home() / ".zabob-memgraph"
+    db_path = str(config_dir / "data" / "knowledge_graph.db")
 
 DB = SQLiteKnowledgeGraphDB(
-    db_path="knowledge_graph.db",
+    db_path=db_path,
 )
 
 

@@ -89,7 +89,7 @@ zabob-memgraph/
 ./zabob-memgraph-dev.py install
 
 # Run in development mode with auto-reload
-./zabob-memgraph-dev.py run --reload --port 8080
+./zabob-memgraph-dev.py run --reload --port 6789
 ```
 
 ### Quality Checks
@@ -194,7 +194,7 @@ This ensures graceful degradation if certain backends are unavailable.
 - **Automatic Cleanup**: Server and database are cleaned up after tests complete
 
 This ensures:
-- Tests don't interfere with running production servers on port 8080
+- Tests don't interfere with running production servers on port 6789
 - Tests can run in CI/CD without port conflicts
 - Each test run starts with a clean database state
 - Multiple test runs can execute simultaneously
