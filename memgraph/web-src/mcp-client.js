@@ -4,8 +4,12 @@
  * Provides a simple interface for the browser to call MCP tools.
  */
 
+console.log('[mcp-client.js] Module loading...');
+
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+console.log('[mcp-client.js] SDK imported:', { Client, StreamableHTTPClientTransport });
 
 let mcpClient = null;
 let mcpTransport = null;

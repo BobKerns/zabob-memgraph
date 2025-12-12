@@ -75,7 +75,11 @@ backup/
 
 node_modules/
 
-# Vendored dependencies (copied from node_modules)
+# Web bundles (built from web-src/)
+memgraph/web/*.bundle.js
+memgraph/web/*.bundle.js.map
+
+# Vendored dependencies (no longer used)
 memgraph/web/vendor/
 
 memory.json

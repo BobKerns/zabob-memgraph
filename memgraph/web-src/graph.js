@@ -3,7 +3,11 @@
  * MCP-based client that fetches data from the MCP server
  */
 
+console.log('[graph.js] Module loading...');
+
 import { initMCPClient, readGraph, searchNodes } from './mcp-client.js';
+
+console.log('[graph.js] MCP client functions imported:', { initMCPClient, readGraph, searchNodes });
 
 // Global variables
 const width = window.innerWidth;
@@ -660,14 +664,32 @@ function fitToScreen() {
     if (!svg || !container || !zoom || graphData.nodes.length === 0) return;
 
     try {
-        const bounds = container.node().getBBox();
+        // Calculate bounds from actual node positions
+        const padding = 50;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        graphData.nodes.forEach(node => {
+            if (node.x !== undefined && node.y !== undefined) {
+                minX = Math.min(minX, node.x);
+                maxX = Math.max(maxX, node.x);
+                minY = Math.min(minY, node.y);
+                maxY = Math.max(maxY, node.y);
+            }
+        });
+
+        const boundsWidth = maxX - minX + padding * 2;
+        const boundsHeight = maxY - minY + padding * 2;
+        const boundsX = minX - padding;
+        const boundsY = minY - padding;
+
         const fullWidth = width;
         const fullHeight = height;
-        const widthScale = fullWidth / bounds.width;
-        const heightScale = fullHeight / bounds.height;
-        const scale = Math.min(widthScale, heightScale) * 0.8;
-        const translate = [fullWidth / 2 - scale * (bounds.x + bounds.width / 2),
-                        fullHeight / 2 - scale * (bounds.y + bounds.height / 2)];
+        const scale = Math.min(fullWidth / boundsWidth, fullHeight / boundsHeight) * 0.9;
+
+        const translate = [
+            fullWidth / 2 - scale * (boundsX + boundsWidth / 2),
+            fullHeight / 2 - scale * (boundsY + boundsHeight / 2)
+        ];
 
         svg.transition()
             .duration(750)
@@ -868,3 +890,12 @@ window.zoomToNode = zoomToNode;
 window.showNodeDetails = showNodeDetails;
 window.clearSearch = clearSearch;
 window.closeDetail = closeDetail;
+
+// Auto-load graph when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        loadKnowledgeGraph().catch(err => console.error('Error loading graph:', err));
+    });
+} else {
+    loadKnowledgeGraph().catch(err => console.error('Error loading graph:', err));
+}
