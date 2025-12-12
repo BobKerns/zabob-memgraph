@@ -32,7 +32,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra dev
+        uv sync --extra ci
 
     - name: Install Playwright browsers
       run: |

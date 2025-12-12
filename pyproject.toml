@@ -37,6 +37,12 @@ zabob-memgraph = "memgraph.__main__:cli"
 zabob-memgraph-server = "main:main"
 
 [project.optional-dependencies]
+# CI group: Only testing dependencies (no compiled deps like watchfiles)
+ci = [
+    "playwright>=1.49.1",
+]
+
+# Dev group: Everything for local development including hot reload
 dev = [
     "playwright>=1.49.1",
     "watchfiles>=0.24.0",
