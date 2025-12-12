@@ -585,8 +585,26 @@ def logs():
 
 @click.command()
 def open_browser():
-    """Open browser to the running server"""
+    """Open browser to the knowledge graph visualization
+    
+    If multiple servers are running, opens the first one found.
+    """
+    # Try to get URL from server_info.json first
     url = get_server_url()
+    
+    if url is None:
+        # Scan for any running server
+        console.print("📡 Scanning for running servers...")
+        for port in range(6789, 6800):
+            try:
+                response = requests.get(f"http://localhost:{port}/health", timeout=1)
+                if response.status_code == 200:
+                    url = f"http://localhost:{port}"
+                    console.print(f"✅ Found server on port {port}")
+                    break
+            except requests.RequestException:
+                continue
+    
     if url is None:
         console.print("❌ No server info found. Is the server running?")
         console.print("   Start the server with: ./zabob-memgraph-dev.py run")

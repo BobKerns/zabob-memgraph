@@ -131,27 +131,47 @@ def restart(ctx, port: int | None, host: str, docker: bool, detach: bool):
 @click.command()
 @click.pass_context
 def open_browser(ctx):
-    """Open browser to the knowledge graph visualization"""
+    """Open browser to the knowledge graph visualization
+    
+    If multiple servers are running, opens the first one found.
+    """
     config_dir = ctx.obj['config_dir']
 
-    if not is_server_running(config_dir):
-        console.print("❌ No server running. Start with 'zabob-memgraph start'")
-        sys.exit(1)
-
+    # Try to get info from server_info.json first
     info = get_server_info(config_dir)
+    
+    if info and is_server_running(config_dir):
+        # Check if running in Docker
+        if info.get('docker_container'):
+            port = info.get('port', 6789)
+            host = info.get('host', 'localhost')
+            url = f"http://{host}:{port}"
+            console.print("⚠️  Server is running in Docker container")
+            console.print(f"   Open browser manually to: {url}")
+            sys.exit(0)
 
-    # Check if running in Docker
-    if info.get('docker_container'):
         port = info.get('port', 6789)
         host = info.get('host', 'localhost')
         url = f"http://{host}:{port}"
-        console.print("⚠️  Server is running in Docker container")
-        console.print(f"   Open browser manually to: {url}")
-        sys.exit(0)
-
-    port = info.get('port', 6789)
-    host = info.get('host', 'localhost')
-    url = f"http://{host}:{port}"
+    else:
+        # server_info.json doesn't exist or server not running
+        # Scan for any server on common ports
+        console.print("📡 Scanning for running servers...")
+        found = False
+        for port in range(6789, 6800):
+            try:
+                response = requests.get(f"http://localhost:{port}/health", timeout=1)
+                if response.status_code == 200:
+                    url = f"http://localhost:{port}"
+                    console.print(f"✅ Found server on port {port}")
+                    found = True
+                    break
+            except requests.RequestException:
+                continue
+        
+        if not found:
+            console.print("❌ No server running. Start with 'zabob-memgraph start'")
+            sys.exit(1)
 
     console.print(f"🌐 Opening browser to {url}")
     try:

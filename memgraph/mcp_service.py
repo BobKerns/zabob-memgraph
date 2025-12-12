@@ -154,8 +154,10 @@ async def open_browser(node_id: str | None = None) -> dict:
     """
     Open a browser window to visualize the knowledge graph.
 
-    Reads the server URL from server_info.json and opens it in the default browser.
+    Reads the server URL from server_info.json or scans for running servers.
     Optionally focuses on a specific node if node_id is provided.
+
+    If multiple servers are running, opens the first one found.
 
     Note: Only available when running locally, not in Docker containers.
 
@@ -179,16 +181,32 @@ async def open_browser(node_id: str | None = None) -> dict:
         config_dir = Path.home() / ".zabob-memgraph"
         info_file = config_dir / "server_info.json"
 
-        if not info_file.exists():
+        port = None
+        
+        if info_file.exists():
+            # Read server info
+            info = json.loads(info_file.read_text())
+            port = info.get('port', 6789)
+        else:
+            # Scan for any running server
+            logger.info("Scanning for running servers...")
+            for test_port in range(6789, 6800):
+                try:
+                    import httpx
+                    response = httpx.get(f"http://localhost:{test_port}/health", timeout=1)
+                    if response.status_code == 200:
+                        port = test_port
+                        logger.info(f"Found server on port {port}")
+                        break
+                except Exception:
+                    continue
+
+        if port is None:
             return {
                 "success": False,
-                "error": "Server info not found. Is the server running?",
+                "error": "No server found running. Please start the server first.",
                 "url": None
             }
-
-        # Read server info
-        info = json.loads(info_file.read_text())
-        port = info.get('port', 6789)
 
         # Build URL
         url = f"http://localhost:{port}"
