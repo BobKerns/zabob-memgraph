@@ -117,6 +117,7 @@ def stop(ctx: click.Context) -> None:
             sys.exit(1)
     else:
         # Stop local process
+        process = None
         try:
             pid = info.get('pid')
             if pid:
@@ -131,8 +132,9 @@ def stop(ctx: click.Context) -> None:
             console.print("❌ Process not found")
         except psutil.TimeoutExpired:
             console.print("⚠️  Process didn't stop gracefully, killing...")
-            process.kill()
-            console.print("✅ Server killed")
+            if process is not None:
+                process.kill()
+                console.print("✅ Server killed")
         except Exception as e:
             console.print(f"❌ Failed to stop server: {e}")
             sys.exit(1)
@@ -333,7 +335,8 @@ def run(ctx: click.Context, port: int | None, host: str, reload: bool) -> None:
     if port is not None:
         console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")
     else:
-        port = config.get('port', DEFAULT_PORT)
+        port_value = config.get('port', DEFAULT_PORT)
+        port = port_value if isinstance(port_value, int) else DEFAULT_PORT
         if not is_port_available(port, host):
             port = find_free_port(port)
             config['port'] = port

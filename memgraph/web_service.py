@@ -6,7 +6,8 @@ Minimal FastAPI server focused solely on serving static web assets.
 Sibling to mcp_service.py - handles web content while MCP service handles data.
 """
 
-from typing import Any, AsyncGenerator
+from typing import Any
+from collections.abc import AsyncGenerator
 
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
@@ -65,7 +66,7 @@ def setup_static_routes(static_dir: str = "web", service_logger: Any = None, tar
         log_route_mounting(service_logger, "/static", str(static_dir))
 
     # Serve index.html at root
-    @target_app.get("/")  # type: ignore[untyped-decorator]
+    @target_app.get("/")
     async def serve_index() -> FileResponse:
         index_path = static_path / "index.html"
         if service_logger:
@@ -76,7 +77,7 @@ def setup_static_routes(static_dir: str = "web", service_logger: Any = None, tar
         return FileResponse(index_path)
 
     # Health check endpoint
-    @target_app.get("/health")  # type: ignore[untyped-decorator]
+    @target_app.get("/health")
     async def health_check() -> dict[str, str]:
         return {"status": "healthy", "service": "web_service"}
 

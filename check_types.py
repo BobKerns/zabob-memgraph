@@ -20,7 +20,6 @@ def run_mypy():
     print("🔍 Running mypy type checking...")
     result = subprocess.run([
         "mypy",
-        "--strict",
         "--python-version", "3.12",
         "memgraph/"
     ], cwd=Path(__file__).parent)

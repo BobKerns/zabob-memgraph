@@ -6,12 +6,16 @@ Mounts web routes onto FastMCP's HTTP app for integrated operation.
 """
 
 from pathlib import Path
+from typing import Any
 import uvicorn
 import click
 
+from starlette.staticfiles import StaticFiles
+from starlette.responses import FileResponse, JSONResponse
+from starlette.routing import Route
+
 # Use absolute imports
 import memgraph.mcp_service as mcp_service
-from typing import Any
 from memgraph.service_logging import (
     service_setup_context,
     log_app_creation,
@@ -66,10 +70,6 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger: Service
         raise FileNotFoundError(error_msg)
 
     # Mount static files directory
-    from starlette.staticfiles import StaticFiles
-    from starlette.responses import FileResponse, JSONResponse
-    from starlette.routing import Route
-
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     if service_logger:
         log_route_mounting(service_logger, "/static", str(static_dir))
