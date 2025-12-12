@@ -32,7 +32,9 @@ def test_web_service_health_check(web_service_py,
                 data = json.loads(response)
                 assert data["status"] == "healthy"
                 # Service can be either "web_service" or "unified_service"
-                assert data["service"] in ["web_service", "unified_service"], f"Unexpected service: {data.get('service')}"
+                assert data["service"] in ["web_service", "unified_service"], (
+                    f"Unexpected service: {data.get('service')}"
+                )
                 log.info(f"Health endpoint test passed (service: {data['service']})")
                 break
             except (json.JSONDecodeError, KeyError, AssertionError) as e:
