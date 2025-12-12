@@ -18,6 +18,7 @@ cross-platform compatibility and maintainability.
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -87,6 +88,59 @@ def save_server_info(port: int, pid: int) -> None:
         console.print(f"⚠️  Could not save server info: {e}")
 
 
+def load_config() -> dict:
+    """Load configuration from file or return defaults"""
+    config_file = CONFIG_DIR / "config.json"
+    defaults = {
+        "host": "localhost",
+        "port": 6789,
+        "log_level": "INFO",
+        "data_dir": str(CONFIG_DIR / "data")
+    }
+    
+    if config_file.exists():
+        try:
+            with open(config_file) as f:
+                user_config = json.load(f)
+                defaults.update(user_config)
+        except Exception as e:
+            console.print(f"⚠️  Could not load config: {e}")
+    
+    return defaults
+
+
+def save_config(config: dict) -> None:
+    """Save configuration to file"""
+    config_file = CONFIG_DIR / "config.json"
+    try:
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=2)
+    except Exception as e:
+        console.print(f"⚠️  Could not save config: {e}")
+
+
+def find_free_port(start_port: int = 6789) -> int:
+    """Find a free port starting from start_port"""
+    for port in range(start_port, start_port + 100):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"Could not find free port in range {start_port}-{start_port + 100}")
+
+
+def is_port_available(port: int, host: str = 'localhost') -> bool:
+    """Check if a port is available"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+            return True
+    except OSError:
+        return False
+
+
 @click.group()
 @click.version_option()
 def dev():
@@ -132,11 +186,29 @@ def install(force: bool):
 
 
 @click.command()
-@click.option("--port", type=int, default=6789, help="Port to run on")
+@click.option("--port", type=int, default=None, help="Port to run on (default: from config or 6789)")
 @click.option("--host", default="localhost", help="Host to bind to")
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
-def run(port: int, host: str, reload: bool):
+def run(port: int | None, host: str, reload: bool):
     """Run the development server"""
+    # Load config to get preferred port
+    config = load_config()
+    
+    # Use provided port, or config port, or find a free one
+    if port is None:
+        port = config['port']
+    
+    # Check if port is available, find a free one if not
+    if not is_port_available(port, host):
+        console.print(f"⚠️  Port {port} is not available, finding a free port...")
+        port = find_free_port(port)
+        console.print(f"✅ Using port {port} instead")
+        
+        # Save the new port to config for future use
+        config['port'] = port
+        save_config(config)
+        console.print(f"📝 Saved port {port} to configuration")
+    
     console.print(f"🚀 Starting development server on {host}:{port}")
 
     if reload:
@@ -176,11 +248,18 @@ def run(port: int, host: str, reload: bool):
 
 
 @click.command()
-@click.option("--port", type=int, default=6789, help="Port to run on")
+@click.option("--port", type=int, default=None, help="Port to run on (default: from config or 6789)")
 @click.option("--host", default="localhost", help="Host to bind to")
-def restart(port: int, host: str):
+def restart(port: int | None, host: str):
     """Restart the development server"""
     console.print("🔄 Restarting development server...")
+    
+    # Load config to get current port
+    config = load_config()
+    
+    # Use provided port or config port
+    if port is None:
+        port = config['port']
 
     # Find and kill existing process on port
     try:
@@ -197,6 +276,17 @@ def restart(port: int, host: str):
             time.sleep(1)
     except Exception as e:
         console.print(f"⚠️  Could not check for existing process: {e}")
+    
+    # Check if port is available after killing, find a free one if not
+    if not is_port_available(port, host):
+        console.print(f"⚠️  Port {port} is still not available, finding a free port...")
+        port = find_free_port(port)
+        console.print(f"✅ Using port {port} instead")
+        
+        # Save the new port to config for future use
+        config['port'] = port
+        save_config(config)
+        console.print(f"📝 Saved port {port} to configuration")
 
     # Create database backup before restarting
     backup_database()

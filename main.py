@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import shutil
+import socket
 import sys
 import time
 from pathlib import Path
@@ -141,6 +142,28 @@ def save_config(config: dict) -> None:
         logging.warning(f"Could not save config: {e}")
 
 
+def find_free_port(start_port: int = 6789) -> int:
+    """Find a free port starting from start_port"""
+    for port in range(start_port, start_port + 100):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"Could not find a free port in range {start_port}-{start_port + 100}")
+
+
+def is_port_available(port: int, host: str = 'localhost') -> bool:
+    """Check if a port is available"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+            return True
+    except OSError:
+        return False
+
+
 def main():
     """Main entry point with environment configuration support"""
     # Load configuration
@@ -148,7 +171,7 @@ def main():
 
     # Override with environment variables (useful for Docker)
     host = os.getenv('MEMGRAPH_HOST', config['host'])
-    port = int(os.getenv('MEMGRAPH_PORT', str(config['port'])))
+    requested_port = int(os.getenv('MEMGRAPH_PORT', str(config['port'])))
     log_level = os.getenv('MEMGRAPH_LOG_LEVEL', config['log_level'])
     static_dir = os.getenv('MEMGRAPH_STATIC_DIR', 'memgraph/web')
 
@@ -158,6 +181,18 @@ def main():
     # For Docker, bind to all interfaces
     if os.getenv('DOCKER_CONTAINER') or host == '0.0.0.0':
         host = '0.0.0.0'
+
+    # Find an available port if the requested one is busy
+    port = requested_port
+    if not is_port_available(port, host):
+        logging.warning(f"Port {port} is not available, finding a free port...")
+        port = find_free_port(requested_port)
+        logging.info(f"Using port {port} instead")
+        
+        # Save the new port to config so future starts use it
+        config['port'] = port
+        save_config(config)
+        logging.info(f"Saved port {port} to configuration for future use")
 
     logging.info(f"Starting Zabob Memgraph server on {host}:{port}")
     logging.info(f"Configuration directory: {get_config_dir()}")
