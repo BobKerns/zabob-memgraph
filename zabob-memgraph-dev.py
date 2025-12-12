@@ -22,6 +22,7 @@ import socket
 import subprocess
 import sys
 import time
+import webbrowser
 from pathlib import Path
 
 import click
@@ -141,6 +142,20 @@ def is_port_available(port: int, host: str = 'localhost') -> bool:
         return False
 
 
+def get_server_url() -> str | None:
+    """Get the URL of the running server from server_info.json"""
+    info_file = CONFIG_DIR / "server_info.json"
+    if not info_file.exists():
+        return None
+    
+    try:
+        info = json.loads(info_file.read_text())
+        port = info.get('port', 6789)
+        return f"http://localhost:{port}"
+    except Exception:
+        return None
+
+
 @click.group()
 @click.version_option()
 def dev():
@@ -190,7 +205,11 @@ def install(force: bool):
 @click.option("--host", default="localhost", help="Host to bind to")
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
 def run(port: int | None, host: str, reload: bool):
-    """Run the development server"""
+    """Run the development server
+    
+    After server starts and you've added data, use './zabob-memgraph-dev.py open'
+    to visualize your knowledge graph in a browser.
+    """
     # Load config to get preferred port
     config = load_config()
     
@@ -210,6 +229,7 @@ def run(port: int | None, host: str, reload: bool):
         console.print(f"📝 Saved port {port} to configuration")
     
     console.print(f"🚀 Starting development server on {host}:{port}")
+    console.print("💡 Tip: Use './zabob-memgraph-dev.py open' to view graph in browser")
 
     if reload:
         console.print("🔄 Auto-reload enabled")
@@ -235,7 +255,7 @@ def run(port: int | None, host: str, reload: bool):
         process = subprocess.Popen(cmd, cwd=PROJECT_DIR, env=env)
 
         # Give it a moment to start, then save server info
-        time.sleep(1)
+        time.sleep(2)
         save_server_info(port, process.pid)
 
         # Wait for process to complete
@@ -564,6 +584,24 @@ def logs():
         console.print(f"❌ Failed to show logs: {e}")
 
 
+@click.command()
+def open_browser():
+    """Open browser to the running server"""
+    url = get_server_url()
+    if url is None:
+        console.print("❌ No server info found. Is the server running?")
+        console.print("   Start the server with: ./zabob-memgraph-dev.py run")
+        sys.exit(1)
+    
+    console.print(f"🌐 Opening browser to {url}")
+    try:
+        webbrowser.open(url)
+        console.print("✅ Browser opened")
+    except Exception as e:
+        console.print(f"❌ Could not open browser: {e}")
+        console.print(f"   Please open manually: {url}")
+
+
 # Add all commands to the group
 dev.add_command(install)
 dev.add_command(run)
@@ -577,6 +615,7 @@ dev.add_command(lint)
 dev.add_command(format_code)
 dev.add_command(health)
 dev.add_command(logs)
+dev.add_command(open_browser, name="open")
 
 
 if __name__ == "__main__":
