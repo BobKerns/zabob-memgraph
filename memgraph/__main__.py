@@ -547,13 +547,13 @@ def is_dev_environment() -> bool:
 @click.pass_context
 def run(ctx, port: int | None, host: str, reload: bool):
     """Run server in foreground (for stdio mode or development)
-    
+
     Unlike 'start', this runs the server in the foreground and blocks.
     Use this for:
     - stdio mode with AI assistants
     - Development with --reload
     - Docker containers (doesn't spawn background process)
-    
+
     For background daemon, use 'start' instead.
     """
     config_dir: Path = ctx.obj['config_dir']
@@ -561,7 +561,7 @@ def run(ctx, port: int | None, host: str, reload: bool):
 
     # Load config
     config = load_config(config_dir)
-    
+
     # If port explicitly specified, disable auto port finding
     if port is not None:
         console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")

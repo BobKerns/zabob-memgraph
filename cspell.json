@@ -53,6 +53,7 @@
     "uvicorn",
     "uvloop",
     "uvx",
+    "watchfiles",
     "zabob"
   ],
   "ignorePaths": [
