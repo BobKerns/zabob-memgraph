@@ -132,14 +132,14 @@ def restart(ctx, port: int | None, host: str, docker: bool, detach: bool):
 @click.pass_context
 def open_browser(ctx):
     """Open browser to the knowledge graph visualization
-    
+
     If multiple servers are running, opens the first one found.
     """
     config_dir = ctx.obj['config_dir']
 
     # Try to get info from server_info.json first
     info = get_server_info(config_dir)
-    
+
     if info and is_server_running(config_dir):
         # Check if running in Docker
         if info.get('docker_container'):
@@ -168,7 +168,7 @@ def open_browser(ctx):
                     break
             except requests.RequestException:
                 continue
-        
+
         if not found:
             console.print("❌ No server running. Start with 'zabob-memgraph start'")
             sys.exit(1)
@@ -330,6 +330,47 @@ def find_free_port(start_port: int = DEFAULT_PORT) -> int:
     raise RuntimeError(f"Could not find a free port in range {start_port}-{start_port + 100}")
 
 
+def is_port_available(port: int, host: str = 'localhost') -> bool:
+    """Check if a port is available"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+            return True
+    except OSError:
+        return False
+
+
+def load_config(config_dir: Path) -> dict:
+    """Load configuration from file or return defaults"""
+    config_file = config_dir / "config.json"
+    defaults = {
+        "host": "localhost",
+        "port": DEFAULT_PORT,
+        "log_level": "INFO",
+        "data_dir": str(config_dir / "data")
+    }
+
+    if config_file.exists():
+        try:
+            with open(config_file) as f:
+                user_config = json.load(f)
+                defaults.update(user_config)
+        except Exception as e:
+            console.print(f"⚠️  Could not load config: {e}")
+
+    return defaults
+
+
+def save_config(config_dir: Path, config: dict) -> None:
+    """Save configuration to file"""
+    config_file = config_dir / "config.json"
+    try:
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=2)
+    except Exception as e:
+        console.print(f"⚠️  Could not save config: {e}")
+
+
 def is_server_running(config_dir: Path) -> bool:
     """Check if server is running"""
     info_file = config_dir / "server_info.json"
@@ -479,6 +520,158 @@ def start_docker_server(config_dir: Path, port: int | None, host: str, detach: b
         cleanup_server_info(config_dir)
 
 
+# Development environment detection
+def is_dev_environment() -> bool:
+    """Check if running in development environment"""
+    project_root = Path(__file__).parent.parent
+    
+    # Check for .git directory
+    if (project_root / ".git").exists():
+        return True
+    
+    # Check for dev dependencies
+    try:
+        import watchfiles  # noqa
+        return True
+    except ImportError:
+        pass
+    
+    return False
+
+
+# Development-only commands
+@click.command()
+@click.option('--port', type=int, default=None, help='Port to run on')
+@click.option('--host', default='localhost', help='Host to bind to')
+@click.option('--reload', is_flag=True, help='Enable auto-reload on code changes')
+@click.pass_context
+def run(ctx, port: int | None, host: str, reload: bool):
+    """Run server in development mode with optional auto-reload"""
+    config_dir: Path = ctx.obj['config_dir']
+    config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Load config and find port
+    config = load_config(config_dir)
+    if port is None:
+        port = config.get('port', DEFAULT_PORT)
+        if not is_port_available(port, host):
+            port = find_free_port(port)
+            config['port'] = port
+            save_config(config_dir, config)
+    
+    console.print(f"🚀 Starting development server on {host}:{port}")
+    if reload:
+        console.print("🔄 Auto-reload enabled")
+    
+    # Build command
+    cmd = ['uvicorn', 'main:app', f'--host={host}', f'--port={port}']
+    if reload:
+        cmd.append('--reload')
+    
+    try:
+        subprocess.run(cmd, check=True)
+    except KeyboardInterrupt:
+        console.print("\\n👋 Server stopped")
+
+
+@click.command()
+@click.option('--tag', default='zabob-memgraph:latest', help='Docker image tag')
+@click.option('--no-cache', is_flag=True, help='Build without cache')
+def build(tag: str, no_cache: bool):
+    """Build Docker image"""
+    project_root = Path(__file__).parent.parent
+    cmd = ['docker', 'build', '-t', tag]
+    if no_cache:
+        cmd.append('--no-cache')
+    cmd.append(str(project_root))
+    
+    console.print(f"🐳 Building Docker image: {tag}")
+    if no_cache:
+        console.print("♻️  Building without cache")
+    
+    try:
+        subprocess.run(cmd, check=True)
+        console.print(f"✅ Image built successfully: {tag}")
+    except subprocess.CalledProcessError as e:
+        console.print(f"❌ Build failed: {e}")
+        sys.exit(1)
+
+
+@click.command()
+def lint():
+    """Run linting checks (ruff, mypy)"""
+    project_root = Path(__file__).parent.parent
+    console.print("🔍 Running linters...")
+
+    # Run ruff
+    console.print("\\n📝 Checking with ruff...")
+    result = subprocess.run(
+        ['uv', 'run', 'ruff', 'check', 'memgraph/'],
+        cwd=project_root
+    )
+
+    # Run mypy
+    console.print("\\n🔬 Checking with mypy...")
+    result2 = subprocess.run(
+        ['uv', 'run', 'mypy', '--strict', 'memgraph/'],
+        cwd=project_root
+    )
+
+    if result.returncode == 0 and result2.returncode == 0:
+        console.print("✅ All checks passed!")
+    else:
+        sys.exit(1)
+
+
+@click.command(name="format")
+def format_code():
+    """Format code with ruff"""
+    project_root = Path(__file__).parent.parent
+    console.print("✨ Formatting code with ruff...")
+
+    result = subprocess.run(
+        ['uv', 'run', 'ruff', 'format', '.'],
+        cwd=project_root,
+        check=False
+    )
+
+    if result.returncode == 0:
+        console.print("✅ Code formatted successfully!")
+    else:
+        console.print("❌ Formatting failed")
+        sys.exit(1)
+
+
+@click.command()
+def clean():
+    """Clean build artifacts and cache"""
+    project_root = Path(__file__).parent.parent
+    console.print("🧹 Cleaning build artifacts...")
+    
+    patterns = [
+        '**/__pycache__',
+        '**/*.pyc',
+        '**/*.pyo',
+        '**/*.egg-info',
+        'dist',
+        'build',
+        '.pytest_cache',
+        '.mypy_cache',
+        '.ruff_cache',
+    ]
+    
+    count = 0
+    for pattern in patterns:
+        for path in project_root.glob(pattern):
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+            count += 1
+    
+    console.print(f"✅ Cleaned {count} items")
+
+
 # Add commands to the CLI group
 cli.add_command(start)
 cli.add_command(stop)
@@ -487,6 +680,14 @@ cli.add_command(status)
 cli.add_command(monitor)
 cli.add_command(test)
 cli.add_command(open_browser, name="open")
+
+# Add development commands if in dev environment
+if is_dev_environment():
+    cli.add_command(run)
+    cli.add_command(build)
+    cli.add_command(lint)
+    cli.add_command(format_code)
+    cli.add_command(clean)
 
 
 if __name__ == "__main__":
