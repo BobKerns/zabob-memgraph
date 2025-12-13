@@ -29,6 +29,7 @@
     "HNSW",
     "htmlcov",
     "httpx",
+    "imageid",
     "isort",
     "lastrowid",
     "levelname",

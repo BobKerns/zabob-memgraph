@@ -75,6 +75,17 @@ jobs:
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
+    - name: Save Build Info
+      run: |
+        echo "imageid=${{ steps.build-and-push.outputs.metadata.json }}" >build-info.json
+
+
+    - name: Upload Build Info
+      uses: actions/upload-artifact@v6
+      with:
+        name: docker-build-info
+        path: build-info.json
+
 
     - name: Determine test tag
       id: test-tag
@@ -91,7 +102,7 @@ jobs:
     - name: Test Docker image from GHCR
       run: |
         # Pull the built image
-        docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ steps.test-tag.outputs.tag }}
+        docker pull ${{ env.REGISTRY_GHCR }}/${{ steps.build-and-push.outputs.imageid }}:${{ steps.test-tag.outputs.tag }}
 
         # Run container
         docker run -d --name test-memgraph -p 6789:8080 \
