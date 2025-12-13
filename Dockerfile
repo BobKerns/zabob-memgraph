@@ -44,7 +44,7 @@ ENTRYPOINT ["/app/.venv/bin/zabob-memgraph"]
 # Set environment variables to indicate Docker container
 ENV DOCKER_CONTAINER=1
 ENV MEMGRAPH_HOST=0.0.0.0
-ENV MEMGRAPH_PORT=8080
+ENV MEMGRAPH_PORT=6789
 ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
 ENV HOME=/data
 

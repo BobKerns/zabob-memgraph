@@ -100,8 +100,20 @@ jobs:
         docker run -d --name test-memgraph -p 6789:6789 \
           $DOCKER_METADATA_OUTPUT_TAGS run
 
-        # Wait for startup
-        sleep 10
+        # Wait for container to be ready (retry loop)
+        echo "Waiting for container to start..."
+        for i in {1..30}; do
+          if curl -sf http://localhost:6789/health > /dev/null 2>&1; then
+            echo "Container ready after $i seconds"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Container failed to start after 30 seconds"
+            docker logs test-memgraph
+            exit 1
+          fi
+          sleep 1
+        done
 
         # Test health endpoint
         curl -f http://localhost:6789/health || exit 1
