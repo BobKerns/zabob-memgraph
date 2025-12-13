@@ -136,21 +136,21 @@ def test_server(port, tmp_path_factory):
         cwd=str(project_dir)
     )
 
-    # Wait for server to be ready (max 15 seconds with retries)
+    # Wait for server to be ready (max 30 seconds with retries for CI)
     start_time = time.time()
     server_ready = False
     base_url = f"http://localhost:{port}"
 
-    while time.time() - start_time < 15:
+    while time.time() - start_time < 30:
         try:
-            response = requests.get(f"{base_url}/health", timeout=2)
+            response = requests.get(f"{base_url}/health", timeout=3)
             if response.status_code == 200:
                 server_ready = True
                 # Extra wait to ensure server is fully ready
-                time.sleep(0.5)
+                time.sleep(1.0)
                 break
         except (requests.ConnectionError, requests.Timeout):
-            time.sleep(0.2)
+            time.sleep(0.5)
 
     if not server_ready:
         process.terminate()
