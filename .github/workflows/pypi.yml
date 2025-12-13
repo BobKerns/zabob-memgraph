@@ -1,20 +1,14 @@
 name: Publish PyPI
 
 on:
-  workflow_run:
-    workflows: ["Build Docker"]
-    types: [completed]
-  push:
-    tags:
-      - 'test-v*'  # Test releases
-      - 'v*'       # Production releases
+    workflow_call:
 
 jobs:
   publish-test:
     runs-on: ubuntu-latest
     if: |
       startsWith(github.ref, 'refs/tags/test-v') &&
-      (github.event_name == 'push' || github.event.workflow_run.conclusion == 'success')
+      (github.event.workflow_run.conclusion == 'success')
 
     permissions:
       contents: read
@@ -25,7 +19,7 @@ jobs:
       url: https://test.pypi.org/p/zabob-memgraph
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.1
       with:
         lfs: true
 
