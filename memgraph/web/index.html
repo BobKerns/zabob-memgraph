@@ -13,11 +13,15 @@
 
     <div class="controls">
         <button onclick="fitToScreen()">Fit All</button>
-        <button onclick="resetZoom()">Reset Zoom</button>
         <button onclick="centerGraph()">Center</button>
         <button onclick="toggleSimulation()" id="pauseBtn">Pause</button>
         <button onclick="toggleSearch()" id="searchBtn">Search</button>
         <button onclick="refreshData()" id="refreshBtn">Refresh</button>
+    </div>
+
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" onclick="zoomToNode()">Zoom to Node</div>
+        <div class="context-menu-item" onclick="showNodeDetails()">Show Details</div>
     </div>
 
     <div class="stats">
@@ -48,12 +52,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-    <script src="/static/graph.js"></script>
-    <script>
-        // Initialize the graph when page loads
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadKnowledgeGraph();
-        });
-    </script>
+    <script type="module" src="/static/graph.bundle.js"></script>
 </body>
 </html>

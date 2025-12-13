@@ -1,0 +1,24 @@
+{
+  "recommendations": [
+    // Python development
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+
+    // Database inspection
+    "yy0931.vscode-sqlite3-editor",
+
+    // Web development (for memgraph/web-src/)
+    "dbaeumer.vscode-eslint",
+
+    // Docker
+    "ms-azuretools.vscode-docker",
+
+    // Documentation
+    "davidanson.vscode-markdownlint",
+    "streetsidesoftware.code-spell-checker",
+
+    // MCP development (optional)
+    "modelcontextprotocol.mcp-vscode"
+  ]
+}

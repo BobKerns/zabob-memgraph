@@ -1,0 +1,33 @@
+{
+  "include": [
+    "memgraph",
+    "tests"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/node_modules",
+    "**/.venv",
+    ".venv/**",
+    "**/build",
+    "**/dist",
+    "**/.mypy_cache",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/zabob_memgraph.egg-info"
+  ],
+  "ignore": [
+    ".venv",
+    "node_modules",
+    "build",
+    "dist"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": false,
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "stubPath": ""
+}

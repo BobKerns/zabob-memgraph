@@ -89,7 +89,7 @@ zabob-memgraph/
 ./zabob-memgraph-dev.py install
 
 # Run in development mode with auto-reload
-./zabob-memgraph-dev.py run --reload --port 8080
+./zabob-memgraph-dev.py run --reload --port 6789
 ```
 
 ### Quality Checks
@@ -105,9 +105,15 @@ uv run ruff check memgraph/
 ./zabob-memgraph-dev.py format
 # Or: uv run ruff format .
 
-# Run tests
+# Run tests (uses isolated test server with temp database)
 ./zabob-memgraph-dev.py test
 # Or: uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_ui_playwright.py -v
+
+# Run specific test
+uv run pytest tests/test_ui_playwright.py::test_page_loads -v
 ```
 
 ### Docker
@@ -169,6 +175,8 @@ This ensures graceful degradation if certain backends are unavailable.
 
 ## Testing Guidelines
 
+### Test Structure
+
 - Write tests using pytest
 - Place tests in `tests/` directory
 - Use descriptive test names: `test_<feature>_<scenario>_<expected_result>`
@@ -176,6 +184,59 @@ This ensures graceful degradation if certain backends are unavailable.
 - Test thread-safety for concurrent database operations
 - Include edge cases and error conditions
 - Maintain existing test structure and patterns
+
+### Test Server Architecture
+
+**Important**: Playwright UI tests automatically start their own isolated test server:
+- **Isolated Database**: Uses a temporary SQLite database in a temp directory
+- **Dynamic Port**: Finds a free port automatically to avoid conflicts
+- **Session Scope**: Server starts once and is shared across all tests in a session
+- **Automatic Cleanup**: Server and database are cleaned up after tests complete
+
+This ensures:
+- Tests don't interfere with running production servers on port 6789
+- Tests can run in CI/CD without port conflicts
+- Each test run starts with a clean database state
+- Multiple test runs can execute simultaneously
+
+### Test Environment Variables
+
+The test server fixture sets these environment variables:
+- `MEMGRAPH_PORT` - Dynamic free port (e.g., 50123)
+- `MEMGRAPH_HOST` - localhost
+- `MEMGRAPH_DATABASE_PATH` - Temporary test database path
+- `MEMGRAPH_LOG_LEVEL` - WARNING (reduces log noise)
+
+### Writing UI Tests
+
+UI tests use the `base_url` fixture which automatically provides the test server URL:
+
+```python
+def test_new_feature(page: Page, base_url: str):
+    """Test description"""
+    page.goto(base_url)  # Uses test server, not production
+
+    # Interact with page
+    page.click("#my-button")
+
+    # Assert results
+    expect(page.locator("#result")).to_have_text("Expected")
+```
+
+### First-Time Playwright Setup
+
+Before running UI tests for the first time:
+```bash
+# Install Playwright browsers (only needed once)
+uv run playwright install chromium
+```
+
+### CI/CD Integration
+
+The CI pipeline automatically:
+1. Installs Playwright browsers: `playwright install --with-deps chromium`
+2. Runs all tests including UI tests with isolated test servers
+3. No manual server management required
 
 ## Security Considerations
 

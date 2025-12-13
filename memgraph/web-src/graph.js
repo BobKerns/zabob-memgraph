@@ -1,7 +1,13 @@
 /**
  * Knowledge Graph D3.js Visualization
- * HTTP-based client that fetches data from the MCP server
+ * MCP-based client that fetches data from the MCP server
  */
+
+console.log('[graph.js] Module loading...');
+
+import { initMCPClient, readGraph, searchNodes } from './mcp-client.js';
+
+console.log('[graph.js] MCP client functions imported:', { initMCPClient, readGraph, searchNodes });
 
 // Global variables
 const width = window.innerWidth;
@@ -9,7 +15,9 @@ const height = window.innerHeight;
 let graphData = { nodes: [], links: [] };
 let searchIndex = [];
 let simulation;
-let svg, container;
+let svg, container, zoom;
+let autoFitTimeout = null;
+let currentHighlightedNode = null;
 
 // Color mapping for node groups
 const colorMap = {
@@ -35,14 +43,27 @@ function initializeVisualization() {
         .style("width", "100vw")
         .style("height", "100vh");
 
-    const zoom = d3.zoom()
+    zoom = d3.zoom()
         .scaleExtent([0.1, 10])
         .on("zoom", function(event) {
             container.attr("transform", event.transform);
+        })
+        .on("start", function(event) {
+            // Cancel auto-fit when user manually zooms or pans
+            if (event.sourceEvent) {
+                cancelAutoFit();
+            }
         });
 
     svg.call(zoom);
     container = svg.append("g");
+
+    // Hide context menu on clicks elsewhere
+    svg.on('click', function(event) {
+        if (event.target === this || event.target.tagName === 'svg') {
+            hideContextMenu();
+        }
+    });
 
 // Initialize force simulation
     simulation = d3.forceSimulation()
@@ -56,34 +77,70 @@ function initializeVisualization() {
         .velocityDecay(0.4);  // More damping
 }
 
-// Load knowledge graph data from the server
+// Convert backend data format to D3 graph format
+function convertDataToGraph(data) {
+    // Convert entities to nodes
+    const nodes = (data.entities || []).map(entity => ({
+        id: entity.name,
+        group: entity.entityType || 'unknown',
+        type: entity.entityType || 'unknown',
+        observations: entity.observations || []
+    }));
+
+    // Convert relations to links
+    const links = (data.relations || []).map(relation => ({
+        source: relation.from_entity,
+        target: relation.to,
+        relation: relation.relationType || 'relates_to'
+    }));
+
+    return {
+        nodes,
+        links,
+        stats: {
+            nodeCount: nodes.length,
+            linkCount: links.length
+        }
+    };
+}
+
+// Load knowledge graph data using REST API
 async function loadKnowledgeGraph() {
     const loadingEl = document.getElementById('loading');
     loadingEl.style.display = 'flex';
 
     const startTime = performance.now();
 
-    try {
-        const response = await fetch('/api/knowledge-graph');
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+    console.log('Starting to load knowledge graph...');
 
-        const data = await response.json();
+    try {
+        // Initialize MCP client if needed
+        console.log('Initializing MCP client...');
+        await initMCPClient();
+
+        // Fetch graph data from MCP server
+        console.log('Reading graph via MCP...');
+        const data = await readGraph('default');
+        console.log('Data loaded:', data.entities?.length || 0, 'entities,', data.relations?.length || 0, 'relations');
         const loadTime = Math.round(performance.now() - startTime);
 
         // Initialize visualization if not done yet
         if (!svg) {
+            console.log('Initializing visualization...');
             initializeVisualization();
         }
 
+        // Convert data format to visualization format
+        const graphData = convertDataToGraph(data);
+        console.log('Converted to graph format:', graphData.nodes.length, 'nodes,', graphData.links.length, 'links');
+
         // Update the visualization
-        updateKnowledgeGraph(data.nodes, data.links);
+        updateKnowledgeGraph(graphData.nodes, graphData.links);
 
         // Update stats
         document.getElementById('loadTime').textContent = `Load: ${loadTime}ms`;
 
-        console.log('Knowledge graph loaded:', data.stats);
+        console.log('Knowledge graph loaded:', graphData.stats);
 
     } catch (error) {
         console.error('Failed to load knowledge graph:', error);
@@ -181,9 +238,25 @@ function updateKnowledgeGraph(nodes, links) {
         .on("drag", dragged)
         .on("end", dragended));
 
-    nodeUpdate.on('click', function(event, d) {
+    // Add context menu on right-click
+    nodeUpdate.on('contextmenu', function(event, d) {
+        event.preventDefault();
         event.stopPropagation();
-        showEntityDetails(d.id);
+        showContextMenu(event, d);
+    });
+
+    // Fallback: Ctrl+Click or Alt+Click for browsers that don't support context menu (like VS Code Simple Browser)
+    nodeUpdate.on('click', function(event, d) {
+        // Cancel auto-fit on any click
+        cancelAutoFit();
+
+        if (event.ctrlKey || event.altKey || event.metaKey) {
+            event.stopPropagation();
+            showContextMenu(event, d);
+        } else {
+            event.stopPropagation();
+            showEntityDetails(d.id);
+        }
     });
 
     // Update labels
@@ -321,8 +394,15 @@ function updateKnowledgeGraph(nodes, links) {
     document.getElementById('nodeCount').textContent = `Entities: ${graphData.nodes.length}`;
     document.getElementById('linkCount').textContent = `Relations: ${graphData.links.length}`;
 
-    // Auto-fit after simulation has settled longer
-    setTimeout(fitToScreen, 6000);
+    // Auto-fit after simulation has settled longer, but cancel if user interacts
+    if (autoFitTimeout) clearTimeout(autoFitTimeout);
+    autoFitTimeout = setTimeout(() => {
+        // Only fit if user hasn't interacted
+        if (autoFitTimeout) {
+            fitToScreen();
+            autoFitTimeout = null;
+        }
+    }, 6000);
 }
 
 // Search functionality
@@ -356,11 +436,40 @@ async function performServerSearch(query) {
     if (!query.trim() || query.length < 2) return [];
 
     try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        if (!response.ok) {
-            throw new Error(`Search failed: ${response.statusText}`);
+        // Initialize MCP client if needed
+        await initMCPClient();
+
+        // Search via MCP
+        const data = await searchNodes(query);
+
+        // Convert backend format to search results
+        const results = [];
+        if (data.entities) {
+            data.entities.forEach(entity => {
+                // Add entity name as a result
+                results.push({
+                    type: 'name',
+                    entity: entity.name,
+                    content: entity.name,
+                    entityType: entity.entityType
+                });
+
+                // Add observations as results
+                if (entity.observations) {
+                    entity.observations.forEach((obs, index) => {
+                        results.push({
+                            type: 'observation',
+                            entity: entity.name,
+                            content: obs,
+                            entityType: entity.entityType,
+                            observationIndex: index
+                        });
+                    });
+                }
+            });
         }
-        return await response.json();
+
+        return results;
     } catch (error) {
         console.error('Search error:', error);
         return [];
@@ -426,6 +535,12 @@ function showEntityDetails(entityName, highlightObservationIndex = null) {
 
     let html = `
         <div class="detail-section">
+            <button onclick="zoomToNodeByName('${entity.id.replace(/'/g, "\\'")}')"
+                    style="width: 100%; padding: 10px; margin-bottom: 15px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                🔍 Zoom to This Node
+            </button>
+        </div>
+        <div class="detail-section">
             <h4>Type</h4>
             <div style="color: ${getNodeColor(entity.group)}; font-weight: bold;">${entity.type}</div>
         </div>
@@ -476,20 +591,26 @@ function showEntityDetails(entityName, highlightObservationIndex = null) {
 }
 
 function highlightNode(entityName) {
+    currentHighlightedNode = entityName;
     svg.selectAll('.node')
         .transition()
         .duration(300)
         .attr('stroke', d => d.id === entityName ? '#ff6b35' : '#fff')
-        .attr('stroke-width', d => d.id === entityName ? 3 : 1.5);
+        .attr('stroke-width', d => d.id === entityName ? 4 : 1.5)
+        .attr('r', d => {
+            const baseRadius = Math.sqrt(d.degree) * 4 + 8;
+            return d.id === entityName ? baseRadius * 1.3 : baseRadius;
+        });
+}
 
-    // Reset after 2 seconds
-    setTimeout(() => {
-        svg.selectAll('.node')
-            .transition()
-            .duration(300)
-            .attr('stroke', '#fff')
-            .attr('stroke-width', 1.5);
-    }, 2000);
+function clearHighlight() {
+    currentHighlightedNode = null;
+    svg.selectAll('.node')
+        .transition()
+        .duration(300)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5)
+        .attr('r', d => Math.sqrt(d.degree) * 4 + 8);
 }
 
 function showError(message) {
@@ -525,6 +646,14 @@ function clearSearch() {
 
 function closeDetail() {
     document.getElementById('detailPanel').style.display = 'none';
+    clearHighlight();
+}
+
+function cancelAutoFit() {
+    if (autoFitTimeout) {
+        clearTimeout(autoFitTimeout);
+        autoFitTimeout = null;
+    }
 }
 
 async function refreshData() {
@@ -532,32 +661,139 @@ async function refreshData() {
 }
 
 function fitToScreen() {
-    if (graphData.nodes.length === 0) return;
+    if (!svg || !container || !zoom || graphData.nodes.length === 0) return;
 
-    const bounds = container.node().getBBox();
-    const fullWidth = width;
-    const fullHeight = height;
-    const widthScale = fullWidth / bounds.width;
-    const heightScale = fullHeight / bounds.height;
-    const scale = Math.min(widthScale, heightScale) * 0.8;
-    const translate = [fullWidth / 2 - scale * (bounds.x + bounds.width / 2),
-                    fullHeight / 2 - scale * (bounds.y + bounds.height / 2)];
+    try {
+        // Calculate bounds from actual node positions
+        const padding = 50;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-    svg.transition()
-        .duration(750)
-        .call(d3.zoom().transform, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale));
+        graphData.nodes.forEach(node => {
+            if (node.x !== undefined && node.y !== undefined) {
+                minX = Math.min(minX, node.x);
+                maxX = Math.max(maxX, node.x);
+                minY = Math.min(minY, node.y);
+                maxY = Math.max(maxY, node.y);
+            }
+        });
+
+        const boundsWidth = maxX - minX + padding * 2;
+        const boundsHeight = maxY - minY + padding * 2;
+        const boundsX = minX - padding;
+        const boundsY = minY - padding;
+
+        const fullWidth = width;
+        const fullHeight = height;
+        const scale = Math.min(fullWidth / boundsWidth, fullHeight / boundsHeight) * 0.9;
+
+        const translate = [
+            fullWidth / 2 - scale * (boundsX + boundsWidth / 2),
+            fullHeight / 2 - scale * (boundsY + boundsHeight / 2)
+        ];
+
+        svg.transition()
+            .duration(750)
+            .call(zoom.transform, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale));
+    } catch (error) {
+        console.error('Error fitting to screen:', error);
+    }
 }
 
-function resetZoom() {
+let contextMenuNode = null;
+
+function showContextMenu(event, node) {
+    const menu = document.getElementById('contextMenu');
+    contextMenuNode = node;
+
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+    menu.style.display = 'block';
+}
+
+function hideContextMenu() {
+    const menu = document.getElementById('contextMenu');
+    menu.style.display = 'none';
+    contextMenuNode = null;
+}
+
+function zoomToNode() {
+    if (!contextMenuNode || !svg || !zoom) {
+        hideContextMenu();
+        return;
+    }
+
+    const node = contextMenuNode;
+    hideContextMenu();
+
+    // Cancel auto-fit
+    cancelAutoFit();
+
+    // Highlight the node
+    highlightNode(node.id);
+
+    // Center on the node at zoom level 1.0
+    const translateX = width / 2 - node.x;
+    const translateY = height / 2 - node.y;
+
     svg.transition()
         .duration(750)
-        .call(d3.zoom().transform, d3.zoomIdentity);
+        .call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(1));
+}
+
+function zoomToNodeByName(nodeName) {
+    if (!svg || !zoom) return;
+
+    // Cancel auto-fit
+    cancelAutoFit();
+
+    // Find the node data
+    const node = graphData.nodes.find(n => n.id === nodeName);
+    if (!node) {
+        console.error('Node not found:', nodeName);
+        return;
+    }
+
+    // Highlight the node
+    highlightNode(nodeName);
+
+    // Show details for this entity
+    showEntityDetails(nodeName);
+
+    // Center on the node at zoom level 1.0
+    const translateX = width / 2 - node.x;
+    const translateY = height / 2 - node.y;
+
+    svg.transition()
+        .duration(750)
+        .call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(1));
+}
+
+function showNodeDetails() {
+    if (!contextMenuNode) {
+        hideContextMenu();
+        return;
+    }
+
+    showEntityDetails(contextMenuNode.id);
+    hideContextMenu();
 }
 
 function centerGraph() {
-    svg.transition()
-        .duration(750)
-        .call(d3.zoom().transform, d3.zoomIdentity.translate(width/2, height/2));
+    if (!svg || !container || !zoom || graphData.nodes.length === 0) return;
+
+    try {
+        // Center the graph at current zoom level
+        const currentTransform = d3.zoomTransform(svg.node());
+        const bounds = container.node().getBBox();
+        const centerX = width / 2 - currentTransform.k * (bounds.x + bounds.width / 2);
+        const centerY = height / 2 - currentTransform.k * (bounds.y + bounds.height / 2);
+
+        svg.transition()
+            .duration(750)
+            .call(zoom.transform, d3.zoomIdentity.translate(centerX, centerY).scale(currentTransform.k));
+    } catch (error) {
+        console.error('Error centering graph:', error);
+    }
 }
 
 function toggleSimulation() {
@@ -599,6 +835,10 @@ window.forceLayout = forceLayout;
 
 // Drag handlers
 function dragstarted(event, d) {
+    // Cancel auto-fit and stop simulation settling on any drag
+    cancelAutoFit();
+    simulation.stop();
+
     if (!event.active) simulation.alphaTarget(0.3).restart();
     d.fx = d.x;
     d.fy = d.y;
@@ -616,6 +856,14 @@ function dragended(event, d) {
 }
 
 // Event listeners
+document.addEventListener('click', function(event) {
+    // Hide context menu when clicking anywhere except on it
+    const contextMenu = document.getElementById('contextMenu');
+    if (contextMenu && !contextMenu.contains(event.target)) {
+        hideContextMenu();
+    }
+});
+
 document.getElementById('searchInput').addEventListener('input', function(e) {
     const query = e.target.value;
     if (query.length >= 2) {
@@ -633,3 +881,26 @@ document.getElementById('searchInput').addEventListener('keydown', function(e) {
         }
     }
 });
+
+// Expose functions to global scope for inline onclick handlers
+window.loadKnowledgeGraph = loadKnowledgeGraph;
+window.fitToScreen = fitToScreen;
+window.centerGraph = centerGraph;
+window.toggleSimulation = toggleSimulation;
+window.toggleSearch = toggleSearch;
+window.refreshData = refreshData;
+window.zoomToNode = zoomToNode;
+window.zoomToNodeByName = zoomToNodeByName;
+window.showNodeDetails = showNodeDetails;
+window.showEntityDetails = showEntityDetails;
+window.clearSearch = clearSearch;
+window.closeDetail = closeDetail;
+
+// Auto-load graph when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        loadKnowledgeGraph().catch(err => console.error('Error loading graph:', err));
+    });
+} else {
+    loadKnowledgeGraph().catch(err => console.error('Error loading graph:', err));
+}

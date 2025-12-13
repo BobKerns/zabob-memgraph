@@ -32,7 +32,8 @@ env.bak/
 venv.bak/
 
 # IDE
-.vscode/
+.vscode/**
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
@@ -72,4 +73,16 @@ backup/
 
 # Docker
 .dockerignore
+
+node_modules/
+
+# Web bundles (built from web-src/)
+memgraph/web/*.bundle.js
+memgraph/web/*.bundle.js.map
+
+# Vendored dependencies (no longer used)
+memgraph/web/vendor/
+
+memory.json
+tests/out
 

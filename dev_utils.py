@@ -20,7 +20,8 @@ from rich.table import Table
 
 console = Console()
 
-def test_server(base_url="http://localhost:8080"):
+
+def test_server(base_url="http://localhost:6789"):
     """Test server endpoints and functionality"""
 
     console.print(Panel(f"Testing Memgraph Server at {base_url}",
@@ -91,7 +92,8 @@ def test_server(base_url="http://localhost:8080"):
     console.print("\n🎉 Server test complete!")
     return True
 
-def show_server_stats(base_url="http://localhost:8080"):
+
+def show_server_stats(base_url="http://localhost:6789"):
     """Display server statistics"""
 
     try:
@@ -121,7 +123,8 @@ def show_server_stats(base_url="http://localhost:8080"):
     except requests.RequestException as e:
         console.print(f"❌ Stats error: {e}")
 
-def monitor_server(base_url="http://localhost:8080", interval=5):
+
+def monitor_server(base_url="http://localhost:6789", interval=5):
     """Monitor server health continuously"""
 
     console.print(Panel(f"Monitoring server at {base_url} "
@@ -159,11 +162,12 @@ def monitor_server(base_url="http://localhost:8080", interval=5):
     except KeyboardInterrupt:
         console.print("\n👋 Monitoring stopped")
 
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Memgraph development utilities")
-    parser.add_argument("--url", default="http://localhost:8080", help="Server URL")
+    parser.add_argument("--url", default="http://localhost:6789", help="Server URL")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Test command
