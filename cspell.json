@@ -19,6 +19,7 @@
     "dragstarted",
     "esbuild",
     "eventsource",
+    "executescript",
     "fastapi",
     "fastmcp",
     "fspath",

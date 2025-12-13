@@ -6,7 +6,6 @@ with import functionality from MCP data sources.
 """
 
 import asyncio
-import json
 import os
 import sqlite3
 from dataclasses import dataclass
@@ -65,13 +64,31 @@ class SQLiteKnowledgeGraphDB:
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript(
                 """
+                -- Schema metadata for versioning
+                CREATE TABLE IF NOT EXISTS schema_metadata (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    version INTEGER NOT NULL,
+                    description TEXT NOT NULL,
+                    applied_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                -- Entities table (no observations column)
                 CREATE TABLE IF NOT EXISTS entities (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
                     entity_type TEXT NOT NULL,
-                    observations TEXT NOT NULL,  -- JSON array
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
+                );
+
+                -- Normalized observations table
+                CREATE TABLE IF NOT EXISTS observations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entity_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
                 );
 
                 CREATE TABLE IF NOT EXISTS relations (
@@ -86,21 +103,28 @@ class SQLiteKnowledgeGraphDB:
                     UNIQUE(from_entity, to_entity, relation_type)
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_entities_name ON entities (name);
+                -- Indexes
                 CREATE INDEX IF NOT EXISTS idx_entities_type ON entities (entity_type);
+                -- Compound index for observations: supports both WHERE entity_id and ORDER BY created_at
+                CREATE INDEX IF NOT EXISTS idx_observations_entity_time ON observations(entity_id, created_at);
                 CREATE INDEX IF NOT EXISTS idx_relations_from ON relations (from_entity);
                 CREATE INDEX IF NOT EXISTS idx_relations_to ON relations (to_entity);
                 CREATE INDEX IF NOT EXISTS idx_relations_type ON relations (relation_type);
 
-                -- Full-text search table for observations
+                -- Full-text search for entities
                 CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
-                    name, entity_type, observations, content='entities'
+                    name, entity_type, content='entities'
                 );
 
-                -- Triggers to keep FTS in sync
+                -- Full-text search for observations
+                CREATE VIRTUAL TABLE IF NOT EXISTS observations_fts USING fts5(
+                    content, content='observations', content_rowid='id'
+                );
+
+                -- Triggers to keep entities FTS in sync
                 CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
-                    INSERT INTO entities_fts(rowid, name, entity_type, observations)
-                    VALUES (new.id, new.name, new.entity_type, new.observations);
+                    INSERT INTO entities_fts(rowid, name, entity_type)
+                    VALUES (new.id, new.name, new.entity_type);
                 END;
 
                 CREATE TRIGGER IF NOT EXISTS entities_fts_delete AFTER DELETE ON entities BEGIN
@@ -109,11 +133,52 @@ class SQLiteKnowledgeGraphDB:
 
                 CREATE TRIGGER IF NOT EXISTS entities_fts_update AFTER UPDATE ON entities BEGIN
                     DELETE FROM entities_fts WHERE rowid = old.id;
-                    INSERT INTO entities_fts(rowid, name, entity_type, observations)
-                    VALUES (new.id, new.name, new.entity_type, new.observations);
+                    INSERT INTO entities_fts(rowid, name, entity_type)
+                    VALUES (new.id, new.name, new.entity_type);
+                END;
+
+                -- Triggers to keep observations FTS in sync
+                CREATE TRIGGER IF NOT EXISTS observations_fts_insert AFTER INSERT ON observations BEGIN
+                    INSERT INTO observations_fts(rowid, content)
+                    VALUES (new.id, new.content);
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS observations_fts_delete AFTER DELETE ON observations BEGIN
+                    DELETE FROM observations_fts WHERE rowid = old.id;
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS observations_fts_update AFTER UPDATE ON observations BEGIN
+                    DELETE FROM observations_fts WHERE rowid = old.id;
+                    INSERT INTO observations_fts(rowid, content)
+                    VALUES (new.id, new.content);
                 END;
             """
             )
+            self._ensure_schema_version(conn)
+            self._ensure_schema_version(conn)
+
+    def _ensure_schema_version(self, conn: sqlite3.Connection) -> None:
+        """Ensure schema is at the correct version"""
+        try:
+            cursor = conn.execute(
+                "SELECT version FROM schema_metadata ORDER BY updated_at DESC LIMIT 1"
+            )
+            row = cursor.fetchone()
+            if row and row[0] >= 2:
+                return  # Schema is up to date
+        except sqlite3.OperationalError:
+            pass  # Table doesn't exist yet
+
+        # Record schema version for new databases
+        timestamp = datetime.now(UTC).isoformat()
+        conn.execute(
+            """
+            INSERT INTO schema_metadata (version, description, applied_at, updated_at)
+            VALUES (?, ?, ?, ?)
+        """,
+            (2, "Initial schema with normalized observations", timestamp, timestamp),
+        )
+        conn.commit()
 
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from SQLite"""
@@ -122,22 +187,30 @@ class SQLiteKnowledgeGraphDB:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
 
-                    # Get all entities
+                    # Get all entities with their observations
                     entities_cursor = conn.execute(
                         """
-                        SELECT name, entity_type, observations
-                        FROM entities
-                        ORDER BY name
+                        SELECT e.id, e.name, e.entity_type
+                        FROM entities e
+                        ORDER BY e.name
                     """
                     )
 
                     entities = []
                     for row in entities_cursor:
+                        entity_id = row["id"]
+                        # Get observations for this entity
+                        obs_cursor = conn.execute(
+                            "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
+                            (entity_id,),
+                        )
+                        observations = [obs_row["content"] for obs_row in obs_cursor]
+
                         entities.append(
                             {
                                 "name": row["name"],
                                 "entityType": row["entity_type"],
-                                "observations": json.loads(row["observations"]),
+                                "observations": observations,
                             }
                         )
 
@@ -173,31 +246,68 @@ class SQLiteKnowledgeGraphDB:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
 
-                    # Use FTS for searching
-                    search_cursor = conn.execute(
+                    # Search in both entities and observations FTS
+                    entity_ids: set[int] = set()
+
+                    # Search entities
+                    entity_search = conn.execute(
                         """
-                        SELECT e.name, e.entity_type, e.observations
+                        SELECT e.id
                         FROM entities e
                         JOIN entities_fts fts ON e.id = fts.rowid
                         WHERE entities_fts MATCH ?
-                        ORDER BY rank
                     """,
                         (query,),
                     )
+                    entity_ids.update(row["id"] for row in entity_search)
 
+                    # Search observations
+                    obs_search = conn.execute(
+                        """
+                        SELECT o.entity_id
+                        FROM observations o
+                        JOIN observations_fts fts ON o.id = fts.rowid
+                        WHERE observations_fts MATCH ?
+                    """,
+                        (query,),
+                    )
+                    entity_ids.update(row["entity_id"] for row in obs_search)
+
+                    # Get full entity data for matches
                     entities = []
                     entity_names = set()
 
-                    for row in search_cursor:
-                        entity_name = row["name"]
-                        entities.append(
-                            {
-                                "name": entity_name,
-                                "entityType": row["entity_type"],
-                                "observations": json.loads(row["observations"]),
-                            }
+                    if entity_ids:
+                        placeholders = ",".join("?" * len(entity_ids))
+                        entities_cursor = conn.execute(
+                            f"""
+                            SELECT e.id, e.name, e.entity_type
+                            FROM entities e
+                            WHERE e.id IN ({placeholders})
+                            ORDER BY e.name
+                        """,
+                            list(entity_ids),
                         )
-                        entity_names.add(entity_name)
+
+                        for row in entities_cursor:
+                            entity_id = row["id"]
+                            entity_name = row["name"]
+
+                            # Get observations
+                            obs_cursor = conn.execute(
+                                "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
+                                (entity_id,),
+                            )
+                            observations = [obs_row["content"] for obs_row in obs_cursor]
+
+                            entities.append(
+                                {
+                                    "name": entity_name,
+                                    "entityType": row["entity_type"],
+                                    "observations": observations,
+                                }
+                            )
+                            entity_names.add(entity_name)
 
                     # Get relations for matching entities
                     if entity_names:
@@ -237,30 +347,56 @@ class SQLiteKnowledgeGraphDB:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
 
-                # Simple search in name and observations
-                search_cursor = conn.execute(
+                # Simple search in name, entity_type, and observation content
+                entity_ids: set[int] = set()
+
+                # Search entities by name and type
+                entity_search = conn.execute(
                     """
-                    SELECT name, entity_type, observations
-                    FROM entities
-                    WHERE name LIKE ? OR observations LIKE ?
-                    ORDER BY name
+                    SELECT id FROM entities
+                    WHERE name LIKE ? OR entity_type LIKE ?
                 """,
                     (f"%{query}%", f"%{query}%"),
                 )
+                entity_ids.update(row["id"] for row in entity_search)
 
+                # Search observations by content
+                obs_search = conn.execute(
+                    "SELECT entity_id FROM observations WHERE content LIKE ?",
+                    (f"%{query}%",),
+                )
+                entity_ids.update(row["entity_id"] for row in obs_search)
+
+                # Get full entity data
                 entities = []
                 entity_names = set()
 
-                for row in search_cursor:
-                    entity_name = row["name"]
-                    entities.append(
-                        {
-                            "name": entity_name,
-                            "entityType": row["entity_type"],
-                            "observations": json.loads(row["observations"]),
-                        }
+                if entity_ids:
+                    placeholders = ",".join("?" * len(entity_ids))
+                    entities_cursor = conn.execute(
+                        f"SELECT id, name, entity_type FROM entities WHERE id IN ({placeholders})",
+                        list(entity_ids),
                     )
-                    entity_names.add(entity_name)
+
+                    for row in entities_cursor:
+                        entity_id = row["id"]
+                        entity_name = row["name"]
+
+                        # Get observations
+                        obs_cursor = conn.execute(
+                            "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
+                            (entity_id,),
+                        )
+                        observations = [obs_row["content"] for obs_row in obs_cursor]
+
+                        entities.append(
+                            {
+                                "name": entity_name,
+                                "entityType": row["entity_type"],
+                                "observations": observations,
+                            }
+                        )
+                        entity_names.add(entity_name)
 
                 # Get relations
                 if entity_names:
@@ -309,22 +445,46 @@ class SQLiteKnowledgeGraphDB:
 
                 with sqlite3.connect(self.db_path) as conn:
                     # Import entities
+                    conn.row_factory = sqlite3.Row
                     for entity in mcp_data["entities"]:
                         try:
-                            conn.execute(
-                                """
-                                INSERT OR REPLACE INTO entities
-                                (name, entity_type, observations, created_at, updated_at)
-                                VALUES (?, ?, ?, ?, ?)
-                            """,
-                                (
-                                    entity["name"],
-                                    entity["entityType"],
-                                    json.dumps(entity["observations"]),
-                                    timestamp,
-                                    timestamp,
-                                ),
+                            entity_name = entity["name"]
+                            entity_type = entity["entityType"]
+                            observations = entity.get("observations", [])
+
+                            # Check if exists
+                            cursor = conn.execute(
+                                "SELECT id FROM entities WHERE name = ?",
+                                (entity_name,),
                             )
+                            existing = cursor.fetchone()
+
+                            if existing:
+                                entity_id = existing["id"]
+                                conn.execute(
+                                    "UPDATE entities SET entity_type = ?, updated_at = ? WHERE id = ?",
+                                    (entity_type, timestamp, entity_id),
+                                )
+                            else:
+                                cursor = conn.execute(
+                                    """
+                                    INSERT INTO entities (name, entity_type, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?)
+                                """,
+                                    (entity_name, entity_type, timestamp, timestamp),
+                                )
+                                entity_id = cursor.lastrowid
+
+                            # Add observations
+                            for obs_content in observations:
+                                conn.execute(
+                                    """
+                                    INSERT INTO observations (entity_id, content, created_at)
+                                    VALUES (?, ?, ?)
+                                """,
+                                    (entity_id, obs_content, timestamp),
+                                )
+
                             imported_entities += 1
                         except Exception as e:
                             print(f"Failed to import entity {entity['name']}: {e}")
@@ -371,6 +531,7 @@ class SQLiteKnowledgeGraphDB:
                     """
                     SELECT
                         (SELECT COUNT(*) FROM entities) as entity_count,
+                        (SELECT COUNT(*) FROM observations) as observation_count,
                         (SELECT COUNT(*) FROM relations) as relation_count,
                         (SELECT COUNT(DISTINCT entity_type) FROM entities) as entity_types,
                         (SELECT COUNT(DISTINCT relation_type) FROM relations) as relation_types
@@ -380,9 +541,10 @@ class SQLiteKnowledgeGraphDB:
                 stats = cursor.fetchone()
                 return {
                     "entity_count": stats[0],
-                    "relation_count": stats[1],
-                    "entity_types": stats[2],
-                    "relation_types": stats[3],
+                    "observation_count": stats[1],
+                    "relation_count": stats[2],
+                    "entity_types": stats[3],
+                    "relation_types": stats[4],
                     "database_path": str(self.db_path),
                 }
 
@@ -391,27 +553,54 @@ class SQLiteKnowledgeGraphDB:
             return {"error": str(e)}
 
     async def create_entities(self, entities: list[dict[str, Any]]) -> None:
-        """Create new entities in the database"""
+        """Create new entities in the database with normalized observations"""
         async with self._lock:
             timestamp = datetime.now(UTC).isoformat()
 
             with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+
                 for entity in entities:
                     try:
-                        conn.execute(
-                            """
-                            INSERT OR REPLACE INTO entities
-                            (name, entity_type, observations, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?)
-                        """,
-                            (
-                                entity["name"],
-                                entity["entityType"],
-                                json.dumps(entity["observations"]),
-                                timestamp,
-                                timestamp,
-                            ),
+                        entity_name = entity["name"]
+                        entity_type = entity["entityType"]
+                        observations = entity.get("observations", [])
+
+                        # Check if entity exists
+                        cursor = conn.execute(
+                            "SELECT id FROM entities WHERE name = ?",
+                            (entity_name,),
                         )
+                        existing = cursor.fetchone()
+
+                        if existing:
+                            # Update existing entity
+                            entity_id = existing["id"]
+                            conn.execute(
+                                "UPDATE entities SET entity_type = ?, updated_at = ? WHERE id = ?",
+                                (entity_type, timestamp, entity_id),
+                            )
+                        else:
+                            # Create new entity
+                            cursor = conn.execute(
+                                """
+                                INSERT INTO entities (name, entity_type, created_at, updated_at)
+                                VALUES (?, ?, ?, ?)
+                            """,
+                                (entity_name, entity_type, timestamp, timestamp),
+                            )
+                            entity_id = cursor.lastrowid
+
+                        # Add observations
+                        for obs_content in observations:
+                            conn.execute(
+                                """
+                                INSERT INTO observations (entity_id, content, created_at)
+                                VALUES (?, ?, ?)
+                            """,
+                                (entity_id, obs_content, timestamp),
+                            )
+
                     except Exception as e:
                         print(f"Failed to create entity {entity['name']}: {e}")
 

@@ -756,6 +756,9 @@ function zoomToNodeByName(nodeName) {
     // Highlight the node
     highlightNode(nodeName);
 
+    // Show details for this entity
+    showEntityDetails(nodeName);
+
     // Center on the node at zoom level 1.0
     const translateX = width / 2 - node.x;
     const translateY = height / 2 - node.y;
@@ -887,7 +890,9 @@ window.toggleSimulation = toggleSimulation;
 window.toggleSearch = toggleSearch;
 window.refreshData = refreshData;
 window.zoomToNode = zoomToNode;
+window.zoomToNodeByName = zoomToNodeByName;
 window.showNodeDetails = showNodeDetails;
+window.showEntityDetails = showEntityDetails;
 window.clearSearch = clearSearch;
 window.closeDetail = closeDetail;
 
