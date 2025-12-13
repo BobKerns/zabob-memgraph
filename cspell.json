@@ -24,6 +24,7 @@
     "fastmcp",
     "fspath",
     "getpid",
+    "healthcheck",
     "htmlcov",
     "httpx",
     "isort",
