@@ -15,7 +15,7 @@ RUN pip install uv && \
 WORKDIR /app
 
 # Copy project files
-COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
+COPY pyproject.toml uv.lock package.json pnpm-lock.yaml index.js ./
 COPY memgraph/ ./memgraph/
 COPY main.py ./
 
