@@ -35,6 +35,18 @@ jobs:
       with:
         driver: docker-container
 
+
+    - name: Build and push to GHCR
+      uses: docker/build-push-action@v6.18.0
+      with:
+        context: .
+        push: true
+        # tags: ${{ steps.meta.outputs.tags }}
+        # labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5.10.0
@@ -59,17 +71,6 @@ jobs:
         name: docker-metadata
         path: metadata.json
 
-    - name: Build and push to GHCR
-      uses: docker/build-push-action@v6.18.0
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
-        builder: docker-container
 
     - name: Determine test tag
       id: test-tag
