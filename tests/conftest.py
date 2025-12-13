@@ -146,8 +146,8 @@ def test_server(port, tmp_path_factory):
             response = requests.get(f"{base_url}/health", timeout=3)
             if response.status_code == 200:
                 server_ready = True
-                # Extra wait to ensure server is fully ready
-                time.sleep(1.0)
+                # Extra wait to ensure server is fully ready (longer for CI)
+                time.sleep(2.0)
                 break
         except (requests.ConnectionError, requests.Timeout):
             time.sleep(0.5)
@@ -156,6 +156,9 @@ def test_server(port, tmp_path_factory):
         process.terminate()
         stdout, stderr = process.communicate(timeout=5)
         pytest.fail(f"Test server failed to start on port {port}\nStdout: {stdout}\nStderr: {stderr}")
+
+    # Additional stabilization delay after health check passes
+    time.sleep(1.0)
 
     yield {"port": port, "base_url": base_url, "db_path": db_path}
 
