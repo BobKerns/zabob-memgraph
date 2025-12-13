@@ -17,8 +17,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock package.json pnpm-lock.yaml index.js ./
 COPY memgraph/ ./memgraph/
 
-# Install Python dependencies
-RUN uv sync --frozen
+# Install Python dependencies (non-editable)
+RUN uv sync --frozen --no-editable
 
 # Build web bundle
 RUN pnpm install && pnpm run build:web
