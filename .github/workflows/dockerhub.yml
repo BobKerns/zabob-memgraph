@@ -28,11 +28,6 @@ jobs:
       with:
         lfs: true
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        driver: docker-container
-
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -40,15 +35,15 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Pull from GHCR
+      run: |
+        docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+
     - name: Log in to DockerHub Test
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_TEST_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TEST_TOKEN }}
-
-    - name: Pull from GHCR
-      run: |
-        docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
 
     - name: Tag and push to DockerHub Test
       run: |
@@ -79,11 +74,6 @@ jobs:
       with:
         lfs: true
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        driver: docker-container
-
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -91,15 +81,15 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Pull from GHCR
+      run: |
+        docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+
     - name: Log in to DockerHub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Pull from GHCR
-      run: |
-        docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
 
     - name: Tag and push to DockerHub
       run: |
