@@ -5,24 +5,21 @@ on:
     workflows: ["Publish PyPI", "Publish DockerHub"]
     types: [completed]
     branches: [main]
-    tags:
-      - 'v*'
 
 jobs:
   create-release:
     runs-on: ubuntu-latest
     if: |
       github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'v') &&
-      !startsWith(github.event.workflow_run.head_branch, 'test-v')
+      startsWith(github.event.workflow_run.head_branch, 'v')
 
     permissions:
       contents: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
-        fetch-depth: 0
+        lfs: true
 
     - name: Get tag name
       id: get_tag
@@ -32,7 +29,7 @@ jobs:
 
     - name: Create GitHub Release
       if: steps.get_tag.outputs.tag != ''
-      uses: actions/create-release@v1
+      uses: actions/create-release@v1.1.4
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:

@@ -5,11 +5,13 @@
 **Schema v2** normalizes observations into a dedicated table with full-text search support.
 
 ### Before (v1)
+
 - Observations stored as JSON array in `entities.observations` column
 - FTS5 search on JSON text (inefficient)
 - Write amplification (entire array rewritten on every update)
 
 ### After (v2)
+
 - Normalized `observations` table with `entity_id` foreign key
 - Separate FTS5 table for observations (`observations_fts`)
 - Individual observation CRUD operations
@@ -47,6 +49,7 @@ python migrate_to_v2.py --db-path ~/.zabob/memgraph/data/knowledge_graph.db --ba
 ### 3. Verify
 
 The script automatically verifies the migration and shows:
+
 - Entity count
 - Observation count
 - Sample entities with their observation counts
@@ -120,19 +123,23 @@ With normalized observations, we can easily add:
 ## Troubleshooting
 
 **Migration fails with "table already exists"**:
+
 - Database is already at v2, no migration needed
 
 **Performance issues after migration**:
+
 - Run `VACUUM` to rebuild database: `sqlite3 knowledge_graph.db "VACUUM;"`
 - Rebuild FTS indexes if needed
 
 **Data doesn't match**:
+
 - Check backup file for original data
 - Verify observation counts match between v1 and v2
 
 ## Support
 
 For issues or questions:
+
 - Check logs: `~/.zabob/memgraph/memgraph.log`
 - Run with dry-run first: `python migrate_to_v2.py --dry-run`
 - Open GitHub issue with migration output
