@@ -90,23 +90,16 @@ jobs:
     - name: Determine test tag
       id: test-tag
       run: |
-        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-          TAG="${{ github.ref_name }}"
-        elif [[ "${{ github.ref }}" == refs/heads/* ]]; then
-          TAG="${{ github.ref_name }}"
-        else
-          TAG="latest"
-        fi
-        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "tag=$DOCKER_METADATA_OUTPUT_TAGS" >> $GITHUB_OUTPUT
 
     - name: Test Docker image from GHCR
       run: |
         # Pull the built image
-        docker pull ${{ env.REGISTRY_GHCR }}/${{ steps.build-and-push.outputs.imageid }}:${{ steps.test-tag.outputs.tag }}
+        docker pull $DOCKER_METADATA_OUTPUT_TAGS
 
         # Run container
-        docker run -d --name test-memgraph -p 6789:8080 \
-          ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ steps.test-tag.outputs.tag }}
+        docker run -d --name test-memgraph -p 6789:6789 \
+          $DOCKER_METADATA_OUTPUT_TAGS
 
         # Wait for startup
         sleep 10
