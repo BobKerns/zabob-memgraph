@@ -1,42 +1,47 @@
-name: Create Release
+name: Release
 
 on:
-  workflow_run:
-    workflows: ["Publish PyPI", "Publish DockerHub"]
-    types: [completed]
-    branches: [main]
+    push:
+        tags:
+          - 'v*'
+          - 'test-v*'
+
 
 jobs:
+  build_and_test:
+    uses: ./.github/workflows/ci.yml
+
+  build_docker:
+    needs: build_and_test
+    uses: ./.github/workflows/docker-build.yml
+
+  publish_pypi:
+    needs: build_and_test
+    uses: ./.github/workflows/pypi.yml
+
+  publish_dockerhub:
+    needs: build_docker
+    uses: ./.github/workflows/dockerhub.yml
+
   create-release:
+    needs:
+      - publish_pypi
+      - publish_dockerhub
     runs-on: ubuntu-latest
-    if: |
-      github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'v')
 
     permissions:
       contents: write
 
     steps:
-    - uses: actions/checkout@v6.0.1
-      with:
-        lfs: true
-
-    - name: Get tag name
-      id: get_tag
-      run: |
-        TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
-        echo "tag=$TAG" >> $GITHUB_OUTPUT
-
     - name: Create GitHub Release
-      if: steps.get_tag.outputs.tag != ''
       uses: actions/create-release@v1.1.4
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.get_tag.outputs.tag }}
-        release_name: Release ${{ steps.get_tag.outputs.tag }}
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
         body: |
-          ## Zabob Memgraph ${{ steps.get_tag.outputs.tag }}
+          ## Zabob Memgraph ${{ github.ref_name }}
 
           ### Installation
 
@@ -47,12 +52,12 @@ jobs:
           Or with Docker:
 
           ```bash
-          docker pull bobkerns/zabob-memgraph:${{ steps.get_tag.outputs.tag }}
+          docker pull bobkerns/zabob-memgraph:${{ github.ref_name }}
           ```
 
           ### Links
 
-          - [PyPI Package](https://pypi.org/project/zabob-memgraph/${{ steps.get_tag.outputs.tag }}/)
+          - [PyPI Package](https://pypi.org/project/zabob-memgraph/${{ github.ref_name }}/)
           - [Docker Image (DockerHub)](https://hub.docker.com/r/bobkerns/zabob-memgraph)
           - [Docker Image (GHCR)](https://github.com/BobKerns/zabob-memgraph/pkgs/container/zabob-memgraph)
 

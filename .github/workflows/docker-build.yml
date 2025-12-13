@@ -12,6 +12,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+    - name: Download Dockerfile
+      uses: actions/download-artifact@v7
+      with:
+          name: dockerfile
+
+    - name: Download Context
+      uses: actions/download-artifact@v7
+      with:
+          name: docker-context
+
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3.6.0
       with:
