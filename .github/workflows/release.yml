@@ -1,0 +1,66 @@
+name: Create Release
+
+on:
+  workflow_run:
+    workflows: ["Publish PyPI", "Publish DockerHub"]
+    types: [completed]
+    branches: [main]
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'v') &&
+      !startsWith(github.event.workflow_run.head_branch, 'test-v')
+
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get tag name
+      id: get_tag
+      run: |
+        TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      if: steps.get_tag.outputs.tag != ''
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_tag.outputs.tag }}
+        release_name: Release ${{ steps.get_tag.outputs.tag }}
+        body: |
+          ## Zabob Memgraph ${{ steps.get_tag.outputs.tag }}
+
+          ### Installation
+
+          ```bash
+          pip install zabob-memgraph
+          ```
+
+          Or with Docker:
+
+          ```bash
+          docker pull bobkerns/zabob-memgraph:${{ steps.get_tag.outputs.tag }}
+          ```
+
+          ### Links
+
+          - [PyPI Package](https://pypi.org/project/zabob-memgraph/${{ steps.get_tag.outputs.tag }}/)
+          - [Docker Image (DockerHub)](https://hub.docker.com/r/bobkerns/zabob-memgraph)
+          - [Docker Image (GHCR)](https://github.com/BobKerns/zabob-memgraph/pkgs/container/zabob-memgraph)
+
+          ### What's Changed
+
+          See [CHANGELOG.md](https://github.com/BobKerns/zabob-memgraph/blob/main/CHANGELOG.md) for details.
+        draft: false
+        prerelease: false
