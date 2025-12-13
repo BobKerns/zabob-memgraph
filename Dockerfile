@@ -17,7 +17,6 @@ WORKDIR /app
 # Copy project files
 COPY pyproject.toml uv.lock package.json pnpm-lock.yaml index.js ./
 COPY memgraph/ ./memgraph/
-COPY main.py ./
 
 # Install dependencies and create venv
 RUN uv sync --frozen
@@ -29,7 +28,7 @@ RUN pnpm install && pnpm run build:web
 RUN mkdir -p /data
 
 # Create startup script
-RUN echo '#!/bin/bash\n\nsource .venv/bin/activate\nexec python main.py "$@"' > /app/start.sh && \
+RUN echo '#!/bin/bash\n\nsource .venv/bin/activate\nexec python -m memgraph run "$@"' > /app/start.sh && \
     chmod +x /app/start.sh
 
 # Set environment variables to indicate Docker container
