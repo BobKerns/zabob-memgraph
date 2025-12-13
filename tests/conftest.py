@@ -123,12 +123,13 @@ def test_server(port, tmp_path_factory):
     env["MEMGRAPH_DATABASE_PATH"] = str(db_path)
     env["MEMGRAPH_LOG_LEVEL"] = "WARNING"  # Reduce log noise in tests
 
-    # Start the server process using module execution
+    # Start the server process using main.py directly
     project_dir = Path(__file__).parent.parent
+    main_py = project_dir / "main.py"
 
     # Start the server process
     process = subprocess.Popen(
-        [sys.executable, "-m", "memgraph", "run", "--port", str(port)],
+        [sys.executable, str(main_py), "--port", str(port)],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
