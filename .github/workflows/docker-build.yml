@@ -86,7 +86,6 @@ jobs:
         name: docker-build-info
         path: build-info.json
 
-
     - name: Determine test tag
       id: test-tag
       run: |
@@ -99,7 +98,7 @@ jobs:
 
         # Run container
         docker run -d --name test-memgraph -p 6789:6789 \
-          $DOCKER_METADATA_OUTPUT_TAGS
+          $DOCKER_METADATA_OUTPUT_TAGS run
 
         # Wait for startup
         sleep 10

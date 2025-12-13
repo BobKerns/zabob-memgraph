@@ -53,10 +53,10 @@ Add to your Claude Desktop MCP config:
     "zabob-memgraph": {
       "command": "docker",
       "args": [
-        "run", "--rm", "-it", "--init",
-        "-p", "6789:6789",
-        "-v", "${HOME}/.zabob/memgraph:/app/.zabob/memgraph",
-        "bobkerns/zabob-memgraph:latest"
+        "run", "--rm", "-i",
+        "-v", "${HOME}/.zabob/memgraph:/data/.zabob/memgraph",
+        "bobkerns/zabob-memgraph:latest",
+        "run"
       ]
     }
   }
@@ -64,7 +64,17 @@ Add to your Claude Desktop MCP config:
 ```
 
 **HTTP mode (shareable across systems)**:
-See [DEPLOYMENT.md](DEPLOYMENT.md) for multi-system setup.
+
+```bash
+# Start HTTP server
+docker run -d --name zabob-memgraph \
+  -p 6789:6789 \
+  -v ${HOME}/.zabob/memgraph:/data/.zabob/memgraph \
+  bobkerns/zabob-memgraph:latest \
+  start --host 0.0.0.0 --port 6789
+```
+
+Then configure Claude Desktop to connect to `http://localhost:6789/mcp`
 
 **📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment options**
 
@@ -79,8 +89,11 @@ zabob-memgraph start
 # Start on specific port
 zabob-memgraph start --port 6789
 
-# Run in Docker
-zabob-memgraph start --docker --detach
+# Run in foreground (stdio mode or development)
+zabob-memgraph run
+
+# Run with auto-reload (development)
+zabob-memgraph run --reload
 
 # Check server status
 zabob-memgraph status
@@ -93,6 +106,29 @@ zabob-memgraph test
 
 # Stop server
 zabob-memgraph stop
+```
+
+### Docker Commands
+
+```bash
+# Run in foreground (stdio mode)
+docker run --rm -i \
+  -v ${HOME}/.zabob/memgraph:/data/.zabob/memgraph \
+  bobkerns/zabob-memgraph:latest \
+  run
+
+# Run as HTTP server (background)
+docker run -d --name zabob-memgraph \
+  -p 6789:6789 \
+  -v ${HOME}/.zabob/memgraph:/data/.zabob/memgraph \
+  bobkerns/zabob-memgraph:latest \
+  start --host 0.0.0.0 --port 6789
+
+# Run development commands in container
+docker run --rm -it \
+  -v $(pwd):/app \
+  bobkerns/zabob-memgraph:latest \
+  lint
 ```
 
 ### Development Commands

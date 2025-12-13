@@ -61,11 +61,10 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
     "zabob-memgraph": {
       "command": "docker",
       "args": [
-        "run", "--rm", "-it", "--init",
-        "-p", "6789:6789",
-        "-v", "${HOME}/.zabob/memgraph:/app/.zabob/memgraph",
+        "run", "--rm", "-i",
+        "-v", "${HOME}/.zabob/memgraph:/data/.zabob/memgraph",
         "bobkerns/zabob-memgraph:latest",
-        "stdio"
+        "run"
       ]
     }
   }
@@ -82,9 +81,6 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
 
 - Requires Docker
 - stdio mode limits sharing to local machine
-- **Note**: Port is still exposed for web UI access
-
-**Web UI Access**: http://localhost:6789 (even in stdio mode)
 
 ### 2. stdio with pipx/uvx (Minimal Installation)
 
@@ -142,10 +138,11 @@ version: '3.8'
 services:
   zabob-memgraph:
     image: bobkerns/zabob-memgraph:latest
+    command: ["start", "--host", "0.0.0.0", "--port", "6789"]
     ports:
       - "6789:6789"
     volumes:
-      - ~/.zabob/memgraph:/app/.zabob/memgraph
+      - ~/.zabob/memgraph:/data/.zabob/memgraph
     environment:
       - MEMGRAPH_HOST=0.0.0.0
       - MEMGRAPH_PORT=6789
@@ -155,6 +152,13 @@ services:
 
 # Start server
 docker-compose up -d
+
+# Or with docker run
+docker run -d --name zabob-memgraph \
+  -p 6789:6789 \
+  -v ${HOME}/.zabob/memgraph:/data/.zabob/memgraph \
+  bobkerns/zabob-memgraph:latest \
+  start --host 0.0.0.0 --port 6789
 
 # Access web UI
 open http://localhost:6789
@@ -478,9 +482,10 @@ cp -r ~/.zabob/memgraph ~/.zabob/memgraph.backup
 # Start Docker with volume mount
 docker run -d \
   -p 6789:6789 \
-  -v ~/.zabob/memgraph:/app/.zabob/memgraph \
+  -v ~/.zabob/memgraph:/data/.zabob/memgraph \
   --init \
-  bobkerns/zabob-memgraph:latest
+  bobkerns/zabob-memgraph:latest \
+  start --host 0.0.0.0 --port 6789
 
 # Data is automatically migrated!
 ```

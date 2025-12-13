@@ -14,6 +14,7 @@ Zabob Memgraph CLI
 Command-line interface for the Zabob Memgraph knowledge graph server.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -46,6 +47,7 @@ from memgraph.launcher import (
 console = Console()
 
 # Configuration
+IN_DOCKER = os.environ.get('DOCKER_CONTAINER') == '1'
 
 
 @click.group()
@@ -74,6 +76,11 @@ def start(
     ctx: click.Context, port: int | None, host: str, docker: bool, detach: bool
 ) -> None:
     """Start the Zabob Memgraph server"""
+    # In Docker, 'start' behaves like 'run' (foreground)
+    if IN_DOCKER:
+        ctx.invoke(run, port=port, host=host, reload=False)
+        return
+
     config_dir: Path = ctx.obj['config_dir']
 
     # Check if server is already running
@@ -166,6 +173,11 @@ def restart(
 @click.pass_context
 def open_browser(ctx: click.Context) -> None:
     """Open browser to the knowledge graph interface"""
+    if IN_DOCKER:
+        console.print("❌ Browser opening not available in Docker container")
+        console.print("Access the web UI from your host machine")
+        sys.exit(1)
+
     config_dir: Path = ctx.obj['config_dir']
 
     if not is_server_running(config_dir):
@@ -453,15 +465,19 @@ def clean() -> None:
 # Add commands to the CLI group
 cli.add_command(start)
 cli.add_command(run)  # Available in all modes (stdio, development, production)
-cli.add_command(stop)
-cli.add_command(restart)
-cli.add_command(status)
-cli.add_command(monitor)
-cli.add_command(test)
-cli.add_command(open_browser, name="open")
 
-# Add development commands if in dev environment
-if is_dev_environment():
+# Don't add process management commands in Docker
+if not IN_DOCKER:
+    cli.add_command(stop)
+    cli.add_command(restart)
+    cli.add_command(status)
+    cli.add_command(monitor)
+    cli.add_command(test)
+    cli.add_command(open_browser, name="open")
+
+# Add development commands only in local dev environment
+# (Not in Docker - no source code to operate on)
+if is_dev_environment() and not IN_DOCKER:
     cli.add_command(build)
     cli.add_command(lint)
     cli.add_command(format_code)
