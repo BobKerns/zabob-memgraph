@@ -70,6 +70,7 @@ jobs:
         tags: zabob-memgraph:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        builder: docker-container
 
     - name: Test Docker image
       run: |
