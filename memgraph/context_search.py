@@ -64,8 +64,8 @@ graph structure for contextual relevance.
 """
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Deque, Dict, List, Set, Tuple, Optional
 from enum import Enum
 
 
@@ -85,7 +85,7 @@ class SearchHead:
     with other heads to avoid duplicate work.
     """
     context_node_id: str
-    to_visit: Deque[Tuple[str, int]] = field(default_factory=deque)  # (node_id, distance)
+    to_visit: deque[tuple[str, int]] = field(default_factory=deque)  # (node_id, distance)
     status: SearchStatus = SearchStatus.ACTIVE
     nodes_explored: int = 0
 
@@ -112,8 +112,8 @@ class Context:
     Contexts can be saved, restored, and shared between agents.
     """
     name: str
-    node_ids: List[str]  # Ordered list of context nodes
-    search_params: Dict[str, int] = field(default_factory=lambda: {
+    node_ids: list[str]  # Ordered list of context nodes
+    search_params: dict[str, int] = field(default_factory=lambda: {
         "max_distance": 5,
         "steps_per_expansion": 10,
         "max_results": 100,
@@ -135,7 +135,7 @@ class ContextSearch:
 
     def __init__(
         self,
-        get_neighbors: Callable[[str], List[str]],
+        get_neighbors: Callable[[str], list[str]],
         match_query: Callable[[str, str], float],
     ) -> None:
         """
@@ -151,9 +151,9 @@ class ContextSearch:
     def search(
         self,
         context: Context,
-        query: Optional[str] = None,
-        resume_heads: Optional[List[SearchHead]] = None,
-    ) -> Tuple[List[SearchResult], List[SearchHead]]:
+        query: str | None = None,
+        resume_heads: list[SearchHead] | None = None,
+    ) -> tuple[list[SearchResult], list[SearchHead]]:
         """
         Execute parallel breadth-first search from context nodes.
 
@@ -163,12 +163,12 @@ class ContextSearch:
             resume_heads: Optional list of search heads to resume (for "search harder")
 
         Returns:
-            Tuple of (search results, pausable search heads)
+            tuple of (search results, pausable search heads)
         """
         # Initialize or resume search heads
         if resume_heads:
             heads = resume_heads
-            visited: Set[str] = set()
+            visited: set[str] = set()
             # Reconstruct visited set from heads
             for head in heads:
                 visited.add(head.context_node_id)
@@ -176,7 +176,7 @@ class ContextSearch:
             heads = [SearchHead(node_id) for node_id in context.node_ids]
             visited = set(context.node_ids)
 
-        results: List[SearchResult] = []
+        results: list[SearchResult] = []
         max_distance = context.search_params["max_distance"]
         steps_per_expansion = context.search_params["steps_per_expansion"]
         max_results = context.search_params["max_results"]
@@ -262,9 +262,9 @@ class ContextSearch:
 
     def _rank_results(
         self,
-        results: List[SearchResult],
+        results: list[SearchResult],
         limit: int,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Rank and limit results by relevance score."""
         results.sort(key=lambda r: r.relevance_score, reverse=True)
         return results[:limit]
@@ -279,13 +279,13 @@ class ContextManager:
 
     def __init__(self) -> None:
         """Initialize with empty context storage."""
-        self.contexts: Dict[str, Context] = {}
+        self.contexts: dict[str, Context] = {}
 
     def create_context(
         self,
         name: str,
-        initial_nodes: List[str],
-        search_params: Optional[Dict[str, int]] = None,
+        initial_nodes: list[str],
+        search_params: dict[str, int] | None = None,
     ) -> Context:
         """Create and store a new context."""
         if name in self.contexts:
@@ -305,11 +305,11 @@ class ContextManager:
             raise ValueError(f"Context '{name}' not found")
         return self.contexts[name]
 
-    def list_contexts(self) -> List[str]:
-        """List all saved context names."""
+    def list_contexts(self) -> list[str]:
+        """list all saved context names."""
         return list(self.contexts.keys())
 
-    def expand_context(self, name: str, additional_nodes: List[str]) -> Context:
+    def expand_context(self, name: str, additional_nodes: list[str]) -> Context:
         """Add nodes to an existing context."""
         context = self.get_context(name)
         context.node_ids.extend(additional_nodes)
