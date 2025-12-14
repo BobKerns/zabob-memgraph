@@ -19,7 +19,6 @@ import shutil
 import subprocess
 import sys
 import time
-from turtle import circle
 import webbrowser
 from pathlib import Path
 
