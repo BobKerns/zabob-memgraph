@@ -79,7 +79,10 @@ jobs:
       - publish_dockerhub
       - publish_pypi_test
       - publish_pypi_prod
-    if: always() && (needs.publish_pypi_test.result == 'success' || needs.publish_pypi_prod.result == 'success' || needs.publish_pypi_test.result == 'skipped' || needs.publish_pypi_prod.result == 'skipped')
+    if: |
+      always() &&
+      needs.publish_dockerhub.result == 'success' &&
+      (needs.publish_pypi_test.result == 'success' || needs.publish_pypi_prod.result == 'success' || needs.publish_pypi_test.result == 'skipped' || needs.publish_pypi_prod.result == 'skipped')
     runs-on: ubuntu-latest
 
     permissions:
