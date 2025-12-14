@@ -54,8 +54,7 @@ jobs:
 
     - name: Save metadata
       run: |
-        echo "IMAGE_TAGS=${{ steps.meta.outputs.tags }}" >> $GITHUB_ENV
-        echo "IMAGE_LABELS=${{ steps.meta.outputs.labels }}" >> $GITHUB_ENV
+        # Save full JSON metadata to file (supports multi-line)
         echo '${{ steps.meta.outputs.json }}' > metadata.json
 
     - name: Upload Metadata
