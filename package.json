@@ -18,7 +18,7 @@
     },
     "devDependencies": {
         "ajv": "^8.17.1",
-        "esbuild": "^0.24.0"
+        "esbuild": "^0.25.0"
     },
     "scripts": {
         "build:web": "esbuild memgraph/web-src/graph.js --bundle --format=esm --outfile=memgraph/web/graph.bundle.js --sourcemap --external:https://cdnjs.cloudflare.com/*"
