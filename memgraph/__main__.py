@@ -41,7 +41,6 @@ from memgraph.launcher import (
     start_local_server,
     DEFAULT_PORT,
     CONFIG_DIR,
-    DOCKER_IMAGE,
     DEFAULT_CONTAINER_NAME,
 )
 
@@ -96,9 +95,10 @@ def start(
         sys.exit(1)
 
     if docker:
-        start_docker_server(config_dir, port, host, detach, console, DOCKER_IMAGE)
+        start_docker_server(config_dir=config_dir, port=port, host=host, detach=detach,
+                            console=console, docker_image=image, container_name=name)
     else:
-        start_local_server(config_dir, port, host, console)
+        start_local_server(config_dir=config_dir, port=port, host=host, console=console)
 
 
 @click.command()
