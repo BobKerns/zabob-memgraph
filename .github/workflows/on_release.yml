@@ -79,6 +79,7 @@ jobs:
     uses: ./.github/workflows/dockerhub.yml
     with:
       image-tag: ${{ needs.build_docker.outputs.image-tag }}
+    secrets: inherit
 
   create-release:
     needs:
