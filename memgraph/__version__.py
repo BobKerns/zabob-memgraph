@@ -2,8 +2,7 @@
 Get the version number.
 '''
 
-from __future__ import annotations, _dynamic_import  # noqa: F407 E261 # type: ignore
-
+from __future__ import annotations
 from importlib.metadata import version, PackageNotFoundError
 
 __distribution__ = "zabob-memgraph"
