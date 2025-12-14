@@ -18,7 +18,7 @@ from memgraph.launcher import (
 )
 from memgraph.service import create_unified_app, main as run_server
 
-__version__ = "0.1.0"
+from memgraph.__version__ import __version__, __distribution__
 __all__ = [
     'backup_database',
     'create_unified_app',
@@ -34,4 +34,6 @@ __all__ = [
     'save_config',
     'start_docker_server',
     'start_local_server',
+    '__version__',
+    '__distribution__',
 ]
