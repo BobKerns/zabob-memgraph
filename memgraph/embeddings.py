@@ -1,0 +1,230 @@
+"""
+Embedding generation and management for semantic search.
+
+Provides abstract interface for embedding providers and concrete
+implementations for sentence transformers and OpenAI embeddings.
+"""
+
+from abc import ABC, abstractmethod
+from typing import List, Optional
+import logging
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+
+class EmbeddingProvider(ABC):
+    """
+    Abstract interface for embedding generation.
+
+    Providers convert text to dense vector representations for
+    semantic similarity search.
+    """
+
+    @abstractmethod
+    def generate(self, text: str) -> np.ndarray:
+        """
+        Generate embedding vector for a single text.
+
+        Args:
+            text: Input text to embed
+
+        Returns:
+            Embedding vector as numpy array
+        """
+        pass
+
+    @abstractmethod
+    def batch_generate(self, texts: List[str]) -> List[np.ndarray]:
+        """
+        Generate embeddings for multiple texts efficiently.
+
+        Args:
+            texts: List of input texts
+
+        Returns:
+            List of embedding vectors
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def dimensions(self) -> int:
+        """Embedding vector dimensions."""
+        pass
+
+    @property
+    @abstractmethod
+    def model_name(self) -> str:
+        """Model identifier string."""
+        pass
+
+
+class SentenceTransformerProvider(EmbeddingProvider):
+    """
+    Embedding provider using sentence-transformers library.
+
+    Runs locally, no API costs. Good default choice for most use cases.
+    """
+
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+        """
+        Initialize with a sentence transformer model.
+
+        Args:
+            model_name: HuggingFace model identifier
+                Default: all-MiniLM-L6-v2 (384 dims, ~80MB, good quality)
+        """
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise ImportError(
+                "sentence-transformers not installed. "
+                "Install with: uv add sentence-transformers"
+            )
+
+        self._model_name = model_name
+        logger.info(f"Loading sentence transformer model: {model_name}")
+        self.model = SentenceTransformer(model_name)
+        self._dimensions = self.model.get_sentence_embedding_dimension()
+        logger.info(f"Model loaded: {model_name} ({self._dimensions} dimensions)")
+
+    def generate(self, text: str) -> np.ndarray:
+        """Generate embedding for single text."""
+        return self.model.encode(text, convert_to_numpy=True)
+
+    def batch_generate(self, texts: List[str]) -> List[np.ndarray]:
+        """Generate embeddings in batch for efficiency."""
+        embeddings = self.model.encode(texts, convert_to_numpy=True)
+        return [embeddings[i] for i in range(len(texts))]
+
+    @property
+    def dimensions(self) -> int:
+        return self._dimensions
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
+
+class OpenAIEmbeddingProvider(EmbeddingProvider):
+    """
+    Embedding provider using OpenAI's embedding API.
+
+    Higher quality than local models but requires API key and has costs.
+    """
+
+    def __init__(
+        self,
+        model_name: str = "text-embedding-3-small",
+        api_key: Optional[str] = None,
+    ):
+        """
+        Initialize OpenAI embedding provider.
+
+        Args:
+            model_name: OpenAI embedding model
+                Options: text-embedding-3-small (1536 dims, cheap)
+                        text-embedding-3-large (3072 dims, better quality)
+            api_key: OpenAI API key (or set OPENAI_API_KEY env var)
+        """
+        try:
+            import openai
+        except ImportError:
+            raise ImportError(
+                "openai not installed. "
+                "Install with: uv add openai"
+            )
+
+        self._model_name = model_name
+        self.client = openai.OpenAI(api_key=api_key)
+
+        # Set dimensions based on model
+        if "3-small" in model_name:
+            self._dimensions = 1536
+        elif "3-large" in model_name:
+            self._dimensions = 3072
+        else:
+            self._dimensions = 1536  # Default
+
+        logger.info(f"Initialized OpenAI embeddings: {model_name}")
+
+    def generate(self, text: str) -> np.ndarray:
+        """Generate embedding via OpenAI API."""
+        response = self.client.embeddings.create(
+            model=self._model_name,
+            input=text,
+        )
+        return np.array(response.data[0].embedding)
+
+    def batch_generate(self, texts: List[str]) -> List[np.ndarray]:
+        """Generate embeddings in batch."""
+        response = self.client.embeddings.create(
+            model=self._model_name,
+            input=texts,
+        )
+        return [np.array(data.embedding) for data in response.data]
+
+    @property
+    def dimensions(self) -> int:
+        return self._dimensions
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
+
+# Global provider instance
+_provider: Optional[EmbeddingProvider] = None
+
+
+def get_embedding_provider() -> EmbeddingProvider:
+    """
+    Get the configured embedding provider.
+
+    Returns the global provider instance, initializing with defaults
+    if not yet configured.
+    """
+    global _provider
+    if _provider is None:
+        logger.info("No embedding provider configured, using default")
+        _provider = SentenceTransformerProvider()
+    return _provider
+
+
+def set_embedding_provider(provider: EmbeddingProvider) -> None:
+    """
+    Set the global embedding provider.
+
+    Args:
+        provider: Configured embedding provider instance
+    """
+    global _provider
+    _provider = provider
+    logger.info(f"Set embedding provider: {provider.model_name}")
+
+
+def configure_from_dict(config: dict) -> None:
+    """
+    Configure embedding provider from configuration dictionary.
+
+    Args:
+        config: Configuration dict with keys:
+            - provider: "sentence-transformers" or "openai"
+            - model: Model name
+            - api_key: (OpenAI only) API key
+    """
+    provider_type = config.get("provider", "sentence-transformers")
+    model = config.get("model")
+
+    if provider_type == "sentence-transformers":
+        model = model or "all-MiniLM-L6-v2"
+        provider = SentenceTransformerProvider(model_name=model)
+    elif provider_type == "openai":
+        model = model or "text-embedding-3-small"
+        api_key = config.get("api_key")
+        provider = OpenAIEmbeddingProvider(model_name=model, api_key=api_key)
+    else:
+        raise ValueError(f"Unknown provider type: {provider_type}")
+
+    set_embedding_provider(provider)
