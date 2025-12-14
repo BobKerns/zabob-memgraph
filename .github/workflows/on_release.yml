@@ -6,6 +6,9 @@ on:
           - 'v*'
           - 'test-v*'
 
+permissions:
+    contents: read
+    packages: write
 
 jobs:
   build_and_test:
