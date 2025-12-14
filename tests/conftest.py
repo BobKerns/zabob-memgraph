@@ -329,6 +329,7 @@ def node_js() -> Path:
         loc = os.getenv("NODEJS_PATH") or shutil.which("node")
         if loc is None:
             pytest.fail("Node.js executable not found in PATH - required for client.js tests")
+            raise RuntimeError("Unreachable")
         _node_js_path = Path(loc)
     return _node_js_path
 

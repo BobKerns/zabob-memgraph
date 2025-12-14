@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+<!-- markdownlint-disable-file MD024 -->
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -6,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Fixed
+
+- [#9 Test releases should be marked pre-release](https://github.com/BobKerns/zabob-memgraph/issues/9)
 
 ## [0.1.8] - 2025-12-14
 
@@ -18,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-12-14
 
 ### Added
+
 - Model Context Protocol (MCP) server for persistent knowledge graph storage
 - Interactive D3.js web visualization interface
 - Thread-safe SQLite backend with WAL mode for concurrent access
@@ -33,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-platform Docker builds (amd64, arm64)
 
 ### MCP Tools
+
 - `create_entities` - Create new entities with observations
 - `create_relations` - Create relationships between entities
 - `add_observations` - Add observations to existing entities
@@ -43,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `get_stats` - Get graph statistics
 
 ### Infrastructure
+
 - Automated testing with pytest and Playwright
 - Type checking with mypy (strict mode)
 - Linting with ruff
@@ -51,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web UI bundling with esbuild
 
 ### Documentation
+
 - Comprehensive README with quick start guide
 - Detailed deployment guide (DEPLOYMENT.md)
 - Usage patterns and examples (USAGE_PATTERNS.md)
@@ -58,11 +68,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker configuration examples
 
 ### Changed
+
 - Default host binding to 0.0.0.0 when running in Docker containers
 - Optimized Docker image with separate builder and runtime stages
 - Non-editable package installation for containerized deployments
 
 ### Fixed
+
 - Container networking issues with localhost binding
 - Docker health check reliability with retry loop
 - Port configuration consistency (6789 throughout)
