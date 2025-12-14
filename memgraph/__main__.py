@@ -71,7 +71,7 @@ def cli(ctx: click.Context, config_dir: Path) -> None:
 @click.option("--host", default="localhost", help="Host to bind to")
 @click.option("--docker", is_flag=True, help="Run using Docker")
 @click.option("--name", type=str, default=DEFAULT_CONTAINER_NAME, help="Docker container name")
-@click.option("--image", type=str, default=':latest', help="Docker image name and/or label,")
+@click.option("--image", type=str, default=':latest', help="Docker image name and/or label")
 @click.option("--detach", "-d", is_flag=True, help="Run in background (Docker only)")
 @click.pass_context
 def start(
