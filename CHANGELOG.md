@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2025-12-14
+
+> [Note]
+> Build failed to trigger.
+
 ### Fixed
+
+- #10 run --docker starts wrong
+- #14 Need to be able to specify --image with --docker
 
 - [#9 Test releases should be marked pre-release](https://github.com/BobKerns/zabob-memgraph/issues/9)
 
