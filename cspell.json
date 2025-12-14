@@ -21,6 +21,7 @@
     "esbuild",
     "eventsource",
     "executescript",
+    "FAISS",
     "fastapi",
     "fastmcp",
     "fspath",

@@ -6,7 +6,6 @@ native support for vector operations via the sqlite-vec extension.
 """
 
 import sqlite3
-from typing import List, Tuple, Optional
 import numpy as np
 from pathlib import Path
 
@@ -30,7 +29,7 @@ class VectorSQLiteStore(VectorStore):
             db_path: Path to SQLite database file
         """
         self.db_path = Path(db_path)
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._has_vec_extension = False
 
         self._init_db()
@@ -99,8 +98,8 @@ class VectorSQLiteStore(VectorStore):
 
     def batch_add(
         self,
-        entity_ids: List[str],
-        embeddings: List[np.ndarray],
+        entity_ids: list[str],
+        embeddings: list[np.ndarray],
         model_name: str,
     ) -> None:
         """Store multiple embeddings efficiently."""
@@ -111,7 +110,7 @@ class VectorSQLiteStore(VectorStore):
 
         # Prepare batch data
         batch_data = []
-        for entity_id, embedding in zip(entity_ids, embeddings):
+        for entity_id, embedding in zip(entity_ids, embeddings, strict=True):
             embedding_bytes = embedding.astype(np.float32).tobytes()
             dimensions = len(embedding)
             batch_data.append((entity_id, embedding_bytes, model_name, dimensions))
@@ -129,8 +128,8 @@ class VectorSQLiteStore(VectorStore):
         query_embedding: np.ndarray,
         k: int = 10,
         threshold: float = 0.0,
-        model_name: Optional[str] = None,
-    ) -> List[Tuple[str, float]]:
+        model_name: str | None = None,
+    ) -> list[tuple[str, float]]:
         """Search for similar vectors using cosine similarity."""
         conn = self._get_connection()
 
@@ -148,7 +147,7 @@ class VectorSQLiteStore(VectorStore):
             """)
 
         # Calculate similarities (pure Python for now)
-        results: List[Tuple[str, float]] = []
+        results: list[tuple[str, float]] = []
         query_norm = query_embedding.astype(np.float32)
 
         for row in cursor:
@@ -169,7 +168,7 @@ class VectorSQLiteStore(VectorStore):
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:k]
 
-    def get(self, entity_id: str) -> Optional[Tuple[np.ndarray, str]]:
+    def get(self, entity_id: str) -> tuple[np.ndarray, str] | None:
         """Retrieve embedding for an entity."""
         conn = self._get_connection()
 
@@ -202,7 +201,7 @@ class VectorSQLiteStore(VectorStore):
 
         return cursor.fetchone() is not None
 
-    def count(self, model_name: Optional[str] = None) -> int:
+    def count(self, model_name: str | None = None) -> int:
         """Count stored embeddings."""
         conn = self._get_connection()
 
@@ -226,6 +225,11 @@ class VectorSQLiteStore(VectorStore):
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
         """Context manager exit."""
         self.close()

@@ -6,7 +6,6 @@ implementations for sentence transformers and OpenAI embeddings.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 import logging
 import numpy as np
 
@@ -35,7 +34,7 @@ class EmbeddingProvider(ABC):
         pass
 
     @abstractmethod
-    def batch_generate(self, texts: List[str]) -> List[np.ndarray]:
+    def batch_generate(self, texts: list[str]) -> list[np.ndarray]:
         """
         Generate embeddings for multiple texts efficiently.
 
@@ -67,6 +66,9 @@ class SentenceTransformerProvider(EmbeddingProvider):
     Runs locally, no API costs. Good default choice for most use cases.
     """
 
+    _model_name: str
+    _dimensions: int
+
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         """
         Initialize with a sentence transformer model.
@@ -81,19 +83,21 @@ class SentenceTransformerProvider(EmbeddingProvider):
             raise ImportError(
                 "sentence-transformers not installed. "
                 "Install with: uv add sentence-transformers"
-            )
+            ) from None
 
         self._model_name = model_name
         logger.info(f"Loading sentence transformer model: {model_name}")
         self.model = SentenceTransformer(model_name)
-        self._dimensions = self.model.get_sentence_embedding_dimension()
+        dims = self.model.get_sentence_embedding_dimension()
+        assert dims is not None, "Model dimensions cannot be None"
+        self._dimensions = dims
         logger.info(f"Model loaded: {model_name} ({self._dimensions} dimensions)")
 
     def generate(self, text: str) -> np.ndarray:
         """Generate embedding for single text."""
         return self.model.encode(text, convert_to_numpy=True)
 
-    def batch_generate(self, texts: List[str]) -> List[np.ndarray]:
+    def batch_generate(self, texts: list[str]) -> list[np.ndarray]:
         """Generate embeddings in batch for efficiency."""
         embeddings = self.model.encode(texts, convert_to_numpy=True)
         return [embeddings[i] for i in range(len(texts))]
@@ -114,10 +118,13 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
     Higher quality than local models but requires API key and has costs.
     """
 
+    _model_name: str
+    _dimensions: int
+
     def __init__(
         self,
         model_name: str = "text-embedding-3-small",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ):
         """
         Initialize OpenAI embedding provider.
@@ -129,12 +136,12 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             api_key: OpenAI API key (or set OPENAI_API_KEY env var)
         """
         try:
-            import openai
+            import openai  # type: ignore[import-not-found]
         except ImportError:
             raise ImportError(
                 "openai not installed. "
                 "Install with: uv add openai"
-            )
+            ) from None
 
         self._model_name = model_name
         self.client = openai.OpenAI(api_key=api_key)
@@ -161,7 +168,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             logger.error(f"OpenAI embedding generation failed: {e}")
             raise RuntimeError(f"OpenAI embedding generation failed: {e}") from e
 
-    def batch_generate(self, texts: List[str]) -> List[np.ndarray]:
+    def batch_generate(self, texts: list[str]) -> list[np.ndarray]:
         """Generate embeddings in batch."""
         try:
             response = self.client.embeddings.create(
@@ -183,7 +190,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
 
 # Global provider instance
-_provider: Optional[EmbeddingProvider] = None
+_provider: EmbeddingProvider | None = None
 
 
 def get_embedding_provider() -> EmbeddingProvider:
@@ -212,7 +219,7 @@ def set_embedding_provider(provider: EmbeddingProvider) -> None:
     logger.info(f"Set embedding provider: {provider.model_name}")
 
 
-def configure_from_dict(config: dict) -> None:
+def configure_from_dict(config: dict[str, str | None]) -> None:
     """
     Configure embedding provider from configuration dictionary.
 
@@ -225,6 +232,7 @@ def configure_from_dict(config: dict) -> None:
     provider = config.get("provider", "sentence-transformers")
     model = config.get("model")
 
+    provider_instance: EmbeddingProvider
     if provider == "sentence-transformers":
         model = model or "all-MiniLM-L6-v2"
         provider_instance = SentenceTransformerProvider(model_name=model)

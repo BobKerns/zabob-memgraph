@@ -6,7 +6,6 @@ embedding vectors, with concrete implementations for SQLite.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional
 import numpy as np
 
 
@@ -41,8 +40,8 @@ class VectorStore(ABC):
         query_embedding: np.ndarray,
         k: int = 10,
         threshold: float = 0.0,
-        model_name: Optional[str] = None,
-    ) -> List[Tuple[str, float]]:
+        model_name: str | None = None,
+    ) -> list[tuple[str, float]]:
         """
         Search for similar vectors using cosine similarity.
 
@@ -58,7 +57,7 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def get(self, entity_id: str) -> Optional[Tuple[np.ndarray, str]]:
+    def get(self, entity_id: str) -> tuple[np.ndarray, str] | None:
         """
         Retrieve embedding for an entity.
 
@@ -94,7 +93,7 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def count(self, model_name: Optional[str] = None) -> int:
+    def count(self, model_name: str | None = None) -> int:
         """
         Count stored embeddings.
 
@@ -109,8 +108,8 @@ class VectorStore(ABC):
     @abstractmethod
     def batch_add(
         self,
-        entity_ids: List[str],
-        embeddings: List[np.ndarray],
+        entity_ids: list[str],
+        embeddings: list[np.ndarray],
         model_name: str,
     ) -> None:
         """
