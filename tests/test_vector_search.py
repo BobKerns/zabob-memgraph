@@ -5,7 +5,6 @@ Test vector storage and embedding generation.
 import tempfile
 from pathlib import Path
 import numpy as np
-import pytest
 
 from memgraph.embeddings import (
     SentenceTransformerProvider,

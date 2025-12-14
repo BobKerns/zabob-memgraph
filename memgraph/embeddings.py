@@ -151,19 +151,27 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
     def generate(self, text: str) -> np.ndarray:
         """Generate embedding via OpenAI API."""
-        response = self.client.embeddings.create(
-            model=self._model_name,
-            input=text,
-        )
-        return np.array(response.data[0].embedding)
+        try:
+            response = self.client.embeddings.create(
+                model=self._model_name,
+                input=text,
+            )
+            return np.array(response.data[0].embedding)
+        except Exception as e:
+            logger.error(f"OpenAI embedding generation failed: {e}")
+            raise RuntimeError(f"OpenAI embedding generation failed: {e}") from e
 
     def batch_generate(self, texts: List[str]) -> List[np.ndarray]:
         """Generate embeddings in batch."""
-        response = self.client.embeddings.create(
-            model=self._model_name,
-            input=texts,
-        )
-        return [np.array(data.embedding) for data in response.data]
+        try:
+            response = self.client.embeddings.create(
+                model=self._model_name,
+                input=texts,
+            )
+            return [np.array(data.embedding) for data in response.data]
+        except Exception as e:
+            logger.error(f"OpenAI batch embedding generation failed: {e}")
+            raise RuntimeError(f"OpenAI batch embedding generation failed: {e}") from e
 
     @property
     def dimensions(self) -> int:
@@ -214,17 +222,17 @@ def configure_from_dict(config: dict) -> None:
             - model: Model name
             - api_key: (OpenAI only) API key
     """
-    provider_type = config.get("provider", "sentence-transformers")
+    provider = config.get("provider", "sentence-transformers")
     model = config.get("model")
 
-    if provider_type == "sentence-transformers":
+    if provider == "sentence-transformers":
         model = model or "all-MiniLM-L6-v2"
-        provider = SentenceTransformerProvider(model_name=model)
-    elif provider_type == "openai":
+        provider_instance = SentenceTransformerProvider(model_name=model)
+    elif provider == "openai":
         model = model or "text-embedding-3-small"
         api_key = config.get("api_key")
-        provider = OpenAIEmbeddingProvider(model_name=model, api_key=api_key)
+        provider_instance = OpenAIEmbeddingProvider(model_name=model, api_key=api_key)
     else:
-        raise ValueError(f"Unknown provider type: {provider_type}")
+        raise ValueError(f"Unknown provider type: {provider}")
 
-    set_embedding_provider(provider)
+    set_embedding_provider(provider_instance)
