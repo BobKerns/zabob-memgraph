@@ -14,6 +14,8 @@
     },
     "cSpell.words": [
         "memgraph",
+        "modelcontextprotocol",
+        "pyproject",
         "sdist",
         "zabob"
     ],
@@ -39,6 +41,140 @@
             "description": "Zabob custom dictionary",
             "addWords": true
         }
-    ]
+    ],
+    "python.testing.autoTestDiscoverOnSavePattern": "test/**/*.py",
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "tests",
+        "-v",
+        "--tb=short"
+    ],
+    "python.analysis.typeCheckingMode": "standard"
+    },
+    "mcp": {
+        "servers": {
+            "zabob-memgraph": {
+                "type": "sse",
+                "url": "http://localhost:6789/mcp"
+            },
+            "my-mcp-server-873aa5db": {
+                "type": "stdio",
+                "command": "/Users/rwk/p/zabob/mcp-server/src/zabob/mcp/server.py",
+                "args": []
+            },
+            "MCP_DOCKER": {
+                "command": "docker",
+                "args": [
+                    "mcp",
+                    "gateway",
+                    "run"
+                ],
+                "type": "stdio"
+            },
+            "io.github.github/github-mcp-server": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/",
+                "headers": {
+                    "Authorization": "${input:Authorization}"
+                },
+                "gallery": "https://api.mcp.github.com",
+                "version": "0.24.0"
+            },
+            "huggingface/hf-mcp-server": {
+                "type": "http",
+                "url": "https://huggingface.co/mcp?login",
+                "gallery": "https://api.mcp.github.com",
+                "version": "1.0.0"
+            },
+            "microsoft/markitdown": {
+                "type": "stdio",
+                "command": "uvx",
+                "args": [
+                    "markitdown-mcp==0.0.1a4"
+                ],
+                "gallery": "https://api.mcp.github.com",
+                "version": "1.0.0"
+            },
+            "houdini-kb2": {
+                "command": "uvx",
+                "args": [
+                    "--from",
+                    "mcp-alchemy==2025.8.15.91819",
+                    "--refresh-package",
+                    "mcp-alchemy",
+                    "mcp-alchemy"
+                ],
+                "env": {
+                    "DB_URL": "sqlite:////Users/rwk/p/zabob-houdini/houdini_data2.db",
+                    "DB_ENGINE_OPTIONS": "${input:dbEngineOptions}",
+                    "CLAUDE_LOCAL_FILES_PATH": "${input:claudeLocalFilesPath}"
+                },
+                "type": "stdio"
+            },
+            "mcp-alchemy": {
+                "command": "uvx",
+                "args": [
+                    "--from",
+                    "mcp-alchemy==2025.8.15.91819",
+                    "--refresh-package",
+                    "mcp-alchemy",
+                    "mcp-alchemy"
+                ],
+                "env": {
+                    "DB_URL": "${input:dbUrl}",
+                    "DB_ENGINE_OPTIONS": "${input:dbEngineOptions}",
+                    "CLAUDE_LOCAL_FILES_PATH": "${input:claudeLocalFilesPath}"
+                },
+                "type": "stdio"
+            },
+            "github": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/"
+            },
+            "gh-actions": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/actions"
+            },
+            "gh-discussions": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/discussions"
+            },
+            "gh-git": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/git"
+            },
+            "gh-gists": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/gists"
+            },
+            "gh-issues": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/issues"
+            },
+            "gh-labels": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/labels"
+            },
+            "gh-projects": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/projects"
+            },
+            "gh-copilot": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/copilot"
+            },
+            "gh-copilot_spaces": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/copilot_spaces"
+            },
+            "gh-support": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/x/github_support_docs_search"
+            },
+            "sqlite-query": {
+                "command": "mcp-sqlite-tool",
+                "type": "stdio"
+            }
+        }
     }
 }

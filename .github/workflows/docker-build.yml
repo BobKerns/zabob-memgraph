@@ -1,0 +1,142 @@
+name: Build Docker
+
+on:
+    workflow_call:
+        outputs:
+          image-tag:
+            description: 'The built image tag'
+            value: ${{ jobs.build-and-test.outputs.image-tag }}
+
+env:
+  REGISTRY_GHCR: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.test-tag.outputs.tag }}
+
+    steps:
+
+    - name: Download Dockerfile
+      uses: actions/download-artifact@v7
+      with:
+          name: dockerfile
+
+    - name: Download Context
+      uses: actions/download-artifact@v7
+      with:
+          name: docker-context
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3.6.0
+      with:
+        registry: ${{ env.REGISTRY_GHCR }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3.11.1
+      with:
+        driver: docker-container
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5.10.0
+      with:
+        images: ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+
+    - name: Save metadata
+      run: |
+        # Save full JSON metadata to file (supports multi-line)
+        echo '${{ steps.meta.outputs.json }}' > metadata.json
+
+    - name: Upload Metadata
+      uses: actions/upload-artifact@v6
+      with:
+        name: docker-metadata
+        path: metadata.json
+
+    - name: Build and push to GHCR
+      id: build-and-push
+      uses: docker/build-push-action@v6.18.0
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Save Build Info
+      run: |
+        echo "imageid=${{ steps.build-and-push.outputs.metadata.json }}" >build-info.json
+
+
+    - name: Upload Build Info
+      uses: actions/upload-artifact@v6
+      with:
+        name: docker-build-info
+        path: build-info.json
+
+    - name: Determine test tag
+      id: test-tag
+      run: |
+        # Extract first tag from multi-line output
+        FIRST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
+        echo "tag=$FIRST_TAG" >> $GITHUB_OUTPUT
+
+    - name: Test Docker image from GHCR
+      run: |
+        # Use the first tag for testing
+        TEST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
+        echo "Testing with tag: $TEST_TAG"
+
+        # Pull the built image
+        docker pull "$TEST_TAG"
+
+        # Run container
+        docker run -d --name test-memgraph -p 6789:6789 \
+          "$TEST_TAG" run
+
+        # Wait for container to be ready (retry loop)
+        echo "Waiting for container to start..."
+        for i in {1..30}; do
+          if curl -sf http://localhost:6789/health > /dev/null 2>&1; then
+            echo "Container ready after $i seconds"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Container failed to start after 30 seconds"
+            docker logs test-memgraph
+            exit 1
+          fi
+          sleep 1
+        done
+
+        # Test health endpoint
+        curl -f http://localhost:6789/health || exit 1
+
+        # Test web UI
+        curl -f http://localhost:6789/ || exit 1
+
+        # Show logs
+        docker logs test-memgraph
+
+        # Cleanup
+        docker stop test-memgraph
+        docker rm test-memgraph

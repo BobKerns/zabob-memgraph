@@ -1,0 +1,131 @@
+name: Release
+
+on:
+    push:
+        tags:
+          - v*
+          - test-v*
+
+permissions:
+    contents: read
+    packages: write
+    id-token: write
+
+jobs:
+  build_and_test:
+    uses: ./.github/workflows/ci.yml
+
+  build_docker:
+    needs: build_and_test
+    uses: ./.github/workflows/docker-build.yml
+
+  publish_pypi_test:
+    needs:
+      - build_and_test
+      - build_docker
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/test-v')
+
+    permissions:
+      contents: read
+      id-token: write  # Required for trusted publishing
+
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/zabob-memgraph
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v7
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Publish to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1.13
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        print-hash: true
+
+  publish_pypi_prod:
+    needs:
+      - build_and_test
+      - build_docker
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/test-v')
+
+    permissions:
+      contents: read
+      id-token: write  # Required for trusted publishing
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/zabob-memgraph
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v7
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1.13
+      with:
+        print-hash: true
+
+  publish_dockerhub:
+    needs: build_docker
+    uses: ./.github/workflows/dockerhub.yml
+    with:
+      image-tag: ${{ needs.build_docker.outputs.image-tag }}
+    secrets: inherit
+
+  create-release:
+    needs:
+      - publish_dockerhub
+      - publish_pypi_test
+      - publish_pypi_prod
+    if: |
+      always() &&
+      needs.publish_dockerhub.result == 'success' &&
+      (needs.publish_pypi_test.result == 'success' || needs.publish_pypi_prod.result == 'success' || needs.publish_pypi_test.result == 'skipped' || needs.publish_pypi_prod.result == 'skipped')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Create GitHub Release
+      uses: actions/create-release@v1.1.4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        body: |
+          ## Zabob Memgraph ${{ github.ref_name }}
+
+          ### Installation
+
+          ```bash
+          pip install zabob-memgraph
+          ```
+
+          Or with Docker:
+
+          ```bash
+          docker pull bobkerns/zabob-memgraph:${{ github.ref_name }}
+          ```
+
+          ### Links
+
+          - [PyPI Package](https://pypi.org/project/zabob-memgraph/${{ github.ref_name }}/)
+          - [Docker Image (DockerHub)](https://hub.docker.com/r/bobkerns/zabob-memgraph)
+          - [Docker Image (GHCR)](https://github.com/BobKerns/zabob-memgraph/pkgs/container/zabob-memgraph)
+
+          ### What's Changed
+
+          See [CHANGELOG.md](https://github.com/BobKerns/zabob-memgraph/blob/main/CHANGELOG.md) for details.
+        draft: false
+        prerelease: false

@@ -22,3 +22,17 @@
 *.tar.bz2 filter=lfs diff=lfs merge=lfs -text
 # Photoshop
 *.psd filter=lfs diff=lfs merge=lfs -text
+
+*.py filter=fix-eol-eof
+*.js filter=fix-eol-eof
+*.css filter=fix-eol-eof
+*.html filter=fix-eol-eof
+*.md filter=fix-eol-eof
+*.json filter=fix-eol-eof
+*.yml filter=fix-eol-eof
+*.yaml filter=fix-eol-eof
+*.sh filter=fix-eol-eof eol=lf
+*.bat filter=fix-eol-eof eol=crlf
+*.cmd filter=fix-eol-eof eol=crlf
+*.ps1 filter=fix-eol-eof eol=crlf
+*.txt filter=fix-eol-eof

@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""
+Static web content server for knowledge graph visualization.
+
+Minimal FastAPI server focused solely on serving static web assets.
+Sibling to mcp_service.py - handles web content while MCP service handles data.
+"""
+
+from typing import Any
+from collections.abc import AsyncGenerator
+
+from pathlib import Path
+from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import uvicorn
+from contextlib import asynccontextmanager
+
+from memgraph.service_logging import (
+    service_setup_context,
+    service_async_context,
+    log_app_creation,
+    log_route_mounting,
+    log_server_start,
+    configure_uvicorn_logging
+)
+
+
+app = FastAPI(
+    title="Knowledge Graph Web Service",
+    description="Static content server for knowledge graph visualization",
+    version="1.0.0"
+)
+
+
+def setup_static_routes(static_dir: str = "web", service_logger: Any = None, target_app: Any = None) -> None:
+    """
+    Configure static file serving.
+
+    Args:
+        static_dir: Directory containing static web assets (default: "web")
+        service_logger: Logger instance for tracking setup
+        target_app: FastAPI app to configure (uses global app if None)
+    """
+    if target_app is None:
+        target_app = app
+
+    static_path = Path(static_dir)
+
+    if service_logger:
+        service_logger.logger.info(f"Setting up static routes for: {str(static_path)}")
+        service_logger.logger.info(f"Static path exists: {static_path.exists()}")
+        if static_path.exists():
+            contents = [str(p.name) for p in static_path.iterdir()]
+            service_logger.logger.info(f"Static path contents: {' | '.join(contents)}")
+
+    if not static_path.exists():
+        error_msg = f"Static directory not found: {static_path}"
+        if service_logger:
+            service_logger.logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+
+    # Mount static files directory
+    target_app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    if service_logger:
+        log_route_mounting(service_logger, "/static", str(static_dir))
+
+    # Serve index.html at root
+    @target_app.get("/")
+    async def serve_index() -> FileResponse:
+        index_path = static_path / "index.html"
+        if service_logger:
+            service_logger.logger.info(f"Serving index from: {str(index_path)}")
+            service_logger.logger.info(f"Index exists: {index_path.exists()}")
+        if not index_path.exists():
+            raise HTTPException(status_code=404, detail="index.html not found")
+        return FileResponse(index_path)
+
+    # Health check endpoint
+    @target_app.get("/health")
+    async def health_check() -> dict[str, str]:
+        return {"status": "healthy", "service": "web_service"}
+
+
+def create_app(static_dir: str = "web", service_logger: Any = None) -> FastAPI:
+    """
+    Create configured FastAPI application.
+
+    Args:
+        static_dir: Directory containing static web assets
+        service_logger: Logger instance for tracking app creation
+
+    Returns:
+        Configured FastAPI application
+    """
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        async with service_async_context(service_logger):
+            yield
+
+    app = FastAPI(
+        title="Knowledge Graph Web Service",
+        description="Static content server for knowledge graph visualization",
+        version="1.0.0",
+        lifespan=lifespan
+    )
+
+    if service_logger:
+        log_app_creation(service_logger, "web", {
+            "static_dir": static_dir,
+            "title": "Knowledge Graph Web Service"
+        })
+
+    setup_static_routes(static_dir, service_logger, app)
+    return app
+
+
+def main(
+    host: str = "localhost",
+    port: int = 6789,
+    static_dir: str = "web",
+    reload: bool = False,
+    log_file: str | None = None
+) -> int:
+    """
+    Run the web service.
+
+    Args:
+        host: Host to bind to (default: localhost)
+        port: Port to listen on (default: 6789)
+        static_dir: Directory containing static web assets (default: "web")
+        reload: Enable auto-reload for development (default: False)
+        log_file: Log file path (default: None, logs to stderr)
+    """
+    args = {
+        "host": host,
+        "port": port,
+        "static_dir": static_dir,
+        "reload": reload,
+        "log_file": log_file
+    }
+
+    with service_setup_context("web_service", args, log_file) as service_logger:
+        try:
+            # Use create_app instead of global app for better encapsulation
+            app_instance = create_app(static_dir, service_logger)
+            log_server_start(service_logger, host, port)
+
+            # Configure uvicorn logging to use same log file
+            uvicorn_config = configure_uvicorn_logging(log_file)
+
+            uvicorn.run(
+                app_instance,
+                host=host,
+                port=port,
+                log_level="info",
+                reload=reload,
+                **uvicorn_config
+            )
+            return 0
+
+        except FileNotFoundError as e:
+            service_logger.logger.error(f"Configuration error: {e}")
+            service_logger.logger.error(f"Please ensure the '{static_dir}' directory exists and contains web assets.")
+            return 1
+        except Exception as e:
+            service_logger.logger.error(f"Failed to start web service: {e}", exc_info=True)
+            return 1
+
+
+if __name__ == "__main__":
+    import click
+
+    @click.command()
+    @click.option("--host", default="localhost", help="Host to bind to")
+    @click.option("--port", type=int, default=6789, help="Port to listen on")
+    @click.option("--static-dir", default="web", help="Static files directory")
+    @click.option("--reload", is_flag=True, help="Enable auto-reload")
+    @click.option("--log-file", help="Log file path (default: stderr)")
+    def cli(host: str, port: int, static_dir: str, reload: bool, log_file: str | None) -> None:
+        """Knowledge Graph Web Service - Static content server."""
+        exit_code = main(
+            host=host,
+            port=port,
+            static_dir=static_dir,
+            reload=reload,
+            log_file=log_file
+        )
+
+        if exit_code:
+            exit(exit_code)
+
+    cli()

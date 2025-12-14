@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "click>=8.1.0",
-#     "requests>=2.32.0",
-#     "rich>=13.9.0",
+#     "click>=8.3.1",
+#     "requests>=2.32.5",
+#     "rich>=14.2.0",
 # ]
 # ///
 """
@@ -42,7 +42,7 @@ LAUNCHER_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/zabob-memg
               default=Path.home() / ".local" / "bin",
               help="Directory to install launcher script")
 @click.option("--config-dir", type=click.Path(path_type=Path),
-              default=Path.home() / ".zabob-memgraph",
+              default=Path.home() / ".zabob" / "memgraph",
               help="Configuration directory")
 @click.option("--check-deps", is_flag=True,
               help="Only check dependencies, don't install")
@@ -139,7 +139,7 @@ def check_dependencies(skip_docker: bool = False) -> bool:
     if shutil.which("uv"):
         try:
             result = subprocess.run(["uv", "--version"],
-                                  capture_output=True, text=True, check=True)
+                                    capture_output=True, text=True, check=True)
             version = result.stdout.strip()
             console.print(f"✅ uv {version}")
         except subprocess.CalledProcessError:
@@ -155,7 +155,7 @@ def check_dependencies(skip_docker: bool = False) -> bool:
         if shutil.which("docker"):
             try:
                 result = subprocess.run(["docker", "--version"],
-                                      capture_output=True, text=True, check=True)
+                                        capture_output=True, text=True, check=True)
                 version = result.stdout.strip()
                 console.print(f"✅ Docker available: {version}")
             except subprocess.CalledProcessError:
@@ -234,8 +234,8 @@ def create_initial_config(config_dir: Path) -> None:
 
     initial_config = {
         "version": "1.0",
-        "default_port": 8080,
-        "default_host": "localhost",
+        "port": 6789,
+        "host": "localhost",
         "mode": "auto",  # auto, stdio, server
         "docker_image": "zabob-memgraph:latest",
         "data_dir": str(config_dir / "data"),
@@ -253,7 +253,7 @@ def create_initial_config(config_dir: Path) -> None:
 
 @click.command()
 @click.option("--config-dir", type=click.Path(path_type=Path),
-              default=Path.home() / ".zabob-memgraph",
+              default=Path.home() / ".zabob" / "memgraph",
               help="Configuration directory")
 def uninstall(config_dir: Path):
     """Uninstall Zabob Memgraph"""
