@@ -61,7 +61,8 @@ jobs:
       name: dockerhub
 
     steps:
-    - name: Log in to GitHub Container Registry\n      uses: docker/login-action@v3.6.0
+    - name: Log in to GitHub Container Registry\
+      uses: docker/login-action@v3.6.0
       with:
         registry: ${{ env.REGISTRY_GHCR }}
         username: ${{ github.actor }}

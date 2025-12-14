@@ -2,6 +2,10 @@ name: Build Docker
 
 on:
     workflow_call:
+        outputs:
+          image-tag:
+            description: 'The built image tag'
+            value: ${{ jobs.build-and-test.outputs.image-tag }}
 
 env:
   REGISTRY_GHCR: ghcr.io
