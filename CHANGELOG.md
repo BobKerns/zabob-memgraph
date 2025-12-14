@@ -1,5 +1,5 @@
-![ZaBob Holodeck](docs/images/zabob-banner.jpg)
-<!-- markdownlint-disable-file MD024-->
+![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+<!-- markdownlint-disable-file MD024 -->
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -66,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Usage patterns and examples (USAGE_PATTERNS.md)
 - Claude Desktop integration instructions
 - Docker configuration examples
+
+### Changed
 
 - Default host binding to 0.0.0.0 when running in Docker containers
 - Optimized Docker image with separate builder and runtime stages
