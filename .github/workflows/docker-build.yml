@@ -14,6 +14,9 @@ jobs:
       contents: read
       packages: write
 
+    outputs:
+      image-tag: ${{ steps.test-tag.outputs.tag }}
+
     steps:
 
     - name: Download Dockerfile

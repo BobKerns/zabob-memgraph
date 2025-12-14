@@ -73,6 +73,8 @@ jobs:
   publish_dockerhub:
     needs: build_docker
     uses: ./.github/workflows/dockerhub.yml
+    with:
+      image-tag: ${{ needs.build_docker.outputs.image-tag }}
 
   create-release:
     needs:

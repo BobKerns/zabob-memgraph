@@ -2,6 +2,11 @@ name: Publish DockerHub
 
 on:
   workflow_call:
+    inputs:
+      image-tag:
+        description: 'Image tag to pull from GHCR'
+        required: true
+        type: string
 
 env:
   REGISTRY_GHCR: ghcr.io
@@ -25,7 +30,7 @@ jobs:
 
     - name: Pull from GHCR
       run: |
-        docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+        docker pull ${{ inputs.image-tag }}
 
     - name: Log in to DockerHub Test
       uses: docker/login-action@v3.6.0
@@ -36,7 +41,7 @@ jobs:
     - name: Tag and push to DockerHub Test
       run: |
         # Tag for test repository (no :latest)
-        docker tag ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+        docker tag ${{ inputs.image-tag }} \
           ${{ secrets.DOCKERHUB_TEST_USERNAME }}/zabob-memgraph-test:${{ github.ref_name }}
 
         # Push to test repository
@@ -56,8 +61,7 @@ jobs:
       name: dockerhub
 
     steps:
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3.6.0
+    - name: Log in to GitHub Container Registry\n      uses: docker/login-action@v3.6.0
       with:
         registry: ${{ env.REGISTRY_GHCR }}
         username: ${{ github.actor }}
@@ -65,7 +69,7 @@ jobs:
 
     - name: Pull from GHCR
       run: |
-        docker pull ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+        docker pull ${{ inputs.image-tag }}
 
     - name: Log in to DockerHub
       uses: docker/login-action@v3.6.0
@@ -83,11 +87,11 @@ jobs:
         MINOR="${MINOR%%.*}"
 
         # Tag for production repository
-        docker tag ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+        docker tag ${{ inputs.image-tag }} \
           ${{ secrets.DOCKERHUB_USERNAME }}/zabob-memgraph:${VERSION}
-        docker tag ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+        docker tag ${{ inputs.image-tag }} \
           ${{ secrets.DOCKERHUB_USERNAME }}/zabob-memgraph:${MAJOR}.${MINOR}
-        docker tag ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+        docker tag ${{ inputs.image-tag }} \
           ${{ secrets.DOCKERHUB_USERNAME }}/zabob-memgraph:latest
 
         # Push all tags
