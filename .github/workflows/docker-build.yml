@@ -90,16 +90,22 @@ jobs:
     - name: Determine test tag
       id: test-tag
       run: |
-        echo "tag=$DOCKER_METADATA_OUTPUT_TAGS" >> $GITHUB_OUTPUT
+        # Extract first tag from multi-line output
+        FIRST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
+        echo "tag=$FIRST_TAG" >> $GITHUB_OUTPUT
 
     - name: Test Docker image from GHCR
       run: |
+        # Use the first tag for testing
+        TEST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
+        echo "Testing with tag: $TEST_TAG"
+
         # Pull the built image
-        docker pull $DOCKER_METADATA_OUTPUT_TAGS
+        docker pull "$TEST_TAG"
 
         # Run container
         docker run -d --name test-memgraph -p 6789:6789 \
-          $DOCKER_METADATA_OUTPUT_TAGS run
+          "$TEST_TAG" run
 
         # Wait for container to be ready (retry loop)
         echo "Waiting for container to start..."
