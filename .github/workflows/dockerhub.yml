@@ -38,7 +38,7 @@ jobs:
 
     - name: Check secret access
       run: |
-            echo "✓ ${{ secrets.NOT_SECRET }} is accessible"
+            echo "✓ ${{ secrets.NOT_SECRET }} is accessible"  | sed 's/[-abcDEFghiJKklMNOPq]/*/g'
 
     - name: Log in to DockerHub Test
       uses: docker/login-action@v3.6.0
