@@ -20,7 +20,9 @@ jobs:
     uses: ./.github/workflows/docker-build.yml
 
   publish_pypi_test:
-    needs: build_and_test
+    needs:
+      - build_and_test
+      - build_docker
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/test-v')
 
@@ -46,7 +48,9 @@ jobs:
         print-hash: true
 
   publish_pypi_prod:
-    needs: build_and_test
+    needs:
+      - build_and_test
+      - build_docker
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/test-v')
 
