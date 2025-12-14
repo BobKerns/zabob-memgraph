@@ -321,12 +321,12 @@ def test(ctx: click.Context) -> None:
 # Development commands
 @click.command()
 @click.option('--port', type=int, default=None, help='Port to run on')
-@click.option('--host', default='localhost', help='Host to bind to')
+@click.option('--host', default=None, help='Host to bind to')
 @click.option(
     '--reload', is_flag=True, help='Enable auto-reload on code changes (dev only)'
 )
 @click.pass_context
-def run(ctx: click.Context, port: int | None, host: str, reload: bool) -> None:
+def run(ctx: click.Context, port: int | None, host: str | None, reload: bool) -> None:
     """Run server in foreground (for stdio mode or development)
 
     Unlike 'start', this runs the server in the foreground and blocks.
@@ -342,6 +342,10 @@ def run(ctx: click.Context, port: int | None, host: str, reload: bool) -> None:
 
     # Load config
     config = load_launcher_config(config_dir)
+
+    # Default host: 0.0.0.0 in Docker, localhost otherwise
+    if host is None:
+        host = '0.0.0.0' if IN_DOCKER else 'localhost'
 
     # If port explicitly specified, disable auto port finding
     if port is not None:
