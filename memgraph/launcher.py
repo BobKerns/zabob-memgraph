@@ -12,7 +12,8 @@ import psutil
 
 DEFAULT_PORT: Literal[6789] = 6789
 CONFIG_DIR: Path = Path.home() / ".zabob" / "memgraph"
-DOCKER_IMAGE: str = "zabob-memgraph:latest"
+DOCKER_IMAGE: str = "bobkerns/zabob-memgraph:latest"
+DEFAULT_CONTAINER_NAME: str = "zabob-memgraph"
 
 
 def find_free_port(start_port: int = DEFAULT_PORT) -> int:
@@ -47,6 +48,7 @@ def load_launcher_config(config_dir: Path) -> dict[str, Any]:
         "default_port": DEFAULT_PORT,
         "default_host": "localhost",
         "docker_image": DOCKER_IMAGE,
+        "container_name": DEFAULT_CONTAINER_NAME,
     }
 
     if config_file.exists():
@@ -192,10 +194,26 @@ def start_docker_server(
     host: str,
     detach: bool,
     console: Any,
-    docker_image: str = "zabob-memgraph:latest",
+    docker_image: str | None = None,
+    container_name: str | None = None,
 ) -> None:
     """Start the server using Docker"""
     launcher_config = load_launcher_config(config_dir)
+
+    match docker_image:
+        case None | "":
+            docker_image = launcher_config.get('docker_image', DOCKER_IMAGE)
+        case str() if docker_image.startswith(":"):
+            default = launcher_config.get('docker_image', DOCKER_IMAGE)
+            docker_image = f'{default.split(":")[0]}{docker_image}'
+        case _:
+            pass  # Use provided docker_image as is
+
+    match container_name:
+        case None | "":
+            _container_name = launcher_config.get('container_name', DEFAULT_CONTAINER_NAME)
+        case _:
+            _container_name = container_name  # Use provided container_name as is
 
     if port is None:
         port = launcher_config.get('port', DEFAULT_PORT)
@@ -206,8 +224,6 @@ def start_docker_server(
             launcher_config['port'] = port
             save_launcher_config(config_dir, launcher_config)
 
-    container_name = "zabob-memgraph"
-
     # Build Docker run command
     cmd = [
         'docker',
@@ -216,7 +232,7 @@ def start_docker_server(
         '--init',
         '-it' if not detach else '-d',
         '--name',
-        container_name,
+        _container_name,
         '-p',
         f'{port}:{port}',
         '-e',
@@ -253,7 +269,7 @@ def start_docker_server(
         sys.exit(1)
     except KeyboardInterrupt:
         console.print("\n👋 Stopping container...")
-        subprocess.run(['docker', 'stop', container_name], capture_output=True)
+        subprocess.run(['docker', 'stop', _container_name], capture_output=True)
         cleanup_server_info(config_dir)
 
 

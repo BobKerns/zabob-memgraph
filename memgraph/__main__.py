@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import time
+from turtle import circle
 import webbrowser
 from pathlib import Path
 
@@ -42,6 +43,7 @@ from memgraph.launcher import (
     DEFAULT_PORT,
     CONFIG_DIR,
     DOCKER_IMAGE,
+    DEFAULT_CONTAINER_NAME,
 )
 
 console = Console()
@@ -70,17 +72,19 @@ def cli(ctx: click.Context, config_dir: Path) -> None:
 @click.option("--port", type=int, help="Specific port to use")
 @click.option("--host", default="localhost", help="Host to bind to")
 @click.option("--docker", is_flag=True, help="Run using Docker")
+@click.option("--name", type=str, default=DEFAULT_CONTAINER_NAME, help="Docker container name")
+@click.option("--image", type=str, default=':latest', help="Docker image name and/or label,")
 @click.option("--detach", "-d", is_flag=True, help="Run in background (Docker only)")
 @click.pass_context
 def start(
-    ctx: click.Context, port: int | None, host: str, docker: bool, detach: bool
+    ctx: click.Context, port: int | None, host: str, docker: bool, detach: bool,
+    name: str, image: str
 ) -> None:
     """Start the Zabob Memgraph server"""
     # In Docker, 'start' behaves like 'run' (foreground)
     if IN_DOCKER:
         ctx.invoke(run, port=port, host=host, reload=False)
         return
-
     config_dir: Path = ctx.obj['config_dir']
 
     # Check if server is already running
