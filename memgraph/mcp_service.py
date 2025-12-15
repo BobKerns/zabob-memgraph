@@ -152,6 +152,8 @@ async def create_relations(relations: list[dict[str, Any]]) -> dict[str, Any]:
         "created": actual_created,
         "relations": [f"{r.get('source')} -> {r.get('target')}" for r in relations],
     }
+
+
 @mcp.tool
 async def add_observations(entity_name: str, observations: list[str]) -> dict[str, Any]:
     """

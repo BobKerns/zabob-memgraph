@@ -8,7 +8,7 @@ The `create_relations` MCP tool consistently reports successful creation (return
 
 Multiple calls to `create_relations` all reported success but relation count remained unchanged:
 
-```
+```text
 Initial state: 98 entities, 49 relations (ratio: 0.50)
 
 Call 1: create_relations with 20 relations
@@ -57,6 +57,7 @@ This bug was discovered during conversation about entity bias in AI systems and 
 ## Related Code
 
 Likely issue in:
+
 - `memgraph/mcp_service.py` - `create_relations` tool implementation
 - `memgraph/knowledge_live.py` - Relation persistence logic
 - `memgraph/sqlite_backend.py` - SQLite transaction handling
