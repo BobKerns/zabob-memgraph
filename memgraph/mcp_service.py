@@ -120,8 +120,38 @@ async def create_relations(relations: list[dict[str, Any]]) -> dict[str, Any]:
         dict: Result with count of relations created
     """
     logger.info(f"Creating {len(relations)} relations")
-    await DB.create_relations(relations)
-    return {"created": len(relations), "relations": [f"{r.get('source')} -> {r.get('target')}" for r in relations]}
+
+    # Map field names from MCP format to SQLite backend format
+    mapped_relations = [
+        {
+            "from_entity": r["source"],
+            "to": r["target"],
+            "relationType": r["relation"],
+        }
+        for r in relations
+    ]
+
+    # Get initial count for verification
+    initial_stats = await DB.get_stats()
+    initial_count = initial_stats.get("relation_count", 0)
+
+    # Create relations
+    await DB.create_relations(mapped_relations)
+
+    # Verify they were created
+    final_stats = await DB.get_stats()
+    final_count = final_stats.get("relation_count", 0)
+    actual_created = final_count - initial_count
+
+    if actual_created != len(relations):
+        logger.warning(
+            f"Expected to create {len(relations)} relations, but only {actual_created} were created"
+        )
+
+    return {
+        "created": actual_created,
+        "relations": [f"{r.get('source')} -> {r.get('target')}" for r in relations],
+    }
 
 
 @mcp.tool
