@@ -54,3 +54,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1.13
       with:
         print-hash: true
+        verbose: true
