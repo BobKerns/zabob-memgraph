@@ -12,6 +12,7 @@
     "Buildx",
     "clippy",
     "conftest",
+    "convo",
     "dockerhub",
     "docstrings",
     "domcontentloaded",

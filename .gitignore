@@ -86,3 +86,5 @@ memgraph/web/vendor/
 memory.json
 tests/out
 
+*-convo.md
+
