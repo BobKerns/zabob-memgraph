@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13] - 2025-12-16
+
+### New
+
+- Reworked configuration supports database location,container name, image name
+- `zabob-memgraph config` command to inspect the configuration
+- Better support for multiple servers
+- Support for servers with separate databases.
+
+### Fixed
+
+- Database backups were not happening.
+- Saved server information had wrong pid
+- Various inconsistencies in handling options
+
 ## [0.1.12] - 2025-12-14
 
 Fix build glitch, or get more info

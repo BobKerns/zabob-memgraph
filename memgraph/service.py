@@ -7,6 +7,8 @@ Mounts web routes onto FastMCP's HTTP app for integrated operation.
 
 from pathlib import Path
 from typing import Any
+
+from fastmcp import FastMCP
 import uvicorn
 import click
 
@@ -15,6 +17,7 @@ from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Route
 
 # Use absolute imports
+from memgraph.config import Config, default_config_dir, load_config
 import memgraph.mcp_service as mcp_service
 from memgraph.service_logging import (
     service_setup_context,
@@ -25,8 +28,13 @@ from memgraph.service_logging import (
     ServiceLogger,
 )
 
+from memgraph.__main__ import IN_DOCKER
 
-def create_unified_app(static_dir: str = "memgraph/web", service_logger: ServiceLogger | None = None) -> Any:
+
+def create_unified_app(config: Config,
+                       static_dir: Path | str = Path(__file__).parent / "web",
+                       service_logger: ServiceLogger | None = None,
+                       ) -> Any:
     """
     Create unified application with both web and MCP routes.
 
@@ -39,8 +47,9 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger: Service
     Returns:
         Configured Starlette/FastAPI application with both route collections
     """
+    mcp: FastMCP = mcp_service.setup_mcp(config)
     # Start with FastMCP's HTTP app which provides /mcp endpoint
-    app = mcp_service.mcp.http_app()
+    app = mcp.http_app()
 
     # Add CORS middleware to allow requests from browsers
     from starlette.middleware.cors import CORSMiddleware as StarletteCORS
@@ -64,7 +73,7 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger: Service
     static_path = Path(static_dir)
 
     if not static_path.exists():
-        error_msg = f"Static directory not found: {static_path}"
+        error_msg = f"Static directory not found: {static_path.resolve()}"
         if service_logger:
             service_logger.logger.error(error_msg)
         raise FileNotFoundError(error_msg)
@@ -101,13 +110,12 @@ def create_unified_app(static_dir: str = "memgraph/web", service_logger: Service
 
 
 # Create app at module level for uvicorn auto-reload
-app = create_unified_app()
+app = create_unified_app(load_config(default_config_dir()))
 
 
 def main(
-    host: str = "localhost",
-    port: int = 6789,
-    static_dir: str = "memgraph/web",
+    config: Config = load_config(default_config_dir()),
+    static_dir: Path | str = Path(__file__).parent / "web",
     log_file: str | None = None
 ) -> int:
     """
@@ -119,17 +127,21 @@ def main(
         static_dir: Directory containing static web assets (default: memgraph/web)
         log_file: Log file path (default: None, logs to stderr)
     """
+    host = config['host']
+    port = config['port']
     args = {"host": host, "port": port, "static_dir": static_dir, "log_file": log_file}
 
     with service_setup_context("unified_service", args, log_file) as service_logger:
         try:
-            app = create_unified_app(static_dir, service_logger)
+            app = create_unified_app(config, static_dir, service_logger)
             log_server_start(service_logger, host, port)
+            if not IN_DOCKER:
+                service_logger.logger.info("Running inside Docker container")
 
             # Configure uvicorn logging to use same log file
             uvicorn_config = configure_uvicorn_logging(log_file)
 
-            uvicorn.run(app, host=host, port=port, log_level="info", **uvicorn_config)
+            uvicorn.run(app, workers=1, host=host, port=port, log_level="info", **uvicorn_config)
             return 0
 
         except FileNotFoundError as e:
@@ -146,11 +158,19 @@ if __name__ == "__main__":
     @click.command()
     @click.option("--host", default="localhost", help="Host to bind to")
     @click.option("--port", type=int, default=6789, help="Port to listen on")
-    @click.option("--static-dir", default="memgraph/web", help="Static files directory")
+    @click.option("--static-dir", default=None, help="Static files directory")
     @click.option("--log-file", help="Log file path (default: stderr)")
-    def cli(host: str, port: int, static_dir: str, log_file: str | None) -> None:
+    @click.option("--config-dir", type=Path, default=None, help="Configuration directory")
+    def cli(host: str, port: int, static_dir: str | None, log_file: str | None,
+            config_dir: Path | None) -> None:
         """Knowledge Graph Unified Service - Web + MCP on single port."""
-        exit_code = main(host=host, port=port, static_dir=static_dir, log_file=log_file)
+        if static_dir is None:
+            static_path = Path(__file__).parent / "web"
+        else:
+            static_path = Path(static_dir)
+        config_dir = config_dir or default_config_dir()
+        config = load_config(config_dir, port=port, host=host)
+        exit_code = main(config, static_dir=static_path, log_file=log_file)
 
         if exit_code:
             exit(exit_code)

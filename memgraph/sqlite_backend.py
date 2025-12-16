@@ -13,6 +13,9 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+from memgraph.config import Config
+from memgraph.backup import backup_database
+
 
 @dataclass
 class EntityRecord:
@@ -38,29 +41,51 @@ class SQLiteKnowledgeGraphDB:
     """
     SQLite-based knowledge graph database with MCP import functionality.
     """
+    _lock: asyncio.Lock
+    db_path: Path
+    """Location of the SQLite database file"""
+    min_backups: int
+    """Minimum number of backups to keep"""
+    min_age: int
+    """Minimum age of backups to keep in days"""
+    backup_on_start: bool
+    """Whether to perform a backup on startup"""
 
-    def __init__(self, db_path: str | None = None):
-        # Get database path from environment or parameter
-        if db_path is None:
-            db_path = os.getenv('MEMGRAPH_DATABASE_PATH', 'knowledge_graph.db')
-
-        # Ensure we use absolute path to avoid working directory issues
-        if not Path(db_path).is_absolute():
-            # Use the directory of this file as the base for relative paths
-            base_dir = Path(__file__).parent.parent  # Go up to project root
-            self.db_path = base_dir / db_path
-        else:
-            self.db_path = Path(db_path)
-
-        # Ensure the database directory exists
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, config: Config | None = None,
+                 db_path: str | Path | None = None,
+                 min_backups: int = 5,
+                 min_age: int = 7,
+                 backup_on_start: bool = True) -> None:
 
         self._lock = asyncio.Lock()
-        print(f"SQLite database path: {self.db_path.absolute()}")
+        if config:
+            db_path = config.get("database_path", db_path)
+            min_backups = config.get("max_backups", min_backups)
+            min_age = config.get("backup_age_days", min_age)
+            backup_on_start = config.get("backup_on_start", backup_on_start)
+
+        # Get database path from environment or parameter
+        if db_path is None:
+            config_dir = Path.home() / ".zabob" / "memgraph"
+            db_path = config_dir / "data" / "knowledge_graph.db"
+            db_path = Path(os.getenv('MEMGRAPH_DATABASE_PATH', str(db_path)))
+            if not db_path.is_absolute():
+                raise ValueError("MEMGRAPH_DATABASE_PATH must be an absolute path")
+
+        # If the user provided a relative path, it's relative to current working directory
+        # Resolve it now.
+        self.db_path = Path(db_path).resolve()
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        self.min_backups = min_backups
+        self.min_age = min_age
+        self.backup_on_start = backup_on_start
+
         self._init_db()
 
     def _init_db(self) -> None:
         """Initialize the database schema"""
+        self.backup_database()
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript(
                 """
@@ -156,6 +181,14 @@ class SQLiteKnowledgeGraphDB:
             )
             self._ensure_schema_version(conn)
             self._ensure_schema_version(conn)
+
+    def backup_database(self) -> None:
+        """Create a backup of the database"""
+        backup_database(
+            self.db_path,
+            min_backups=self.min_backups,
+            min_age=self.min_age,
+        )
 
     def _ensure_schema_version(self, conn: sqlite3.Connection) -> None:
         """Ensure schema is at the correct version"""
@@ -632,7 +665,3 @@ class SQLiteKnowledgeGraphDB:
                         print(f"Failed to create relation {relation}: {e}")
 
                 conn.commit()
-
-
-# Create the SQLite knowledge graph database instance
-sqlite_knowledge_db = SQLiteKnowledgeGraphDB()

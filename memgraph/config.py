@@ -4,9 +4,31 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import NotRequired, TypedDict, Literal, cast
 
 
-def get_config_dir() -> Path:
+DEFAULT_PORT: Literal[6789] = 6789
+CONFIG_DIR: Path = Path.home() / ".zabob" / "memgraph"
+DOCKER_IMAGE: str = "bobkerns/zabob-memgraph:latest"
+DEFAULT_CONTAINER_NAME: str = "zabob-memgraph"
+
+
+class Config(TypedDict, total=True):
+    """Configuration structure for Zabob Memgraph"""
+    port: int
+    host: str
+    docker_image: NotRequired[str | None]
+    container_name: NotRequired[str | None]
+    log_level: str
+    backup_on_start: bool
+    max_backups: int
+    data_dir: Path
+    database_path: Path
+    config_dir: Path
+    config_file: NotRequired[Path | None]
+
+
+def default_config_dir() -> Path:
     """Get configuration directory from environment or default
 
     This directory is shared between host and container for daemon
@@ -19,45 +41,50 @@ def get_config_dir() -> Path:
     return Path(config_dir)
 
 
-def get_database_path() -> Path:
-    """Get database path from environment or default"""
-    db_path = os.getenv('MEMGRAPH_DATABASE_PATH')
-    if db_path:
-        return Path(db_path)
-
-    # Default to config directory data folder
-    config_dir = get_config_dir()
-    return config_dir / "data" / "knowledge_graph.db"
-
-
-def load_config() -> dict[str, str | int | bool]:
-    """Load configuration from file or return defaults"""
-    config_dir = get_config_dir()
+def load_config(config_dir: Path, **settings: None | int | str | Path | bool) -> Config:
+    """Load launcher configuration from file or return defaults"""
     config_file = config_dir / "config.json"
 
-    defaults: dict[str, str | int | bool] = {
+    defaults: Config = {
+        "port": DEFAULT_PORT,
         "host": "localhost",
-        "port": 6789,
+        "docker_image": DOCKER_IMAGE,
+        "container_name": DEFAULT_CONTAINER_NAME,
         "log_level": "INFO",
         "backup_on_start": True,
         "max_backups": 5,
-        "data_dir": str(config_dir / "data"),
+        "config_dir": config_dir,
+        "data_dir": config_dir / "data",
+        "database_path": config_dir / "data" / "knowledge_graph.db",
     }
+
+    settings = {k: v for k, v in settings.items() if v is not None}
 
     if config_file.exists():
         try:
             with open(config_file) as f:
-                user_config = json.load(f)
-                defaults.update(user_config)
-        except Exception as e:
-            logging.warning(f"Could not load config file: {e}")
+                user_config: Config = json.load(f)
+                return cast(Config, {
+                    **defaults,
+                    **user_config,
+                    **settings,
+                    # Not settable by config file
+                    "config_file": config_file,
+                    "config_dir": config_dir,
+                })
+        except Exception:
+            pass
 
-    return defaults
+    return cast(Config, {
+        **defaults,
+        **settings,
+        # Not settable by config file
+        "config_dir": config_dir,
+    })
 
 
-def save_config(config: dict[str, str | int | bool]) -> None:
+def save_config(config_dir: Path, config: Config) -> None:
     """Save configuration to file"""
-    config_dir = get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / "config.json"
 

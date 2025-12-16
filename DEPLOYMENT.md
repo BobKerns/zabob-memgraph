@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+
 # Zabob Memgraph Deployment Guide
 
 Complete guide for deploying Zabob Memgraph in various configurations.
@@ -10,6 +12,8 @@ Zabob Memgraph supports multiple deployment patterns to fit different use cases:
 - **HTTP server mode**: For web UI access and API endpoints
 - **Docker**: For containerized deployments
 - **Local**: For development and single-user scenarios
+
+For all of these, sharing between all configured agents is the default. Separating them is as easy as choosing a different database location and network port.
 
 ## Understanding Server Modes
 

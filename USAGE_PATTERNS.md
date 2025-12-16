@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+
 # Zabob Memgraph Usage Patterns
 
 ## Three Ways to Use Zabob Memgraph

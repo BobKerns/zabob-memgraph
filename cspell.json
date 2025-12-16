@@ -36,6 +36,7 @@
     "isort",
     "lastrowid",
     "levelname",
+    "lifecyle",
     "markdownlint",
     "mcpdev",
     "memgrap",
@@ -43,6 +44,7 @@
     "modelcontextprotocol",
     "mypy",
     "networkidle",
+    "nullspace",
     "onexc",
     "pipx",
     "pkce",
@@ -62,6 +64,7 @@
     "Queryability",
     "rels",
     "Resumability",
+    "riscv",
     "Sandboxed",
     "sarif",
     "sdist",
@@ -77,6 +80,7 @@
     "uvloop",
     "uvx",
     "watchfiles",
+    "Xfrozen",
     "zabob"
   ],
   "ignorePaths": [

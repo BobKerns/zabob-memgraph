@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server for persistent knowledge graph storage wit
 
 **📖 See [USAGE_PATTERNS.md](USAGE_PATTERNS.md) for usage examples**
 
-Imagine a future where your AI assistant not only can talk to you, but can remember important things, and can show you everything it remembers.
+Imagine a future where each AI assistant not only can talk to you, but can remember important things, and can show you everything it remembers, even share it with the other agents on the team—instantly!
 
 ![zabob](docs/images/zabob-faviicon.png) Zabob remembers this future! Give him your plans and dreams, and he will remember not just the dream, but the journey to get there, even through the darkest nullspace.
 
@@ -16,8 +16,25 @@ Imagine a future where your AI assistant not only can talk to you, but can remem
 
 ## Features
 
+Zabob Memgraph is designed from the ground up for sharing knowledge between simultaneous sessions/agents, and even across multiple physical systems.
+
+Key features include:
+
+- **Shared knowledge bases/Multiple knowledge bases**
+- **Built-in visualization tool, to monitor the agent's saved knowledge**
+- **Full Text Search (by agent or by user via the visualization)**
+- **Semantic search is coming soon**
+- **Hybrid contextual search coming soon after**
+- **Simple setup and usage**
+  - Multi-agent support requires no additional configuration
+  - Separate knowledge bases is as simple as specifying a different location for the database.
+
+Hybrid contextual search is designed to leverage the combined power of the knowledge graph and semantic search, to allow task-focused results in large knowledge graph spaces.
+
+More details:
+
 - **MCP Protocol** - Standard Model Context Protocol for AI assistant integration
-- **Multiple Transports** - HTTP/SSE for server mode, stdio for Claude Desktop
+- **Multiple Transports** - HTTP/SSE for server mode, stdio for Claude Desktop or VSCode
 - **Thread-safe SQLite backend** - WAL mode for concurrent access without locking
 - **Interactive D3.js visualization** - Real-time graph exploration via web UI
 - **Docker deployment** - Multiple deployment patterns (HTTP server, stdio, local)
@@ -199,7 +216,8 @@ The `config.json` file supports these options:
   "log_level": "INFO",
   "backup_on_start": true,
   "max_backups": 5,
-  "data_dir": "~/.zabob/memgraph/data"
+  "data_dir": "~/.zabob/memgraph/data",
+  "database_file": "~/.zabob/memgraph/data/knowledge_base.db"
 }
 ```
 
