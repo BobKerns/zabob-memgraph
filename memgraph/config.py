@@ -5,7 +5,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict, Literal, cast, TypeVar, overload
+from typing import Any, NotRequired, TypedDict, Literal, cast, overload
 
 
 DEFAULT_PORT: Literal[6789] = 6789
@@ -45,18 +45,18 @@ def default_config_dir() -> Path:
     return Path(config_dir)
 
 
-T = TypeVar('T')
+# T = TypeVar('T')
 
 
 @overload
-def match_type(value: None, expected_type: type[T]) -> None: ...
+def match_type[T](value: None, expected_type: type[T]) -> None: ...
 
 
 @overload
-def match_type(value: object, expected_type: type[T]) -> T: ...
+def match_type[T](value: object, expected_type: type[T]) -> T: ...
 
 
-def match_type(value: object, expected_type: type[T]) -> T | None:
+def match_type[T](value: object, expected_type: type[T]) -> T | None:
     """
     Helper to match and cast types for TypedDicts.
 
@@ -72,7 +72,7 @@ def match_type(value: object, expected_type: type[T]) -> T | None:
     if value is None:
         return None
     if isinstance(value, expected_type):
-        return cast(T, value)
+        return value
     constructor = cast(Callable[[Any], T], expected_type)
     return constructor(value)
 

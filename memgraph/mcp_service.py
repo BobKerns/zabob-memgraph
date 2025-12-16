@@ -34,8 +34,7 @@ def setup_mcp(config: Config) -> FastMCP:
     mcp = FastMCP(
         name="Zabob Memgraph Knowledge Graph Server",
         instructions="A FastAPI application for Memgraph with a web interface.",
-        lifespan=get_lifespan_hook(config),
-        log_level=config.get('log_level', "INFO").upper(),
+        lifespan=get_lifespan_hook(config)
     )
     DB = SQLiteKnowledgeGraphDB(config)
 

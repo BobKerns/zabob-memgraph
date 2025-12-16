@@ -119,6 +119,7 @@ jobs:
           -p 127.0.0.1:6789:6789 \
           -e MEMGRAPH_LOG_LEVEL=DEBUG \
           -e UVICORN_LOG_LEVEL=debug \
+          --network host \
           "$TEST_TAG" run --access-log --log-level debug
 
         # Give it a moment to start binding
