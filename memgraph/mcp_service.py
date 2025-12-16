@@ -269,7 +269,7 @@ def setup_mcp(config: Config) -> FastMCP:
     return mcp
 
 
-def get_lifespan_hook(config: Config) -> Lifespan:
+def get_lifespan_hook(config: Config) -> Lifespan[Any]:
     """
     Create an async lifespan hook for the FastMCP application.
     """

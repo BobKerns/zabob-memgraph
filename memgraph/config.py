@@ -21,7 +21,8 @@ class Config(TypedDict, total=True):
     container_name: NotRequired[str | None]
     log_level: str
     backup_on_start: bool
-    max_backups: int
+    min_backups: int
+    backup_age_days: int
     data_dir: Path
     database_path: Path
     config_dir: Path
@@ -52,7 +53,8 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
         "container_name": DEFAULT_CONTAINER_NAME,
         "log_level": "INFO",
         "backup_on_start": True,
-        "max_backups": 5,
+        "min_backups": 5,
+        "backup_age_days": 30,
         "config_dir": config_dir,
         "data_dir": config_dir / "data",
         "database_path": config_dir / "data" / "knowledge_graph.db",
@@ -65,7 +67,7 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
             with open(config_file) as f:
                 raw_user_config = json.load(f)
                 user_config = {
-                    k: (Path(v) if isinstance(defaults[k], Path) else v)
+                    k: (Path(v) if isinstance(defaults[k], Path) else v)  #  type: ignore[literal-required]
                     for k, v in raw_user_config.items()
                     if v is not None
                     and k in defaults
