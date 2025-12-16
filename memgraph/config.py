@@ -57,7 +57,7 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
         "backup_age_days": 30,
         "config_dir": config_dir,
         "data_dir": config_dir / "data",
-        "database_path": config_dir / "data" / "knowledge_graph.db",
+        "database_path": Path(os.getenv("MEMGRAPH_DATABASE_PATH", config_dir / "data" / "knowledge_graph.db")),
     }
 
     settings = {k: v for k, v in settings.items() if v is not None}
@@ -67,7 +67,7 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
             with open(config_file) as f:
                 raw_user_config = json.load(f)
                 user_config = {
-                    k: (Path(v) if isinstance(defaults[k], Path) else v)  #  type: ignore[literal-required]
+                    k: (Path(v) if isinstance(defaults[k], Path) else v)  # type: ignore[literal-required]
                     for k, v in raw_user_config.items()
                     if v is not None
                     and k in defaults
