@@ -1,5 +1,5 @@
 ![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
-
+<!-- markdownlint-disable-file MD036 -->
 # Zabob Memgraph Usage Patterns
 
 ## Three Ways to Use Zabob Memgraph

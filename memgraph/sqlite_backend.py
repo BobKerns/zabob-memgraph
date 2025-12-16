@@ -61,7 +61,7 @@ class SQLiteKnowledgeGraphDB:
         if config:
             db_path = config.get("database_path", db_path)
             min_backups = config.get("max_backups", min_backups)
-            min_age = config.get("backup_age_days", min_age)
+            min_age = int(config.get("backup_age_days", min_age))
             backup_on_start = config.get("backup_on_start", backup_on_start)
 
         # Get database path from environment or parameter

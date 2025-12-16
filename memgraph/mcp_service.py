@@ -3,6 +3,7 @@
 A FastAPI application for Memgraph with a web interface.
 """
 
+from collections.abc import AsyncGenerator
 import atexit
 from contextlib import asynccontextmanager
 from typing import Any
@@ -11,6 +12,7 @@ import logging
 import os
 import webbrowser
 from pathlib import Path
+from starlette.types import Lifespan
 from fastapi import FastAPI
 from fastmcp import FastMCP
 
@@ -267,9 +269,12 @@ def setup_mcp(config: Config) -> FastMCP:
     return mcp
 
 
-def get_lifespan_hook(config: Config):
+def get_lifespan_hook(config: Config) -> Lifespan:
+    """
+    Create an async lifespan hook for the FastMCP application.
+    """
     @asynccontextmanager
-    async def lifecyle_hook(app: FastAPI):
+    async def lifecyle_hook(app: FastAPI) -> AsyncGenerator[None, Any]:
         """Example of an async lifecycle hook for the unified app."""
 
         info_file = save_server_info(config['config_dir'],
@@ -288,6 +293,7 @@ def get_lifespan_hook(config: Config):
             yield
         finally:
             info_file.unlink(missing_ok=True)
+    return lifecyle_hook
 
 
 if __name__ == "__main__":

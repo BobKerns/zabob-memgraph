@@ -33,6 +33,7 @@ Hybrid contextual search is designed to leverage the combined power of the knowl
 
 More details:
 
+- **Zero-install options via `uvx` or `docker`
 - **MCP Protocol** - Standard Model Context Protocol for AI assistant integration
 - **Multiple Transports** - HTTP/SSE for server mode, stdio for Claude Desktop or VSCode
 - **Thread-safe SQLite backend** - WAL mode for concurrent access without locking

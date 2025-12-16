@@ -40,10 +40,10 @@ def backup_database(db_path: Path,
                 key=lambda x: x.stat().st_mtime,
                 reverse=True,
             )
-            now = time.time()
+            now_time = time.time()
             candidates = backups[min_backups:]
             for backup in candidates:
-                age_days = (now - backup.stat().st_mtime) / (24 * 3600)
+                age_days = (now_time - backup.stat().st_mtime) / (24 * 3600)
                 if age_days >= min_age:
                     backup.unlink()
                     logging.info(f"Removed old backup {backup}")

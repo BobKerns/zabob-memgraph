@@ -6,7 +6,7 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 import click
 import requests
@@ -96,8 +96,8 @@ def get_server_info(config_dir: Path, /, *,
                     container_id: str | None = None,
                     database_path: str | None = None,) -> list[ServerInfo]:
     """Get server information from servers/*.json"""
-    servers = config_dir / 'servers'
-    servers.mkdir(parents=True, exist_ok=True)
+    servers_dir = config_dir / 'servers'
+    servers_dir.mkdir(parents=True, exist_ok=True)
 
     port = port or None
     pid = pid or None
@@ -105,11 +105,11 @@ def get_server_info(config_dir: Path, /, *,
     def read_server_info(info_file: Path) -> ServerInfo | None:
         try:
             with open(info_file) as f:
-                return json.load(f)
+                return cast(ServerInfo, json.load(f))
         except Exception:
             return None
     servers = [data
-               for info_file in servers.glob('*.json')
+               for info_file in servers_dir.glob('*.json')
                if (data := read_server_info(info_file))
                and (port is None or data.get('port') == port)
                and (pid is None or data.get('pid') == pid)
@@ -226,7 +226,7 @@ def save_server_info(config_dir: Path, /, **info: Any) -> Path:
 
 
 def cleanup_server_info(config_dir: Path,
-                        **info) -> None:
+                        **info: Any) -> None:
     """Remove server information file"""
     info_file = info_file_path(config_dir, **info)
     print(f"Cleaning up server info file: {info_file}")
@@ -346,7 +346,7 @@ def start_docker_server(
         '--init',
         '-it' if not detach else '-d',
         '--name',
-        _container_name,
+        _container_name or DEFAULT_CONTAINER_NAME,
         '-p',
         f'{port}:{DEFAULT_PORT}',
         '-v',
