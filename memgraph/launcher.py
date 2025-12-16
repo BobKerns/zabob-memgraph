@@ -23,7 +23,8 @@ class ServerInfo(TypedDict):
     host: str
     docker_container: str | None
     container_id: str | None
-    database_path: str | None
+    image: str | None
+    database_path: Path
 
 
 class ServerStatus(StrEnum):
@@ -98,61 +99,92 @@ def get_server_info(config_dir: Path, /, *,
                     host: str | None = None,
                     name: str | None = None,
                     container_id: str | None = None,
-                    database_path: str | None = None,) -> list[ServerInfo]:
+                    image: str | None = None,
+                    database_path: Path | None = None,) -> list[ServerInfo]:
     """Get server information from servers/*.json"""
     servers_dir = config_dir / 'servers'
     servers_dir.mkdir(parents=True, exist_ok=True)
 
+    # Canonicalize 0 or "" to None
     port = port or None
     pid = pid or None
+    host = host or None
+
+    if database_path is None:
+        config = load_config(config_dir,
+                             port=port,
+                             pid=pid,
+                             host=host,
+                             name=name,
+                             image=image,
+                             container_id=container_id)
+        database_path = config['database_path']
 
     def read_server_info(info_file: Path) -> ServerInfo | None:
         try:
             with open(info_file) as f:
-                return cast(ServerInfo, json.load(f))
+                data = json.load(f)
+                db = data.get('database_path')
+                if db is not None:
+                    data['database_path'] = Path(db)
+                return cast(ServerInfo, data)
         except Exception:
             return None
-    servers = [data
-               for info_file in servers_dir.glob('*.json')
-               if (data := read_server_info(info_file))
-               and (port is None or data.get('port') == port)
-               and (pid is None or data.get('pid') == pid)
-               and (host is None or data.get('host') == host)
-               and (name is None or name in (data.get('docker_container'), data.get('container_id')))
-               and (container_id is None or data.get('container_id') == container_id)
-               and (database_path is None or data.get('db_path') == database_path)
-               ]
+
+    servers = [
+            data
+            for info_file in servers_dir.glob('*.json')
+            if (data := read_server_info(info_file))
+            and (port is None or data.get('port') == port)
+            and (pid is None or data.get('pid') == pid)
+            and (host is None or data.get('host') == host)
+            and (name is None or name in (data.get('docker_container'), data.get('container_id')))
+            and (container_id is None or data.get('container_id') == container_id)
+            and (image is None or data.get('image') == image)
+            and (database_path is None or data.get('database_path') == database_path)
+            ]
     if servers or (not any([name, container_id])):
         return servers
+
     for key, value in (('name', name), ('id', name), ('id', container_id)):
-        id = subprocess.run(
+        container_id = subprocess.run(
             ['docker', 'ps', '-q', '-f', f'{key}={value}'],
             capture_output=True,
             text=True,
             check=False,
         ).stdout.strip()
-        if id:
+        if container_id:
             ports = subprocess.run(
-                ['docker', 'port', id, str(DEFAULT_PORT)],
+                ['docker', 'port', container_id, str(DEFAULT_PORT)],
                 capture_output=True,
                 text=True,
             ).stdout.strip()
-            portspec = ports.splitlines()[0]
+            portspecs = ports.splitlines()
+            if len(portspecs) == 0:
+                continue
+            portspec = portspecs[0]
             mtch = _RE_HOST_PORT.match(portspec)
             if mtch is None:
                 raise RuntimeError(f"Could not parse port specification: {portspec}")
             host = mtch.group('host')
             port_str = mtch.group('port')
             port = int(port_str)
-            return [{
+            info = {
                 'launched_by': 'docker',
                 'port': port or 0,
                 'pid': None,
                 'host': host or 'localhost',
                 'docker_container': name,
-                'container_id': id,
-                'database_path': database_path
-            }]
+                'image': image,
+                'container_id': container_id,
+                'database_path': database_path,
+            }
+            svr_info = {
+                v: k
+                for v, k in info.items()
+                if k is not None
+            }
+            return [cast(ServerInfo, svr_info)]
     return servers
 
 
@@ -161,7 +193,8 @@ def get_one_server_info(config_dir: Path, /, *,
                         pid: int | None = None,
                         host: str | None = None,
                         name: str | None = None,
-                        database_path: str | None = None) -> ServerInfo | None:
+                        image: str | None = None,
+                        database_path: Path | None = None) -> ServerInfo | None:
     """
     Get information for a single matching server.
 
@@ -181,6 +214,7 @@ def get_one_server_info(config_dir: Path, /, *,
                               pid=pid,
                               host=host,
                               name=name,
+                              image=image,
                               database_path=database_path)
     if len(servers) > 1:
         click.echo("❌ Multiple servers found, please specify which one to use:")
@@ -243,15 +277,23 @@ def cleanup_server_info(config_dir: Path,
 
 
 def start_local_server(
-    config_dir: Path, port: int | None, host: str, console: Any,
+    config_dir: Path,
+    console: Any,
+    port: int | None,
+    host: str,
     db_path: Path | str | None = None,
+    log_level: str | None = None,
+    access_log: bool | None = None,
 ) -> None:
     """Start the server locally as a background process"""
 
     config = load_config(config_dir,
                          db_path=db_path,
                          host=host,
-                         port=port)
+                         port=port,
+                         log_level=log_level,
+                         access_log=access_log,
+                         )
 
     # Determine port
     if port is not None:
@@ -276,6 +318,9 @@ def start_local_server(
         'memgraph.service:app',
         f'--host={host}',
         f'--port={port}',
+        f'--log-level={config["log_level"].lower()}',
+        f'--access-log={"true" if config["access_log"] else "false"}',
+        '--workers=1',
     ]
 
     try:
@@ -303,13 +348,18 @@ def start_docker_server(
     docker_image: str | None = None,
     container_name: str | None = None,
     database_path: Path | str | None = None,
+    log_level: str | None = None,
+    access_log: bool | None = None,
 ) -> None:
     """Start the server using Docker"""
     config: Config = load_config(config_dir,
                                  port=port,
                                  host=host,
                                  docker_image=docker_image,
-                                 container_name=container_name)
+                                 container_name=container_name,
+                                 log_level=log_level,
+                                 access_log=access_log,
+                                 database_path=database_path)
 
     match docker_image:
         case None | "":
@@ -334,7 +384,7 @@ def start_docker_server(
     ).stdout.strip()
 
     if container_id:
-        console.print(f"❌ Docker container with name '{_container_name}' is already running.")
+        console.print(f"❌ Docker container with name '{_container_name}' already exists.")
         console.print(f"Please stop it first with: docker stop {_container_name}")
         sys.exit(1)
 
@@ -374,6 +424,9 @@ def start_docker_server(
                 port=port,
                 docker_container=container_name,
                 container_id=container_id,
+                docker_image=docker_image,
+                log_level=log_level,
+                access_log=access_log,
                 host=host,
                 database_path=database_path,
             )
@@ -386,6 +439,9 @@ def start_docker_server(
                 port=port,
                 docker_container=container_name,
                 container_id=None,
+                docker_image=docker_image,
+                log_level=log_level,
+                access_log=access_log,
                 host=host,
                 database_path=database_path,
             )
@@ -405,6 +461,7 @@ def start_docker_server(
                             port=port,
                             docker_container=container_name,
                             container_id=container_id,
+                            docker_image=docker_image,
                             host=host,)
 
 

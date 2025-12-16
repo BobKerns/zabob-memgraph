@@ -1,10 +1,11 @@
 """Configuration management for Zabob Memgraph"""
 
+from collections.abc import Callable
 import json
 import logging
 import os
 from pathlib import Path
-from typing import NotRequired, TypedDict, Literal, cast
+from typing import Any, NotRequired, TypedDict, Literal, cast, TypeVar, overload
 
 
 DEFAULT_PORT: Literal[6789] = 6789
@@ -20,9 +21,11 @@ class Config(TypedDict, total=True):
     docker_image: NotRequired[str | None]
     container_name: NotRequired[str | None]
     log_level: str
+    access_log: bool
     backup_on_start: bool
     min_backups: int
     backup_age_days: int
+    reload: bool
     data_dir: Path
     database_path: Path
     config_dir: Path
@@ -42,6 +45,38 @@ def default_config_dir() -> Path:
     return Path(config_dir)
 
 
+T = TypeVar('T')
+
+
+@overload
+def match_type(value: None, expected_type: type[T]) -> None: ...
+
+
+@overload
+def match_type(value: object, expected_type: type[T]) -> T: ...
+
+
+def match_type(value: object, expected_type: type[T]) -> T | None:
+    """
+    Helper to match and cast types for TypedDicts.
+
+    The expected_type should be a type object like `int`, `str`, etc,
+    that can act as a type constructor.
+
+    Args:
+        value: The value to check
+        expected_type: The expected type
+    """
+    # We won't get None in the current usage, but keep the overload for clarity
+    # type checkers and future-proofing.
+    if value is None:
+        return None
+    if isinstance(value, expected_type):
+        return cast(T, value)
+    constructor = cast(Callable[[Any], T], expected_type)
+    return constructor(value)
+
+
 def load_config(config_dir: Path, **settings: None | int | str | Path | bool) -> Config:
     """Load launcher configuration from file or return defaults"""
     config_file = config_dir / "config.json"
@@ -52,9 +87,11 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
         "docker_image": DOCKER_IMAGE,
         "container_name": DEFAULT_CONTAINER_NAME,
         "log_level": "INFO",
+        "access_log": True,  # For now.
         "backup_on_start": True,
         "min_backups": 5,
         "backup_age_days": 30,
+        "reload": False,
         "config_dir": config_dir,
         "data_dir": config_dir / "data",
         "database_path": Path(os.getenv("MEMGRAPH_DATABASE_PATH", config_dir / "data" / "knowledge_graph.db")),
@@ -67,7 +104,7 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
             with open(config_file) as f:
                 raw_user_config = json.load(f)
                 user_config = {
-                    k: (Path(v) if isinstance(defaults[k], Path) else v)  # type: ignore[literal-required]
+                    k: match_type(v, type(defaults[k]))  # type: ignore[literal-required]
                     for k, v in raw_user_config.items()
                     if v is not None
                     and k in defaults

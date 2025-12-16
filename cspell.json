@@ -52,6 +52,7 @@
     "pnpm",
     "popleft",
     "portspec",
+    "portspecs",
     "psutil",
     "pycache",
     "pycodestyle",

@@ -5,6 +5,7 @@ Unified ASGI service combining web and MCP functionality.
 Mounts web routes onto FastMCP's HTTP app for integrated operation.
 """
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,9 @@ from memgraph.service_logging import (
     ServiceLogger,
 )
 
-from memgraph.__main__ import IN_DOCKER
+
+# Configuration
+IN_DOCKER = os.environ.get('DOCKER_CONTAINER') == '1'
 
 
 def create_unified_app(config: Config,
@@ -144,7 +147,13 @@ def main(
             # Configure uvicorn logging to use same log file
             uvicorn_config = configure_uvicorn_logging(log_file)
 
-            uvicorn.run(app, workers=1, host=host, port=port, log_level="info", **uvicorn_config)
+            uvicorn.run(app,
+                        workers=1,
+                        host=host,
+                        port=port,
+                        log_level=config["log_level"].lower(),
+                        access_log=config["access_log"],
+                        **uvicorn_config)
             return 0
 
         except FileNotFoundError as e:

@@ -14,7 +14,6 @@ Zabob Memgraph CLI
 Command-line interface for the Zabob Memgraph knowledge graph server.
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -27,7 +26,11 @@ import psutil
 import requests
 
 from rich.console import Console
+from rich.panel import Panel
 
+from memgraph.config import (
+    CONFIG_DIR, DEFAULT_CONTAINER_NAME, load_config, save_config
+)
 from memgraph.launcher import (
     ServerStatus, server_status,
     cleanup_server_info,
@@ -40,16 +43,10 @@ from memgraph.launcher import (
     start_docker_server,
     start_local_server,
 )
+from memgraph.service import main as run_server, IN_DOCKER
 
-from memgraph.config import (
-    CONFIG_DIR, DEFAULT_CONTAINER_NAME, load_config, save_config
-)
-from rich.panel import Panel
 
 console = Console()
-
-# Configuration
-IN_DOCKER = os.environ.get('DOCKER_CONTAINER') == '1'
 
 
 @click.group()
@@ -71,15 +68,25 @@ def cli(ctx: click.Context, config_dir: Path) -> None:
 @click.command()
 @click.option("--port", type=int, help="Specific port to use")
 @click.option("--host", default="localhost", help="Host to bind to")
-@click.option("--docker", is_flag=True, help="Run using Docker")
+@click.option("--log-level", default=None, help="Logging level")
+@click.option("--access-log", type=bool, default=None, help="Enable access logging")
+@click.option("--docker", is_flag=True, default=False, help="Run using Docker")
 @click.option("--name", type=str, default=None, help="Docker container name")
 @click.option("--image", type=str, default=':latest', help="Docker image name and/or label")
 @click.option('--database-path', type=Path, default=None, help='Path to the database file')
-@click.option("--detach", "-d", is_flag=True, help="Run in background (Docker only)")
+@click.option("--detach", "-d", is_flag=True, default=False, help="Run in background (Docker only)")
 @click.pass_context
 def start(
-    ctx: click.Context, port: int | None, host: str, docker: bool, detach: bool,
-    name: str, image: str, database_path: Path | None
+    ctx: click.Context,
+    port: int | None,
+    host: str,
+    log_level: str | None,
+    access_log: bool | None,
+    name: str,
+    image: str,
+    database_path: Path | None,
+    docker: bool = False,
+    detach: bool = False,
 ) -> None:
     """Start the Zabob Memgraph server"""
     # In Docker, 'start' behaves like 'run' (foreground)
@@ -95,7 +102,11 @@ def start(
                          host=host,
                          port=port,
                          container_name=name,
-                         database_path=database_path)
+                         image=image,
+                         database_path=database_path,
+                         log_level=log_level,
+                         access_log=access_log,
+                         )
 
     database_path = Path(config['database_path']).resolve()
 
@@ -104,7 +115,8 @@ def start(
                                port=port,
                                host=host,
                                name=name,
-                               database_path=str(database_path) if database_path else None)
+                               image=image,
+                               database_path=database_path)
     status = server_status(info)
     match status, info:
         case ServerStatus.GONE, _:
@@ -121,12 +133,13 @@ def start(
         case ServerStatus.RUNNING, _:
             console.print("❌ Server already running")
             exit(1)
-        case ServerStatus.STOPPED, {'docker_container': str() as name, 'container_id': str() as id}:
-            console.print(f"✅ Starting stopped Docker container {name} ({id[:12]})...")
+        case ServerStatus.STOPPED, {'docker_container': str() as name, 'container_id': str() as cid}:
+            console.print(f"✅ Starting stopped Docker container {name} ({cid[:12]})...")
             subprocess.run(['docker', 'start', name], check=True)
-        case ServerStatus.STOPPED, {'docker_container': str() as name}:
-            console.print(f"✅ Starting stopped Docker container {name}")
-            subprocess.run(['docker', 'start', '--detach', name], check=True)
+            exit(0)
+        case ServerStatus.STOPPED, {'docker_container': str() as c_name}:
+            console.print(f"✅ Starting stopped Docker container {c_name}")
+            subprocess.run(['docker', 'start', '--detach', c_name], check=True)
             exit(0)
         case status, _:
             console.print(f"⚠️  Server process found but not working: {status}")
@@ -135,8 +148,16 @@ def start(
 
     if docker:
         name = name or DEFAULT_CONTAINER_NAME
-        start_docker_server(config_dir=config_dir, port=port, host=host, detach=detach,
-                            console=console, docker_image=image, container_name=name)
+        start_docker_server(config_dir=config_dir,
+                            port=port,
+                            host=host,
+                            detach=detach,
+                            console=console,
+                            docker_image=image,
+                            container_name=name,
+                            log_level=log_level,
+                            access_log=access_log,
+                            )
     else:
         start_local_server(config_dir=config_dir, port=port, host=host, console=console)
 
@@ -200,22 +221,61 @@ def stop(ctx: click.Context, port: int | None, pid: int | None) -> None:
 @click.option("--port", type=int, default=None, help="Specific port to use")
 @click.option("--host", default=None, help="Host to bind to")
 @click.option("--docker", is_flag=True, help="Run using Docker")
+@click.option("--name", type=str, default=None, help="Docker container name")
+@click.option("--image", type=str, default=':latest', help="Docker image name and/or label")
+@click.option('--database-path', type=Path, default=None, help='Path to the database file')
+@click.option('--log-level', type=str, default=None, help='Logging level')
+@click.option('--access-log/--no-access-log', default=None, help='Enable or disable access log')
 @click.option("--detach", "-d", is_flag=True, help="Run in background (Docker only)")
 @click.pass_context
 def restart(
-    ctx: click.Context, port: int | None, host: str, docker: bool, detach: bool
+    ctx: click.Context,
+    port: int | None,
+    host: str | None,
+    docker: bool,
+    name: str | None,
+    image: str,
+    database_path: Path | None,
+    log_level: str | None,
+    access_log: bool | None, detach: bool
 ) -> None:
-    """Restart the Zabob Memgraph server"""
+    """
+    Restart the Zabob Memgraph server
+
+    Stops the server if running, then starts it again.
+
+    The options act as a filter to select which server to stop,
+    and as configuration for the new server instance.
+    """
     config_dir: Path = ctx.obj['config_dir']
+    config = load_config(config_dir,
+                         port=port,
+                         host=host,
+                         container_name=name,
+                         database_path=database_path,
+                         log_level=log_level,
+                         access_log=access_log)
+    database_path = Path(config.get('database_path', database_path)).resolve()
 
     if is_server_running(get_one_server_info(config_dir,
                                              port=port,
-                                             host=host)):
+                                             host=host,
+                                             name=name,
+                                             database_path=database_path)):
         ctx.invoke(stop)
         console.print("⏳ Waiting for server to stop...")
         time.sleep(2)
 
-    ctx.invoke(start, port=port, host=host, docker=docker, detach=detach)
+    ctx.invoke(start,
+               port=port,
+               host=host,
+               docker=docker,
+               name=name,
+               image=image,
+               database_path=database_path,
+               log_level=log_level,
+               access_log=access_log,
+               detach=detach)
 
 
 @click.command()
@@ -403,8 +463,25 @@ def test(ctx: click.Context, port: int | None, pid: int | None, name: str | None
 @click.option(
     '--reload', is_flag=True, help='Enable auto-reload on code changes (dev only)'
 )
+@click.option('--config-dir', type=Path, default=None, help='Configuration directory')
+@click.option('--docker', is_flag=True, help='Run using Docker')
+@click.option('--name', type=str, default=None, help='Docker container name')
+@click.option('--docker-image', type=str, default=':latest', help='Docker image name and/or label')
+@click.option('--database-path', type=Path, default=None, help='Path to the database file')
+@click.option('--log-level', type=str, default=None, help='Logging level')
+@click.option('--access-log/--no-access-log', default=None, help='Enable or disable access log')
 @click.pass_context
-def run(ctx: click.Context, port: int | None, host: str | None, reload: bool) -> None:
+def run(ctx: click.Context,
+        port: int | None,
+        host: str | None,
+        reload: bool,
+        config_dir: Path | None,
+        docker: bool,
+        name: str | None,
+        docker_image: str,
+        database_path: Path | None,
+        log_level: str | None,
+        access_log: bool | None) -> None:
     """Run server in foreground (for stdio mode or development)
 
     Unlike 'start', this runs the server in the foreground and blocks.
@@ -415,17 +492,25 @@ def run(ctx: click.Context, port: int | None, host: str | None, reload: bool) ->
 
     For background daemon, use 'start' instead.
     """
-    config_dir: Path = ctx.obj['config_dir']
+    config_dir = config_dir or Path(ctx.obj.get('config_dir', CONFIG_DIR))
     config_dir.mkdir(parents=True, exist_ok=True)
     config = load_config(config_dir,
                          port=port,
                          host=host,
-                         reload=reload)
+                         reload=reload,
+                         container_name=name,
+                         docker_image=docker_image,
+                         database_path=database_path,
+                         log_level=log_level,
+                         access_log=access_log,
+                         )
 
     # Default host: 0.0.0.0 in Docker, localhost otherwise
     host = config['host']
     if host is None:
         host = '0.0.0.0' if IN_DOCKER else 'localhost'
+    if IN_DOCKER:
+        host = '0.0.0.0'
 
     # If port explicitly specified, disable auto port finding
     if port is not None:
@@ -442,13 +527,8 @@ def run(ctx: click.Context, port: int | None, host: str | None, reload: bool) ->
     if reload:
         console.print("🔄 Auto-reload enabled")
 
-    # Build command - use the memgraph.service module
-    cmd = ['uvicorn', 'memgraph.service:app', f'--host={host}', f'--port={port}']
-    if reload:
-        cmd.append('--reload')
-
     try:
-        subprocess.run(cmd, check=True)
+        run_server(config=config)
     except KeyboardInterrupt:
         console.print("\n👋 Server stopped")
 
@@ -551,12 +631,16 @@ def clean() -> None:
 @click.option('--name', type=str, default=None, help='Docker container name')
 @click.option('--image', type=str, default=None, help='Docker image name and/or label')
 @click.option('--database-path', type=Path, default=None, help='Path to the database file')
+@click.option('--log-level', type=str, default=None, help='Logging level')
+@click.option('--access-log/--no-access-log', default=None, help='Enable or disable access log')
 @click.pass_context
 def show_config(ctx: click.Context,
                 port: int | None,
                 host: str | None,
                 name: str | None,
                 image: str | None,
+                log_level: str | None,
+                access_log: bool | None,
                 database_path: Path | None) -> None:
     """
     Show current configuration
@@ -570,7 +654,10 @@ def show_config(ctx: click.Context,
                          host=host,
                          container_name=name,
                          docker_image=image,
-                         database_path=database_path)
+                         database_path=database_path,
+                         log_level=log_level,
+                         access_log=access_log,
+                         )
     lines = [
         f"[bold]{key}:[/bold] {value}"
         for key, value in config.items()
