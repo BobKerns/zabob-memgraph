@@ -85,7 +85,7 @@ jobs:
 
     - name: Save Build Info
       run: |
-        echo "imageid=${{ steps.build-and-push.outputs.metadata.json }}" >build-info.json
+        echo "${{ steps.build-and-push.outputs.metadata.json }}" >build-info.json
 
 
     - name: Upload Build Info
@@ -103,41 +103,83 @@ jobs:
 
     - name: Test Docker image from GHCR
       run: |
-        # Use the first tag for testing
         TEST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
         echo "Testing with tag: $TEST_TAG"
 
         # Pull the built image
         docker pull "$TEST_TAG"
 
-        # Run container
-        docker run -d --name test-memgraph -p 6789:6789 \
+        # Pre-flight network diagnostics
+        echo "=== Network diagnostics before container start ==="
+        docker network ls
+        netstat -tuln | grep 6789 || echo "Port 6789 not in use (expected)"
+
+        # Run container with verbose uvicorn logging
+        docker run -d --name test-memgraph \
+          -p 127.0.0.1:6789:6789 \
+          -e MEMGRAPH_LOG_LEVEL=DEBUG \
+          -e UVICORN_LOG_LEVEL=debug \
           "$TEST_TAG" run
 
-        # Wait for container to be ready (retry loop)
-        echo "Waiting for container to start..."
+        # Give it a moment to start binding
+        sleep 3
+
+        # Post-start network diagnostics
+        echo "=== Network diagnostics after container start ==="
+        docker ps -a
+        docker port test-memgraph
+        netstat -tuln | grep 6789 || echo "WARNING: Port 6789 not showing in netstat"
+
+        # Show initial logs with full uvicorn output
+        echo "=== Initial container logs ==="
+        docker logs test-memgraph
+
+        # Wait for health endpoint with detailed logging
         for i in {1..30}; do
-          if curl -sf http://localhost:6789/health; then
-            echo "Container ready after $i seconds"
+          echo "=== Attempt $i/30 ==="
+
+          # Try curl with maximum verbosity
+          if curl -v --max-time 2 http://127.0.0.1:6789/health 2>&1 | tee curl-attempt-$i.log; then
+            echo "✓ Health check passed on attempt $i"
             break
           fi
+
+          # On failure, show diagnostics
+          echo "✗ Health check failed on attempt $i"
+          echo "--- Recent container logs ---"
+          docker logs test-memgraph --tail 15
+          echo "--- Container inspect (networking) ---"
+          docker inspect test-memgraph --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
+          docker inspect test-memgraph --format='{{.State.Status}} {{.State.Health}}'
+
           if [ $i -eq 30 ]; then
-            echo "Container failed to start after 30 seconds"
+            echo "=== FAILURE: Container failed to respond after 30 attempts ==="
+            echo "--- Full container logs ---"
             docker logs test-memgraph
+            echo "--- Full container inspect ---"
             docker inspect test-memgraph
+            echo "--- All curl attempts ---"
+            cat curl-attempt-*.log || true
+            echo "--- Network state ---"
+            netstat -tuln | grep 6789 || true
+            docker port test-memgraph
             docker rm --force test-memgraph
             exit 1
           fi
+
           sleep 1
         done
 
         # Test health endpoint
-        curl -f http://localhost:6789/health || exit 1
+        echo "=== Testing health endpoint ==="
+        curl -f http://127.0.0.1:6789/health || exit 1
 
         # Test web UI
-        curl -f http://localhost:6789/ || exit 1
+        echo "=== Testing web UI ==="
+        curl -f http://127.0.0.1:6789/ || exit 1
 
-        # Show logs
+        # Show final logs
+        echo "=== Final container logs ==="
         docker logs test-memgraph
 
         # Cleanup
