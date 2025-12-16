@@ -274,7 +274,7 @@ def get_lifespan_hook(config: Config) -> Lifespan:
     Create an async lifespan hook for the FastMCP application.
     """
     @asynccontextmanager
-    async def lifecyle_hook(app: FastAPI) -> AsyncGenerator[None, Any]:
+    async def lifecycle_hook(app: FastAPI) -> AsyncGenerator[None, Any]:
         """Example of an async lifecycle hook for the unified app."""
 
         info_file = save_server_info(config['config_dir'],
@@ -293,7 +293,7 @@ def get_lifespan_hook(config: Config) -> Lifespan:
             yield
         finally:
             info_file.unlink(missing_ok=True)
-    return lifecyle_hook
+    return lifecycle_hook
 
 
 if __name__ == "__main__":

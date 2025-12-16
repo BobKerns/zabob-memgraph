@@ -63,7 +63,13 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
     if config_file.exists():
         try:
             with open(config_file) as f:
-                user_config: Config = json.load(f)
+                raw_user_config = json.load(f)
+                user_config = {
+                    k: (Path(v) if isinstance(defaults[k], Path) else v)
+                    for k, v in raw_user_config.items()
+                    if v is not None
+                    and k in defaults
+                }
                 return cast(Config, {
                     **defaults,
                     **user_config,
@@ -87,9 +93,14 @@ def save_config(config_dir: Path, config: Config) -> None:
     """Save configuration to file"""
     config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / "config.json"
+    json_config = {
+        k: (str(v.resolve()) if isinstance(v, Path) else v)
+        for k, v in config.items()
+        if k != "config_file"
+    }
 
     try:
         with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
+            json.dump(json_config, f, indent=2)
     except Exception as e:
         logging.warning(f"Could not save config: {e}")

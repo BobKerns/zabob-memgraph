@@ -85,7 +85,8 @@ class SQLiteKnowledgeGraphDB:
 
     def _init_db(self) -> None:
         """Initialize the database schema"""
-        self.backup_database()
+        if self.backup_on_start:
+            self.backup_database()
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript(
                 """
@@ -179,7 +180,6 @@ class SQLiteKnowledgeGraphDB:
                 END;
             """
             )
-            self._ensure_schema_version(conn)
             self._ensure_schema_version(conn)
 
     def backup_database(self) -> None:

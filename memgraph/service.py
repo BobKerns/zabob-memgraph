@@ -138,7 +138,7 @@ def main(
         try:
             app = create_unified_app(config, static_dir, service_logger)
             log_server_start(service_logger, host, port)
-            if not IN_DOCKER:
+            if IN_DOCKER:
                 service_logger.logger.info("Running inside Docker container")
 
             # Configure uvicorn logging to use same log file

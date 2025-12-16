@@ -2,6 +2,7 @@
 
 from enum import StrEnum
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -88,6 +89,9 @@ def server_status(info: ServerInfo | None) -> ServerStatus:
             raise ValueError("Invalid ServerInfo format")
 
 
+_RE_HOST_PORT = re.compile(r'^(?P<host>.+):(?P<port>\d+)$')
+
+
 def get_server_info(config_dir: Path, /, *,
                     port: int | None = None,
                     pid: int | None = None,
@@ -133,7 +137,12 @@ def get_server_info(config_dir: Path, /, *,
                 capture_output=True,
                 text=True,
             ).stdout.strip()
-            host, port_str = ports.splitlines()[0].split(':', 2)
+            portspec = ports.splitlines()[0]
+            mtch = _RE_HOST_PORT.match(portspec)
+            if mtch is None:
+                raise RuntimeError(f"Could not parse port specification: {portspec}")
+            host = mtch.group('host')
+            port_str = mtch.group('port')
             port = int(port_str)
             return [{
                 'launched_by': 'docker',
@@ -248,7 +257,7 @@ def start_local_server(
     if port is not None:
         console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")
     else:
-        port = config.get('port', config.get('port', DEFAULT_PORT))
+        port = config.get('port', DEFAULT_PORT)
         if not isinstance(port, int):
             port = DEFAULT_PORT
         if not is_port_available(port, host):
@@ -318,7 +327,7 @@ def start_docker_server(
             _container_name = container_name  # Use provided container_name as is
 
     container_id = subprocess.run(
-        ['docker', 'ps', '-q', '-f', '-all', f'name={_container_name}'],
+        ['docker', 'ps', '-q', '--all', '-f', f'name={_container_name}'],
         capture_output=True,
         text=True,
         check=False,
@@ -393,7 +402,6 @@ def start_docker_server(
         console.print("\n👋 Stopping container...")
         subprocess.run(['docker', 'stop', str(_container_name)], capture_output=True)
         cleanup_server_info(config_dir,
-
                             port=port,
                             docker_container=container_name,
                             container_id=container_id,
