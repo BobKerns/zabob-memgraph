@@ -114,7 +114,7 @@ app = create_unified_app(load_config(default_config_dir()))
 
 
 def main(
-    config: Config = load_config(default_config_dir()),
+    config: Config | None = None,
     static_dir: Path | str = Path(__file__).parent / "web",
     log_file: str | None = None
 ) -> int:
@@ -127,6 +127,9 @@ def main(
         static_dir: Directory containing static web assets (default: memgraph/web)
         log_file: Log file path (default: None, logs to stderr)
     """
+    if config is None:
+        config = load_config(default_config_dir())
+
     host = config['host']
     port = config['port']
     args = {"host": host, "port": port, "static_dir": static_dir, "log_file": log_file}
