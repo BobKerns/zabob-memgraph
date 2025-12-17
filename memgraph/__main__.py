@@ -29,7 +29,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from memgraph.config import (
-    CONFIG_DIR, DEFAULT_CONTAINER_NAME, load_config, save_config
+    CONFIG_DIR, load_config, save_config, IN_DOCKER,
 )
 from memgraph.launcher import (
     ServerStatus, server_status,
@@ -43,7 +43,7 @@ from memgraph.launcher import (
     start_docker_server,
     start_local_server,
 )
-from memgraph.service import main as run_server, IN_DOCKER
+from memgraph.service import run_server as run_server
 
 
 console = Console()
@@ -91,7 +91,12 @@ def start(
     """Start the Zabob Memgraph server"""
     # In Docker, 'start' behaves like 'run' (foreground)
     if IN_DOCKER:
-        ctx.invoke(run, port=port, host=host, reload=False)
+        ctx.invoke(run,
+                   port=port,
+                   host=host,
+                   reload=False,
+                   config_dir=ctx.obj['config_dir'],
+                   database_path=database_path)
         return
     config_dir: Path = ctx.obj['config_dir']
 
@@ -147,19 +152,16 @@ def start(
             exit(1)
 
     if docker:
-        name = name or DEFAULT_CONTAINER_NAME
-        start_docker_server(config_dir=config_dir,
-                            port=port,
-                            host=host,
-                            detach=detach,
+        name = name or config['container_name']
+        start_docker_server(config,
                             console=console,
-                            docker_image=image,
-                            container_name=name,
-                            log_level=log_level,
-                            access_log=access_log,
+                            explicit_port=port,
+                            detach=detach,
                             )
     else:
-        start_local_server(config_dir=config_dir, port=port, host=host, console=console)
+        start_local_server(config,
+                           console=console,
+                           explicit_port=port)
 
 
 @click.command()
@@ -633,6 +635,7 @@ def clean() -> None:
 @click.option('--database-path', type=Path, default=None, help='Path to the database file')
 @click.option('--log-level', type=str, default=None, help='Logging level')
 @click.option('--access-log/--no-access-log', default=None, help='Enable or disable access log')
+@click.option('--update', is_flag=True, default=False, help='Update configuration file with shown values')
 @click.pass_context
 def show_config(ctx: click.Context,
                 port: int | None,
@@ -641,7 +644,8 @@ def show_config(ctx: click.Context,
                 image: str | None,
                 log_level: str | None,
                 access_log: bool | None,
-                database_path: Path | None) -> None:
+                database_path: Path | None,
+                update: bool) -> None:
     """
     Show current configuration
 
@@ -664,6 +668,8 @@ def show_config(ctx: click.Context,
     ]
     panel = Panel("\n".join(lines), title="🛠️ Current Configuration")
     console.print(panel)
+    if update:
+        save_config(config_dir, config)
 
 
 # Add commands to the CLI group

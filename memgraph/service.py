@@ -5,7 +5,6 @@ Unified ASGI service combining web and MCP functionality.
 Mounts web routes onto FastMCP's HTTP app for integrated operation.
 """
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +17,7 @@ from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Route
 
 # Use absolute imports
-from memgraph.config import Config, default_config_dir, load_config
+from memgraph.config import Config, default_config_dir, load_config, IN_DOCKER
 import memgraph.mcp_service as mcp_service
 from memgraph.service_logging import (
     service_setup_context,
@@ -28,10 +27,6 @@ from memgraph.service_logging import (
     configure_uvicorn_logging,
     ServiceLogger,
 )
-
-
-# Configuration
-IN_DOCKER = os.environ.get('DOCKER_CONTAINER') == '1'
 
 
 def create_unified_app(config: Config,
@@ -116,28 +111,34 @@ def create_unified_app(config: Config,
 app = create_unified_app(load_config(default_config_dir()))
 
 
-def main(
+def run_server(
     config: Config | None = None,
-    static_dir: Path | str = Path(__file__).parent / "web",
-    log_file: str | None = None
 ) -> int:
     """
     Run the unified service.
 
     Args:
-        host: Host to bind to (default: localhost)
-        port: Port to listen on (default: 6789)
-        static_dir: Directory containing static web assets (default: memgraph/web)
-        log_file: Log file path (default: None, logs to stderr)
+        config: Configuration dictionary (loads from default if None)
+          Important keys are 'host', 'port', 'log_level', 'access_log'
+            host: Host to bind to (default: localhost except in a container)
+            port: Port to listen on (default: 6789)
+            static_dir: Directory containing static web assets (default: memgraph/web)
+            log_file: Log file path (default: None, logs to stderr)
     """
     if config is None:
         config = load_config(default_config_dir())
 
     host = config['host']
     port = config['port']
-    args = {"host": host, "port": port, "static_dir": static_dir, "log_file": log_file}
+    static_dir = config['static_dir']
+    log_file = str(config['log_file']) if config['log_file'] else None
+    log_args = {
+        "host": host,
+        "port": port,
+        "static_dir": static_dir,
+        "log_file": log_file}
 
-    with service_setup_context("unified_service", args, log_file) as service_logger:
+    with service_setup_context("unified_service", log_args, log_file) as service_logger:
         try:
             app = create_unified_app(config, static_dir, service_logger)
             log_server_start(service_logger, host, port)
@@ -168,10 +169,10 @@ def main(
 if __name__ == "__main__":
 
     @click.command()
-    @click.option("--host", default="localhost", help="Host to bind to")
-    @click.option("--port", type=int, default=6789, help="Port to listen on")
+    @click.option("--host", default=None, help="Host to bind to")
+    @click.option("--port", type=int, default=None, help="Port to listen on")
     @click.option("--static-dir", default=None, help="Static files directory")
-    @click.option("--log-file", help="Log file path (default: stderr)")
+    @click.option("--log-file", default=None, help="Log file path (default: stderr)")
     @click.option("--config-dir", type=Path, default=None, help="Configuration directory")
     def cli(host: str, port: int, static_dir: str | None, log_file: str | None,
             config_dir: Path | None) -> None:
@@ -181,8 +182,12 @@ if __name__ == "__main__":
         else:
             static_path = Path(static_dir)
         config_dir = config_dir or default_config_dir()
-        config = load_config(config_dir, port=port, host=host)
-        exit_code = main(config, static_dir=static_path, log_file=log_file)
+        config = load_config(config_dir,
+                             port=port,
+                             host=host,
+                             static_dir=static_path,
+                             log_file=log_file,)
+        exit_code = run_server(config)
 
         if exit_code:
             exit(exit_code)

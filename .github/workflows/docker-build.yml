@@ -85,7 +85,7 @@ jobs:
 
     - name: Save Build Info
       run: |
-        echo "${{ steps.build-and-push.outputs.metadata.json }}" >build-info.json
+        echo "imageid=${{ steps.build-and-push.outputs.metadata.json }}" >build-info.json
 
 
     - name: Upload Build Info
@@ -103,23 +103,18 @@ jobs:
 
     - name: Test Docker image from GHCR
       run: |
+        # Use the first tag for testing
         TEST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
         echo "Testing with tag: $TEST_TAG"
 
         # Pull the built image
         docker pull "$TEST_TAG"
 
-        # Pre-flight network diagnostics
-        echo "=== Network diagnostics before container start ==="
-        docker network ls
-        netstat -tuln | grep 6789 || echo "Port 6789 not in use (expected)"
-
         # Run container
         docker run -d --name test-memgraph \
-          -p 127.0.0.1:6789:6789 \
-          -e MEMGRAPH_LOG_LEVEL=DEBUG \
-          -e UVICORN_LOG_LEVEL=debug \
-          "$TEST_TAG" run --host 0.0.0.0 --port 6789 --access-log --log-level debug
+          -p 6789:6789 \
+          "$TEST_TAG" \
+          run --access-log --log-level debug
 
         # Give it a moment to start
         sleep 3
@@ -129,100 +124,31 @@ jobs:
         docker ps -a
         docker port test-memgraph
 
-        # Extract container IP for direct testing
-        CONTAINER_IP=$(docker inspect test-memgraph --format='{{.NetworkSettings.IPAddress}}')
-        echo "Container IP: $CONTAINER_IP"
-
-        netstat -tuln | grep 6789 || echo "WARNING: Port 6789 not showing in netstat"
-
-        # Show initial logs
-        echo "=== Initial container logs ==="
-        docker logs test-memgraph
-
-        # Use docker debug to inspect from inside
-        echo "=== Inside Container Diagnostics (via docker debug) ==="
-        if command -v docker-debug &> /dev/null || docker debug --help &> /dev/null 2>&1; then
-          echo "Using docker debug to inspect container..."
-
-          # Check what's listening on ports
-          echo "--- Network listeners inside container ---"
-          docker debug test-memgraph -c "netstat -tuln 2>/dev/null || ss -tuln 2>/dev/null || cat /proc/net/tcp" || echo "Could not check listeners"
-
-          # Test from inside container
-          echo "--- Testing localhost:6789 from inside container ---"
-          docker debug test-memgraph -c "curl -v http://localhost:6789/health 2>&1" || echo "Internal curl failed"
-
-          echo "--- Testing 0.0.0.0:6789 from inside container ---"
-          docker debug test-memgraph -c "curl -v http://0.0.0.0:6789/health 2>&1" || echo "Cannot reach 0.0.0.0:6789"
-        else
-          echo "⚠️ docker debug not available - falling back to external diagnostics"
-          echo "Consider rebuilding with a base image that includes curl/netstat for better debugging"
-          docker inspect test-memgraph --format='Networks: {{json .NetworkSettings.Networks}}' | jq . || cat
-        fi
-
-        # Test container IP directly (bypasses port mapping)
-        if [ -n "$CONTAINER_IP" ] && [ "$CONTAINER_IP" != "<no value>" ]; then
-          echo "=== Testing container IP directly: http://${CONTAINER_IP}:6789/health ==="
-          if curl -v --max-time 5 "http://${CONTAINER_IP}:6789/health" 2>&1 | tee direct-ip-test.log; then
-            echo "✓ Container responds on its internal IP"
-          else
-            echo "✗ Container does not respond on its internal IP - uvicorn likely not listening on 0.0.0.0"
-          fi
-        fi
-
-        # Wait for health endpoint via localhost
+        # Wait for container to be ready (retry loop)
+        echo "Waiting for container to start..."
         for i in {1..30}; do
-          echo "=== Attempt $i/30 ==="
-
-          # Try curl from host via port mapping
-          if curl -v --max-time 2 http://127.0.0.1:6789/health 2>&1 | tee curl-attempt-$i.log; then
-            echo "✓ Health check passed on attempt $i"
+          if curl -sf http://localhost:6789/health > /dev/null 2>&1; then
+            echo "Container ready after $i seconds"
             break
           fi
-
-          # On failure, show diagnostics
-          echo "✗ Health check failed on attempt $i"
-          echo "--- Recent container logs ---"
-          docker logs test-memgraph --tail 15
-
-          # Retry internal test every 5 attempts
-          if [ $((i % 5)) -eq 0 ] && (command -v docker-debug &> /dev/null || docker debug --help &> /dev/null 2>&1); then
-            echo "--- Retry internal test (attempt $i) ---"
-            docker debug test-memgraph -c "curl -s http://localhost:6789/health 2>&1" || true
-          fi
-
           if [ $i -eq 30 ]; then
-            echo "=== FAILURE: Container failed to respond after 30 attempts ==="
-            echo "--- Full container logs ---"
+            echo "Container failed to start after 30 seconds"
             docker logs test-memgraph
-            echo "--- Full container inspect ---"
-            docker inspect test-memgraph
-            echo "--- Final internal diagnostics ---"
-            if command -v docker-debug &> /dev/null || docker debug --help &> /dev/null 2>&1; then
-              docker debug test-memgraph -c "netstat -tuln || ss -tuln || cat /proc/net/tcp" || true
-              docker debug test-memgraph -c "curl -v http://localhost:6789/health 2>&1" || true
-            fi
-            echo "--- Direct IP test result ---"
-            cat direct-ip-test.log || true
-            echo "--- All curl attempts ---"
-            cat curl-attempt-*.log || true
-            echo "--- Network state on host ---"
-            netstat -tuln | grep 6789 || true
-            docker port test-memgraph
-            docker rm --force test-memgraph
             exit 1
           fi
-
           sleep 1
         done
 
         # Test health endpoint
-        echo "=== Testing health endpoint ==="
-        curl -f http://127.0.0.1:6789/health || exit 1
+        echo "=== Testing health endpoint IP4 ==="
+        curl -4 -f http://localhost:6789/health || exit 1
+
+        # Test health endpoint
+        echo "=== Testing health endpoint IP6 ==="
+        curl -6 -f http://localhost:6789/health || exit 1
 
         # Test web UI
-        echo "=== Testing web UI ==="
-        curl -f http://127.0.0.1:6789/ || exit 1
+        curl -f http://localhost:6789/ || exit 1
 
         # Show final logs
         echo "=== Final container logs ==="
@@ -231,4 +157,3 @@ jobs:
         # Cleanup
         docker stop test-memgraph
         docker rm test-memgraph
-        rm -f debug-script.sh curl-attempt-*.log direct-ip-test.log

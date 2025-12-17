@@ -228,4 +228,5 @@ uv build
 - **Python Required:** >=3.12
 - **Key Dependencies:** FastAPI, FastMCP, uvicorn, SQLite (built-in)
 
-*Last updated: December 2025*
+---
+Status: *Last updated: December 2025*

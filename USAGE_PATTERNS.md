@@ -158,8 +158,21 @@ pnpm run build:web
 
 All patterns store data in SQLite databases:
 
+This defaults to `~/.zabob/memgraph/data/knowledge_graph.db`, and usually you will want to use the default. Other useful scenarios include:
+
+- **Project isolation**
+  - You are a consultant working for different clients.  KB per client
+  - You want to keep distinct roles for different agents. KB per agent
+  - Personal vs work
+  - In each case, a separate network port number must also be assigned.
+- **Docker Volumes**
+  - Docker volumes offer various technical advantages, such as better performance, and a wide range of options for management.
+  - In this usage pattern, the database is placed in `/data/db/knowledge_graph.db`
+  - The docker volume is mounted at `/data`
+  - It may also be advisable to set the configuration directory on this volume as well.
+
 - **Docker HTTP**: `/data/knowledge_graph.db` (in Docker volume)
 - **MCP Stdio**: `~/.zabob-memgraph/data/knowledge_graph.db`
 - **Local Python**: `~/.zabob-memgraph/data/knowledge_graph.db`
 
-You can migrate between patterns by copying the database file.
+You can migrate between patterns by copying the database file. Shut down all servers first.

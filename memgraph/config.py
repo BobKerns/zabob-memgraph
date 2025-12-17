@@ -7,7 +7,8 @@ import os
 from pathlib import Path
 from typing import Any, NotRequired, TypedDict, Literal, cast, overload
 
-
+# Configuration
+IN_DOCKER = os.environ.get('DOCKER_CONTAINER') == '1'
 DEFAULT_PORT: Literal[6789] = 6789
 CONFIG_DIR: Path = Path.home() / ".zabob" / "memgraph"
 DOCKER_IMAGE: str = "bobkerns/zabob-memgraph:latest"
@@ -18,8 +19,8 @@ class Config(TypedDict, total=True):
     """Configuration structure for Zabob Memgraph"""
     port: int
     host: str
-    docker_image: NotRequired[str | None]
-    container_name: NotRequired[str | None]
+    docker_image: str
+    container_name: str
     log_level: str
     access_log: bool
     backup_on_start: bool
@@ -28,7 +29,9 @@ class Config(TypedDict, total=True):
     reload: bool
     data_dir: Path
     database_path: Path
+    static_dir: Path
     config_dir: Path
+    log_file: Path
     config_file: NotRequired[Path | None]
 
 
@@ -45,7 +48,24 @@ def default_config_dir() -> Path:
     return Path(config_dir)
 
 
-# T = TypeVar('T')
+DEFAULT_CONFIG: Config = Config(
+    port=int(os.getenv("MEMGRAPH_PORT", DEFAULT_PORT)),
+    host=os.getenv('MEMGRAPH_HOST', 'localhost' if not IN_DOCKER else '0.0.0.0'),
+    docker_image=os.getenv("MEMGRAPH_DOCKER_IMAGE", DOCKER_IMAGE),
+    container_name=os.getenv("MEMGRAPH_CONTAINER_NAME", DEFAULT_CONTAINER_NAME),
+    log_level=os.getenv("MEMGRAPH_LOG_LEVEL", "INFO"),
+    access_log=True,  # For now.
+    backup_on_start=True,
+    min_backups=5,
+    backup_age_days=30,
+    reload=False,
+    config_dir=default_config_dir(),
+    static_dir=Path(__file__).parent / "web",
+    data_dir=Path(os.getenv("MEMGRAPH_DATA_DIR", default_config_dir() / "data")),
+    database_path=Path(os.getenv("MEMGRAPH_DATABASE_PATH",
+                                 default_config_dir() / "data" / "knowledge_graph.db")),
+    log_file=Path(os.getenv("MEMGRAPH_LOG_FILE", default_config_dir() / "memgraph.log")),
+)
 
 
 @overload
@@ -81,22 +101,6 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
     """Load launcher configuration from file or return defaults"""
     config_file = config_dir / "config.json"
 
-    defaults: Config = {
-        "port": DEFAULT_PORT,
-        "host": "localhost",
-        "docker_image": DOCKER_IMAGE,
-        "container_name": DEFAULT_CONTAINER_NAME,
-        "log_level": "INFO",
-        "access_log": True,  # For now.
-        "backup_on_start": True,
-        "min_backups": 5,
-        "backup_age_days": 30,
-        "reload": False,
-        "config_dir": config_dir,
-        "data_dir": config_dir / "data",
-        "database_path": Path(os.getenv("MEMGRAPH_DATABASE_PATH", config_dir / "data" / "knowledge_graph.db")),
-    }
-
     settings = {k: v for k, v in settings.items() if v is not None}
 
     if config_file.exists():
@@ -104,13 +108,13 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
             with open(config_file) as f:
                 raw_user_config = json.load(f)
                 user_config = {
-                    k: match_type(v, type(defaults[k]))  # type: ignore[literal-required]
+                    k: match_type(v, type(DEFAULT_CONFIG[k]))  # type: ignore[literal-required]
                     for k, v in raw_user_config.items()
                     if v is not None
-                    and k in defaults
+                    and k in DEFAULT_CONFIG
                 }
                 return cast(Config, {
-                    **defaults,
+                    **DEFAULT_CONFIG,
                     **user_config,
                     **settings,
                     # Not settable by config file
@@ -121,7 +125,7 @@ def load_config(config_dir: Path, **settings: None | int | str | Path | bool) ->
             pass
 
     return cast(Config, {
-        **defaults,
+        **DEFAULT_CONFIG,
         **settings,
         # Not settable by config file
         "config_dir": config_dir,

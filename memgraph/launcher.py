@@ -13,7 +13,8 @@ import click
 import requests
 import psutil
 
-from memgraph.config import DEFAULT_CONTAINER_NAME, DEFAULT_PORT, DOCKER_IMAGE, Config, load_config, save_config
+from memgraph.config import DEFAULT_PORT, Config, load_config, save_config
+from rich.console import Console
 
 
 class ServerInfo(TypedDict):
@@ -180,7 +181,7 @@ def get_server_info(config_dir: Path, /, *,
                 'database_path': database_path,
             }
             svr_info = {
-                v: k
+                k: v
                 for v, k in info.items()
                 if k is not None
             }
@@ -276,60 +277,43 @@ def cleanup_server_info(config_dir: Path,
     info_file.unlink(missing_ok=True)
 
 
-def start_local_server(
-    config_dir: Path,
-    console: Any,
-    port: int | None,
-    host: str,
-    db_path: Path | str | None = None,
-    log_level: str | None = None,
-    access_log: bool | None = None,
-) -> None:
+def start_local_server(config: Config, /, *,
+                       console: Console,
+                       explicit_port: int | None) -> None:
     """Start the server locally as a background process"""
 
-    config = load_config(config_dir,
-                         db_path=db_path,
-                         host=host,
-                         port=port,
-                         log_level=log_level,
-                         access_log=access_log,
-                         )
-
     # Determine port
-    if port is not None:
+    port = config['port']
+    host = config['host']
+
+    if explicit_port:
         console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")
+    elif is_port_available(port, host):
+        console.print(f"📍 Using available port {port}")
     else:
-        port = config.get('port', DEFAULT_PORT)
-        if not isinstance(port, int):
-            port = DEFAULT_PORT
-        if not is_port_available(port, host):
-            port = find_free_port(port)
-            config['port'] = port
-            save_config(config_dir, config)
-            console.print(f"📍 Using available port {port}")
-
+        console.print(f"⚠️ Port {port} is not available, trying to find a free port...")
+        port = find_free_port(port)
+        config['port'] = port
+        console.print(f"📍 Found available port {port}, updating default")
+        config_dir = config['config_dir']
+        save_config(config_dir, config)
     console.print(f"🚀 Starting server on {host}:{port}")
-
-    # Start uvicorn in background
-    cmd = [
-        sys.executable,
-        '-m',
-        'uvicorn',
-        'memgraph.service:app',
-        f'--host={host}',
-        f'--port={port}',
-        f'--log-level={config["log_level"].lower()}',
-        f'--access-log={"true" if config["access_log"] else "false"}',
-        '--workers=1',
-    ]
 
     try:
         process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+                        [sys.executable, '-m', 'memgraph', 'run',
+                            '--port', str(config['port']),
+                            '--host', config['host'],
+                            '--config-dir', str(config_dir),
+                            '--log-level', config['log_level'],
+                            '--database-path', str(object=config['database_path']),
+                            *(['--access-log'] if config['access_log'] else []),
+                         ],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        stdin=subprocess.DEVNULL,
+                        start_new_session=True,
+            )
 
         console.print(f"✅ Server started (PID: {process.pid})")
         console.print(f"🌐 Web interface: http://{host}:{port}")
@@ -339,59 +323,35 @@ def start_local_server(
         sys.exit(1)
 
 
-def start_docker_server(
-    config_dir: Path,
-    port: int | None,
-    host: str,
-    detach: bool,
-    console: Any,
-    docker_image: str | None = None,
-    container_name: str | None = None,
-    database_path: Path | str | None = None,
-    log_level: str | None = None,
-    access_log: bool | None = None,
-) -> None:
+def start_docker_server(config: Config, /, *,
+                        console: Console,
+                        explicit_port: int | None,
+                        detach: bool = True,
+                        ) -> None:
     """Start the server using Docker"""
-    config: Config = load_config(config_dir,
-                                 port=port,
-                                 host=host,
-                                 docker_image=docker_image,
-                                 container_name=container_name,
-                                 log_level=log_level,
-                                 access_log=access_log,
-                                 database_path=database_path)
 
-    match docker_image:
-        case None | "":
-            docker_image = config.get('docker_image') or DOCKER_IMAGE
-        case str() if docker_image.startswith(":"):
-            default = config.get('docker_image') or DOCKER_IMAGE
-            docker_image = f'{default.split(":")[0]}{docker_image}'
-        case _:
-            pass  # Use provided docker_image as is
-
-    match container_name:
-        case None | "":
-            _container_name = config.get('container_name', DEFAULT_CONTAINER_NAME)
-        case _:
-            _container_name = container_name  # Use provided container_name as is
+    container_name = config['container_name']
+    docker_image = config['docker_image']
+    port = explicit_port or config['port']
+    host = config['host']
+    log_level = config['log_level']
+    access_log = config['access_log']
+    config_dir = config['config_dir']
+    database_path = config['database_path']
 
     container_id = subprocess.run(
-        ['docker', 'ps', '-q', '--all', '-f', f'name={_container_name}'],
+        ['docker', 'ps', '-q', '--all', '-f', f'name={container_name}'],
         capture_output=True,
         text=True,
         check=False,
     ).stdout.strip()
 
     if container_id:
-        console.print(f"❌ Docker container with name '{_container_name}' already exists.")
-        console.print(f"Please stop it first with: docker stop {_container_name}")
+        console.print(f"❌ Docker container with name '{container_name}' already exists.")
+        console.print(f"Please stop it first with: docker stop {container_name}")
         sys.exit(1)
 
-    if port is None:
-        port = config.get('port', DEFAULT_PORT)
-        if not isinstance(port, int):
-            port = DEFAULT_PORT
+    if not explicit_port:
         if not is_port_available(port, host):
             port = find_free_port(port)
             config['port'] = port
@@ -404,14 +364,14 @@ def start_docker_server(
         '--rm',
         '--init',
         '-it' if not detach else '-d',
-        '--name',
-        _container_name or DEFAULT_CONTAINER_NAME,
-        '-p',
-        f'{port}:{DEFAULT_PORT}',
-        '-v',
-        f'{config_dir}:/app/.zabob/memgraph',
+        '--name', container_name,
+        '-p', f'{port}:{DEFAULT_PORT}',
+        '-v', f'{config_dir}:/app/.zabob/memgraph',
         docker_image,
         "run",
+        '--access-log' if access_log else '--no-access-log',
+        '--log-level', log_level,
+        '--database-path', f"/app/{database_path.name}",
     ]
 
     try:
@@ -456,7 +416,7 @@ def start_docker_server(
         sys.exit(1)
     except KeyboardInterrupt:
         console.print("\n👋 Stopping container...")
-        subprocess.run(['docker', 'stop', str(_container_name)], capture_output=True)
+        subprocess.run(['docker', 'stop', str(container_name)], capture_output=True)
         cleanup_server_info(config_dir,
                             port=port,
                             docker_container=container_name,

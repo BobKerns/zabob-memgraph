@@ -63,11 +63,11 @@ jobs:
 
     - name: Install Playwright browsers
       run: |
-        # uv run playwright install --with-deps chromium
+        uv run playwright install --with-deps chromium
 
     - name: Run tests
       run: |
-        # uv run pytest
+        uv run pytest
 
     - name: Test dev utilities
       run: |

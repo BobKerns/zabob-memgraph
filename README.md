@@ -45,7 +45,24 @@ More details:
 
 ## Quick Start
 
-### Docker Compose (Recommended)
+### Prebuilt docker image
+
+To run it as a background process clients connect to:
+
+```bash
+docker pull bobkerns/zabob-memgraph:latest
+uvx zabob-memgraph start --docker
+```
+
+### Prebuilt without docker
+
+This works the same as above, but without the isolation of a docker container.
+
+```bash
+uvx zabob-memgraph start
+```
+
+### DIY: Docker Compose
 
 ```bash
 # Clone repository
@@ -57,6 +74,20 @@ docker-compose up -d
 
 # Access web UI at http://localhost:6789
 # MCP endpoint at http://localhost:6789/mcp
+```
+
+### DIY: development mode
+
+```bash
+
+# Clone repository
+git clone https://github.com/BobKerns/zabob-memgraph.git
+cd zabob-memgraph
+
+uv sync
+source .venv/bin/activate
+
+zabob-memgraph start
 ```
 
 ### Claude Desktop Integration
@@ -208,7 +239,7 @@ Configuration and data are stored in `~/.zabob/memgraph/`:
 
 ### Configuration File
 
-The `config.json` file supports these options:
+The `config.json` file supports these options (and more)
 
 ```json
 {
@@ -221,6 +252,10 @@ The `config.json` file supports these options:
   "database_file": "~/.zabob/memgraph/data/knowledge_base.db"
 }
 ```
+
+You can see its effective contents with:
+
+zabob-memgraph config
 
 ### Environment Variables
 
@@ -248,7 +283,7 @@ Zabob Memgraph provides these MCP tools for AI assistants:
 
 ### HTTP Endpoints
 
-When running in HTTP server mode:
+The embedded HTTP server provides:
 
 - `GET /` - Web visualization interface
 - `POST /mcp` - MCP protocol endpoint (SSE transport)
@@ -262,7 +297,7 @@ MCP tools are called through the protocol. Example using the web UI:
 2. View entities and relations in the interactive graph
 3. Search, zoom, and explore your knowledge graph
 
-For Claude Desktop integration, tools are automatically available after configuration.
+For Claude Desktop, VSCode, or other MCP client integration, tools are automatically available after configuration.
 
 ## Architecture
 

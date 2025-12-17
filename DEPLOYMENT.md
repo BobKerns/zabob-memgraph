@@ -343,8 +343,11 @@ All modes use port 6789 by default. Configure with:
 # Environment variable
 export MEMGRAPH_PORT=8080
 
-# Command line
+# Command line, per-use
 zabob-memgraph start --port 8080
+
+# Command line, persistent
+zabob-memgraph config --port 8080 --update
 
 # Docker
 docker run -p 8080:6789 zabob-memgraph

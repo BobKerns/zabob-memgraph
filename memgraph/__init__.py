@@ -16,7 +16,7 @@ from memgraph.launcher import (
     start_docker_server,
     start_local_server,
 )
-from memgraph.service import create_unified_app, main as run_server
+from memgraph.service import create_unified_app, run_server as run_server
 from memgraph.__version__ import __version__, __distribution__
 from memgraph.__main__ import cli
 
