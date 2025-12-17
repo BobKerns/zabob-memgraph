@@ -182,7 +182,7 @@ def get_server_info(config_dir: Path, /, *,
             }
             svr_info = {
                 k: v
-                for v, k in info.items()
+                for k, v in info.items()
                 if k is not None
             }
             return [cast(ServerInfo, svr_info)]
@@ -306,7 +306,7 @@ def start_local_server(config: Config, /, *,
                             '--host', config['host'],
                             '--config-dir', str(config_dir),
                             '--log-level', config['log_level'],
-                            '--database-path', str(object=config['database_path']),
+                            '--database-path', str(config['database_path']),
                             *(['--access-log'] if config['access_log'] else []),
                          ],
                         stdout=subprocess.DEVNULL,
@@ -371,7 +371,6 @@ def start_docker_server(config: Config, /, *,
         "run",
         '--access-log' if access_log else '--no-access-log',
         '--log-level', log_level,
-        '--database-path', f"/app/{database_path.name}",
     ]
 
     try:

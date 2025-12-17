@@ -152,7 +152,6 @@ def start(
             exit(1)
 
     if docker:
-        name = name or config['container_name']
         start_docker_server(config,
                             console=console,
                             explicit_port=port,
@@ -257,14 +256,22 @@ def restart(
                          database_path=database_path,
                          log_level=log_level,
                          access_log=access_log)
-    database_path = Path(config.get('database_path', database_path)).resolve()
+    database_path = Path(config['database_path']).resolve()
 
-    if is_server_running(get_one_server_info(config_dir,
-                                             port=port,
-                                             host=host,
-                                             name=name,
-                                             database_path=database_path)):
-        ctx.invoke(stop)
+    server_info = get_one_server_info(config_dir,
+                                      port=port,
+                                      host=host,
+                                      name=name,
+                                      database_path=database_path)
+    if server_info and is_server_running(server_info):
+        ctx.invoke(stop,
+                   port=port,
+                   pid=server_info.get('pid'),
+                   docker=docker,
+                   name=name,
+                   image=image,
+                   database_path=database_path)
+
         console.print("⏳ Waiting for server to stop...")
         time.sleep(2)
 

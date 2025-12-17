@@ -91,6 +91,19 @@ def match_type[T](value: object, expected_type: type[T]) -> T | None:
     # type checkers and future-proofing.
     if value is None:
         return None
+    if expected_type is bool:
+        # Special case for bool since bool("false") is True
+        if isinstance(value, bool):
+            return cast(T, value)
+        if isinstance(value, str):
+            lowered = value.lower()
+            if lowered in ("true", "1", "yes"):
+                return True  # type: ignore[return-value]
+            if lowered in ("false", "0", "no"):
+                return False  # type: ignore[return-value]
+        # This shouldn't arise in practice, but fall back to standard conversion,
+        # including the __bool__ method.
+        return cast(T, bool(value))
     if isinstance(value, expected_type):
         return value
     constructor = cast(Callable[[Any], T], expected_type)

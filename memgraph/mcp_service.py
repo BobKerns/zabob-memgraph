@@ -282,7 +282,7 @@ def get_lifespan_hook(config: Config) -> Lifespan[Any]:
                                      pid=os.getpid(),
                                      host=config['host'],
                                      port=config['port'],
-                                     database_path=config.get('database_path'))
+                                     database_path=config['database_path'])
 
         def cleanup() -> None:
             if info_file:

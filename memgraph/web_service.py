@@ -146,7 +146,7 @@ def run_web_service(config: Config | None = None) -> int:
             log_server_start(service_logger, config['host'], config['port'])
 
             # Configure uvicorn logging to use same log file
-            uvicorn_config = configure_uvicorn_logging(str(config['log_file']))
+            uvicorn_config = configure_uvicorn_logging(log_file)
 
             uvicorn.run(
                 app_instance,
