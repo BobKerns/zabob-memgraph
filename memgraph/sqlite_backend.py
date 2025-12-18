@@ -334,7 +334,8 @@ class SQLiteKnowledgeGraphDB:
                     )
                     for row in entity_search:
                         entity_id = row["id"]
-                        # BM25 returns negative scores (lower is better), so negate for sorting
+                        # BM25 returns negative scores; higher (less negative) is better
+                        # Negate to get positive scores for intuitive sorting
                         entity_scores[entity_id] = entity_scores.get(entity_id, 0) - row["score"]
 
                     # Search observations with BM25 scoring
@@ -349,7 +350,8 @@ class SQLiteKnowledgeGraphDB:
                     )
                     for row in obs_search:
                         entity_id = row["entity_id"]
-                        # BM25 returns negative scores (lower is better), so negate for sorting
+                        # BM25 returns negative scores; higher (less negative) is better
+                        # Negate to get positive scores for intuitive sorting
                         entity_scores[entity_id] = entity_scores.get(entity_id, 0) - row["score"]
                     
                     # Sort entity IDs by score (highest first)
