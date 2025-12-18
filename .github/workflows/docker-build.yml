@@ -44,6 +44,7 @@ jobs:
       uses: docker/setup-buildx-action@v3.11.1
       with:
         driver: docker-container
+        platforms: linux/amd64,linux/arm64
 
     - name: Extract metadata
       id: meta
@@ -110,8 +111,18 @@ jobs:
         docker pull "$TEST_TAG"
 
         # Run container
-        docker run -d --name test-memgraph -p 6789:6789 \
-          "$TEST_TAG" run
+        docker run -d --name test-memgraph \
+          -p 6789:6789 \
+          "$TEST_TAG" \
+          run --access-log --log-level debug
+
+        # Give it a moment to start
+        sleep 3
+
+        # Post-start network diagnostics
+        echo "=== Network diagnostics after container start ==="
+        docker ps -a
+        docker port test-memgraph
 
         # Wait for container to be ready (retry loop)
         echo "Waiting for container to start..."
@@ -129,12 +140,18 @@ jobs:
         done
 
         # Test health endpoint
-        curl -f http://localhost:6789/health || exit 1
+        echo "=== Testing health endpoint IP4 ==="
+        curl -4 -f http://localhost:6789/health || exit 1
+
+        # Test health endpoint
+        echo "=== Testing health endpoint IP6 ==="
+        curl -6 -f http://localhost:6789/health || exit 1
 
         # Test web UI
         curl -f http://localhost:6789/ || exit 1
 
-        # Show logs
+        # Show final logs
+        echo "=== Final container logs ==="
         docker logs test-memgraph
 
         # Cleanup

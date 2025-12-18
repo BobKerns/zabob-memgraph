@@ -5,18 +5,22 @@ import asyncio
 import sys
 from pathlib import Path
 
+from memgraph import load_config
+
+from memgraph.config import default_config_dir
+
 # Add parent dir to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB
+from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB   # noqa
 
 
 async def test_create_relations():
     """Test that create_relations actually persists to database."""
 
     # Use the real database
-    db_path = Path.home() / ".zabob" / "memgraph" / "data" / "knowledge_graph.db"
-    db = SQLiteKnowledgeGraphDB(str(db_path))
+    config = load_config(default_config_dir())
+    db = SQLiteKnowledgeGraphDB(config)
 
     # Get initial count
     initial_stats = await db.get_stats()
@@ -32,7 +36,7 @@ async def test_create_relations():
         }
     ]
 
-    print(f"\nCreating test relation: zabob-memgraph -> SQLite (uses_for_testing)")
+    print("\nCreating test relation: zabob-memgraph -> SQLite (uses_for_testing)")
     await db.create_relations(test_relations)
 
     # Check final count

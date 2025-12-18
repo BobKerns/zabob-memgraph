@@ -10,6 +10,7 @@ python migrate_to_v2.py --dry-run
 ```
 
 **Expected output:**
+
 - Shows current schema version (1)
 - Lists entities and observation counts
 - Shows what would be migrated
@@ -21,6 +22,7 @@ python migrate_to_v2.py --backup
 ```
 
 **What happens:**
+
 1. Creates backup: `knowledge_graph_v1_backup_TIMESTAMP.db`
 2. Adds schema_metadata table
 3. Creates observations table with FTS5
@@ -30,7 +32,8 @@ python migrate_to_v2.py --backup
 7. Validates the result
 
 **Expected output:**
-```
+
+```text
 ✅ Backup created: ...
 ✅ Created schema_metadata table
 ✅ Created observations table with FTS5
@@ -59,6 +62,7 @@ zabob-memgraph open
 ```
 
 **In the browser:**
+
 - Check your entities are visible
 - Check observations show up in node details
 - Try searching for keywords in your observations
@@ -89,7 +93,8 @@ SELECT
 ```
 
 **Expected output:**
-```
+
+```text
 entities | observations | relations | schema_version
 ---------|-------------|-----------|---------------
    X     |     Y       |    Z      |      2
@@ -117,17 +122,20 @@ zabob-memgraph start
 ## After Successful Migration
 
 1. **Update version in pyproject.toml** if you want:
+
    ```toml
    version = "0.1.0"
    ```
 
 2. **Commit the changes:**
+
    ```bash
    git add -A
    git commit -m "feat: migrate to normalized observations schema (v2)"
    ```
 
 3. **Optional - Clean up old test file:**
+
    ```bash
    rm test_new_schema.py
    ```
@@ -135,11 +143,13 @@ zabob-memgraph start
 ## What You're Getting
 
 ### Before
+
 - Observations: `["obs1", "obs2", "obs3"]` stored in one JSON column
 - Adding observation = rewrite entire array
 - Search = search through JSON text
 
 ### After
+
 - Observations: Individual rows in dedicated table
 - Adding observation = insert one row
 - Search = dedicated FTS5 index
