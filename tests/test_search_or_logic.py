@@ -277,3 +277,61 @@ async def test_complex_multi_term_query(populated_db):
     
     # At least some AI concept entities should be found
     assert any(name in entity_names for name in ["Agent", "Memory"])
+
+
+@pytest.mark.asyncio
+async def test_fts_special_characters_escaped(populated_db):
+    """Test that FTS special characters are properly escaped"""
+    # Add entity with parentheses in name
+    await populated_db.create_entities([
+        {
+            "name": "Function(test)",
+            "entityType": "code",
+            "observations": ["A function with special chars"]
+        }
+    ])
+    
+    # Search with special characters that could break FTS
+    # These should not cause syntax errors
+    results = await populated_db.search_nodes("Function(test)")
+    assert len(results["entities"]) >= 1
+    
+    # Search with quotes
+    await populated_db.create_entities([
+        {
+            "name": "Quote Entity",
+            "entityType": "test",
+            "observations": ['Has "quoted" text']
+        }
+    ])
+    
+    # Should not cause FTS syntax error
+    results = await populated_db.search_nodes('"quoted"')
+    assert isinstance(results["entities"], list)  # No crash
+
+
+@pytest.mark.asyncio
+async def test_fts_operator_keywords_escaped(populated_db):
+    """Test that FTS operator keywords (AND, OR, NOT) are escaped"""
+    await populated_db.create_entities([
+        {
+            "name": "AND Gate",
+            "entityType": "logic",
+            "observations": ["Boolean AND operation"]
+        },
+        {
+            "name": "OR Gate",
+            "entityType": "logic",
+            "observations": ["Boolean OR operation"]
+        }
+    ])
+    
+    # Search for literal "AND" (not as operator)
+    results = await populated_db.search_nodes("AND Gate")
+    assert len(results["entities"]) >= 1
+    assert "AND Gate" in [e["name"] for e in results["entities"]]
+    
+    # Search for literal "OR" (not as operator)
+    results = await populated_db.search_nodes("OR Gate")
+    assert len(results["entities"]) >= 1
+    assert "OR Gate" in [e["name"] for e in results["entities"]]

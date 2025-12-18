@@ -213,6 +213,37 @@ class SQLiteKnowledgeGraphDB:
         )
         conn.commit()
 
+    def _escape_fts_query(self, term: str) -> str:
+        """
+        Escape special FTS5 characters in a query term.
+        
+        FTS5 special characters include: " ( ) AND OR NOT
+        This prevents syntax errors and unexpected query behavior.
+        
+        Args:
+            term: Raw search term from user input
+            
+        Returns:
+            Escaped term safe for use in FTS MATCH queries
+        """
+        # Escape double quotes by doubling them (standard SQL escaping)
+        term = term.replace('"', '""')
+        # Wrap the term in quotes to treat it as a literal phrase
+        return f'"{term}"'
+    
+    def _preprocess_search_query(self, query: str) -> list[str]:
+        """
+        Preprocess a search query by splitting into terms.
+        
+        Args:
+            query: Raw search query string
+            
+        Returns:
+            List of non-empty terms, or empty list for empty/whitespace-only queries
+        """
+        terms = query.split()
+        return [term for term in terms if term]
+
     async def read_graph(self) -> dict[str, Any]:
         """Read the complete knowledge graph from SQLite"""
         async with self._lock:
@@ -279,13 +310,14 @@ class SQLiteKnowledgeGraphDB:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
 
-                    # Transform query to OR-based search for partial matching
-                    # Split on whitespace and join with OR operator
-                    terms = query.split()
+                    # Preprocess query: split into terms and escape for FTS
+                    terms = self._preprocess_search_query(query)
                     if not terms:
                         return {"entities": [], "relations": []}
                     
-                    or_query = " OR ".join(terms)
+                    # Escape each term for safe FTS usage and join with OR
+                    escaped_terms = [self._escape_fts_query(term) for term in terms]
+                    or_query = " OR ".join(escaped_terms)
 
                     # Search in both entities and observations FTS with scoring
                     entity_scores: dict[int, float] = {}
@@ -402,8 +434,8 @@ class SQLiteKnowledgeGraphDB:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
 
-                # Split query into terms for OR-based matching
-                terms = query.split()
+                # Preprocess query using shared helper
+                terms = self._preprocess_search_query(query)
                 if not terms:
                     return {"entities": [], "relations": []}
 
