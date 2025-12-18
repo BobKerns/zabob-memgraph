@@ -113,7 +113,7 @@ jobs:
           name: docker-metadata-${{ steps.set-platform-pair.outputs.platform-pair }}
           path: ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json
 
-      - name: Build and push to GHCR
+      - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6.18.0
         with:
@@ -123,8 +123,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: ${{ matrix.platform }}
-          tags: ghcr.io/${{ needs.setup.outputs.image-name }}
-          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Save Build Info
         run: |
@@ -172,11 +171,12 @@ jobs:
       matrix:
         include:
           - registry: ghcr.io
-            username: ${{ github.actor }}
-            password: GITHUB_TOKEN
+            use_actor: true
+            password_secret: GITHUB_TOKEN
           - registry: docker.io
+            use_actor: false
             username_secret: DOCKERHUB_USERNAME
-            password: DOCKERHUB_TOKEN
+            password_secret: DOCKERHUB_TOKEN
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -203,8 +203,8 @@ jobs:
         uses: docker/login-action@v3.6.0
         with:
           registry: ${{ matrix.registry }}
-          username: ${{ matrix.username || secrets[matrix.username_secret] }}
-          password: ${{ secrets[matrix.password] }}
+          username: ${{ matrix.use_actor && github.actor || secrets[matrix.username_secret] }}
+          password: ${{ secrets[matrix.password_secret] }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
