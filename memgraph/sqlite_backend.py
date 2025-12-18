@@ -273,55 +273,73 @@ class SQLiteKnowledgeGraphDB:
                 return {"entities": [], "relations": []}
 
     async def search_nodes(self, query: str) -> dict[str, Any]:
-        """Search nodes using SQLite FTS"""
+        """Search nodes using SQLite FTS with OR logic and BM25 ranking"""
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
 
-                    # Search in both entities and observations FTS
-                    entity_ids: set[int] = set()
+                    # Transform query to OR-based search for partial matching
+                    # Split on whitespace and join with OR operator
+                    terms = query.split()
+                    if not terms:
+                        return {"entities": [], "relations": []}
+                    
+                    or_query = " OR ".join(terms)
 
-                    # Search entities
+                    # Search in both entities and observations FTS with scoring
+                    entity_scores: dict[int, float] = {}
+
+                    # Search entities with BM25 scoring
                     entity_search = conn.execute(
                         """
-                        SELECT e.id
+                        SELECT e.id, bm25(entities_fts) as score
                         FROM entities e
                         JOIN entities_fts fts ON e.id = fts.rowid
                         WHERE entities_fts MATCH ?
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["id"] for row in entity_search)
+                    for row in entity_search:
+                        entity_id = row["id"]
+                        # BM25 returns negative scores (lower is better), so negate for sorting
+                        entity_scores[entity_id] = entity_scores.get(entity_id, 0) - row["score"]
 
-                    # Search observations
+                    # Search observations with BM25 scoring
                     obs_search = conn.execute(
                         """
-                        SELECT o.entity_id
+                        SELECT o.entity_id, bm25(observations_fts) as score
                         FROM observations o
                         JOIN observations_fts fts ON o.id = fts.rowid
                         WHERE observations_fts MATCH ?
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["entity_id"] for row in obs_search)
+                    for row in obs_search:
+                        entity_id = row["entity_id"]
+                        # BM25 returns negative scores (lower is better), so negate for sorting
+                        entity_scores[entity_id] = entity_scores.get(entity_id, 0) - row["score"]
+                    
+                    # Sort entity IDs by score (highest first)
+                    entity_ids = sorted(entity_scores.keys(), key=lambda eid: entity_scores[eid], reverse=True)
 
-                    # Get full entity data for matches
+                    # Get full entity data for matches, preserving score order
                     entities = []
                     entity_names = set()
 
                     if entity_ids:
                         placeholders = ",".join("?" * len(entity_ids))
+                        # Build a dict to look up entities by ID
                         entities_cursor = conn.execute(
                             f"""
                             SELECT e.id, e.name, e.entity_type
                             FROM entities e
                             WHERE e.id IN ({placeholders})
-                            ORDER BY e.name
                         """,
-                            list(entity_ids),
+                            entity_ids,
                         )
-
+                        
+                        entities_by_id = {}
                         for row in entities_cursor:
                             entity_id = row["id"]
                             entity_name = row["name"]
@@ -333,14 +351,18 @@ class SQLiteKnowledgeGraphDB:
                             )
                             observations = [obs_row["content"] for obs_row in obs_cursor]
 
-                            entities.append(
-                                {
-                                    "name": entity_name,
-                                    "entityType": row["entity_type"],
-                                    "observations": observations,
-                                }
-                            )
-                            entity_names.add(entity_name)
+                            entities_by_id[entity_id] = {
+                                "name": entity_name,
+                                "entityType": row["entity_type"],
+                                "observations": observations,
+                            }
+                            
+                        # Build results in score order
+                        for entity_id in entity_ids:
+                            if entity_id in entities_by_id:
+                                entity_data = entities_by_id[entity_id]
+                                entities.append(entity_data)
+                                entity_names.add(entity_data["name"])
 
                     # Get relations for matching entities
                     if entity_names:
@@ -375,30 +397,36 @@ class SQLiteKnowledgeGraphDB:
                 return await self._simple_search(query)
 
     async def _simple_search(self, query: str) -> dict[str, Any]:
-        """Simple LIKE-based search fallback"""
+        """Simple LIKE-based search fallback with OR logic"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
 
+                # Split query into terms for OR-based matching
+                terms = query.split()
+                if not terms:
+                    return {"entities": [], "relations": []}
+
                 # Simple search in name, entity_type, and observation content
                 entity_ids: set[int] = set()
 
-                # Search entities by name and type
-                entity_search = conn.execute(
-                    """
-                    SELECT id FROM entities
-                    WHERE name LIKE ? OR entity_type LIKE ?
-                """,
-                    (f"%{query}%", f"%{query}%"),
-                )
-                entity_ids.update(row["id"] for row in entity_search)
+                # Search entities by name and type with OR logic for each term
+                for term in terms:
+                    entity_search = conn.execute(
+                        """
+                        SELECT id FROM entities
+                        WHERE name LIKE ? OR entity_type LIKE ?
+                    """,
+                        (f"%{term}%", f"%{term}%"),
+                    )
+                    entity_ids.update(row["id"] for row in entity_search)
 
-                # Search observations by content
-                obs_search = conn.execute(
-                    "SELECT entity_id FROM observations WHERE content LIKE ?",
-                    (f"%{query}%",),
-                )
-                entity_ids.update(row["entity_id"] for row in obs_search)
+                    # Search observations by content
+                    obs_search = conn.execute(
+                        "SELECT entity_id FROM observations WHERE content LIKE ?",
+                        (f"%{term}%",),
+                    )
+                    entity_ids.update(row["entity_id"] for row in obs_search)
 
                 # Get full entity data
                 entities = []
