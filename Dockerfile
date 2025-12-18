@@ -1,5 +1,6 @@
 # Build stage
 FROM python:3.14-slim AS builder
+#FROM python:3.12-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && \
@@ -25,6 +26,7 @@ RUN pnpm install && pnpm run build:web
 
 # Runtime stage
 FROM python:3.14-slim
+# FROM python:3.12-bookworm
 
 WORKDIR /app
 
