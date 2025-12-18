@@ -13,7 +13,7 @@ import click
 import requests
 import psutil
 
-from memgraph.config import DEFAULT_PORT, Config, load_config, save_config
+from memgraph.config import DEFAULT_PORT, Config, save_config
 from rich.console import Console
 
 
@@ -110,16 +110,6 @@ def get_server_info(config_dir: Path, /, *,
     port = port or None
     pid = pid or None
     host = host or None
-
-    if database_path is None:
-        config = load_config(config_dir,
-                             port=port,
-                             pid=pid,
-                             host=host,
-                             name=name,
-                             image=image,
-                             container_id=container_id)
-        database_path = config['database_path']
 
     def read_server_info(info_file: Path) -> ServerInfo | None:
         try:
@@ -297,7 +287,9 @@ def start_local_server(config: Config, /, *,
         console.print(f"📍 Found available port {port}, updating default")
         config_dir = config['config_dir']
         save_config(config_dir, config)
+
     console.print(f"🚀 Starting server on {host}:{port}")
+    console.print(f"🌐 Web interface: http://{host}:{port}")
 
     try:
         process = subprocess.Popen(
@@ -314,9 +306,7 @@ def start_local_server(config: Config, /, *,
                         stdin=subprocess.DEVNULL,
                         start_new_session=True,
             )
-
         console.print(f"✅ Server started (PID: {process.pid})")
-        console.print(f"🌐 Web interface: http://{host}:{port}")
 
     except Exception as e:
         console.print(f"❌ Failed to start server: {e}")

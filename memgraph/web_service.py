@@ -10,12 +10,14 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any
+import sys
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import uvicorn
 
+from memgraph.__version__ import __version__
 from memgraph.config import default_config_dir, load_config, Config
 from memgraph.service_logging import (
     service_setup_context,
@@ -80,7 +82,7 @@ def setup_static_routes(static_dir: str = "web", service_logger: Any = None, tar
     # Health check endpoint
     @target_app.get("/health")
     async def health_check() -> dict[str, str]:
-        return {"status": "healthy", "service": "web_service"}
+        return {"status": "healthy", "service": "web_service", "version": __version__}
 
 
 def create_app(static_dir: str = "web", service_logger: Any = None) -> FastAPI:
@@ -155,6 +157,7 @@ def run_web_service(config: Config | None = None) -> int:
                 log_level=config['log_level'].lower(),
                 reload=config['reload'],
                 access_log=config['access_log'],
+                ws='websockets-sansio',
                 **uvicorn_config
             )
             return 0
@@ -199,6 +202,6 @@ if __name__ == "__main__":
         exit_code = run_web_service(config)
 
         if exit_code:
-            exit(exit_code)
+            sys.exit(exit_code)
 
     cli()

@@ -55,3 +55,8 @@ EXPOSE 6789
 
 # Use startup script as entrypoint
 CMD []
+
+LABEL org.opencontainers.image.source=https://github.com/BobKerns/zabob-memgraph
+LABEL org.opencontainers.image.title="Zabob Memgraph"
+LABEL org.opencontainers.image.description="Zabob Memgraph MCP memory service with web interface\nZabob remembers the future so you don't have to."
+LABEL org.opencontainers.image.licenses=MIT

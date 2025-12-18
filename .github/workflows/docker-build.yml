@@ -5,155 +5,313 @@ on:
         outputs:
           image-tag:
             description: 'The built image tag'
-            value: ${{ jobs.build-and-test.outputs.image-tag }}
+            value: ${{ jobs.build.outputs.image-tag }}
 
 env:
   REGISTRY_GHCR: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  PLATFORM_PAIR: ""
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
+  build:
     permissions:
       contents: read
       packages: write
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: linux/amd64
+          runner: ubuntu-latest
+        - platform: linux/arm64
+          runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     outputs:
       image-tag: ${{ steps.test-tag.outputs.tag }}
 
     steps:
+      - name: Prepare a filesystem-safe name for the platform pair
+        run: |
+            platform=${{ matrix.platform }}
+            echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
-    - name: Download Dockerfile
-      uses: actions/download-artifact@v7
-      with:
-          name: dockerfile
+      - name: Downcase the image name
+        run: |
+            image_name=${{ env.IMAGE_NAME }}
+            echo "IMAGE_NAME=${image_name,,}" >> $GITHUB_ENV
 
-    - name: Download Context
-      uses: actions/download-artifact@v7
-      with:
-          name: docker-context
+      - name: Announce image name
+        run: |
+            echo "Image name is: ${{ env.IMAGE_NAME }}"
 
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3.6.0
-      with:
-        registry: ${{ env.REGISTRY_GHCR }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download Dockerfile
+        uses: actions/download-artifact@v7
+        with:
+            name: dockerfile
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3.11.1
-      with:
-        driver: docker-container
-        platforms: linux/amd64,linux/arm64
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5.10.0
-      with:
-        images: ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=ref,event=tag
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Download Context
+        uses: actions/download-artifact@v7
+        with:
+            name: docker-context
 
 
-    - name: Save metadata
-      run: |
-        # Save full JSON metadata to file (supports multi-line)
-        echo '${{ steps.meta.outputs.json }}' > metadata.json
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
 
-    - name: Upload Metadata
-      uses: actions/upload-artifact@v6
-      with:
-        name: docker-metadata
-        path: metadata.json
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push to GHCR
-      id: build-and-push
-      uses: docker/build-push-action@v6.18.0
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
+        with:
+          driver: docker-container
+          platforms: linux/amd64,linux/arm64
 
-    - name: Save Build Info
-      run: |
-        echo "imageid=${{ steps.build-and-push.outputs.metadata.json }}" >build-info.json
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5.10.0
+        with:
+          images: ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+      - name: Save metadata
+        run: |
+          # Save full JSON metadata to file (supports multi-line)
+          echo '${{ steps.meta.outputs.json }}' > ${{ env.PLATFORM_PAIR }}-metadata.json
+
+      - name: Upload Metadata
+        uses: actions/upload-artifact@v6
+        with:
+          name: docker-metadata-${{ env.PLATFORM_PAIR }}
+          path: ${{ env.PLATFORM_PAIR }}-metadata.json
+
+      - name: Build and push to GHCR
+        id: build
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.platform }}
+          tags: ghcr.io/${{ env.IMAGE_NAME }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Save Build Info
+        run: |
+          echo "imageid=${{ steps.build.outputs.metadata.json }}" >${{ env.PLATFORM_PAIR }}-build-info.json
+
+      - name: Upload Build Info
+        uses: actions/upload-artifact@v6
+        with:
+          name: docker-build-info-${{ env.PLATFORM_PAIR }}
+          path: ${{ env.PLATFORM_PAIR }}-build-info.json
 
 
-    - name: Upload Build Info
-      uses: actions/upload-artifact@v6
-      with:
-        name: docker-build-info
-        path: build-info.json
+      - name: Export digest
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
-    - name: Determine test tag
-      id: test-tag
-      run: |
-        # Extract first tag from multi-line output
-        FIRST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
-        echo "tag=$FIRST_TAG" >> $GITHUB_OUTPUT
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
-    - name: Test Docker image from GHCR
-      run: |
-        # Use the first tag for testing
-        TEST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
-        echo "Testing with tag: $TEST_TAG"
+      - name: Determine test tag
+        id: test-tag
+        run: |
+          # Extract first tag from multi-line output
+          FIRST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
+          echo "tag=$FIRST_TAG" >> $GITHUB_OUTPUT
 
-        # Pull the built image
-        docker pull "$TEST_TAG"
+  merge-ghcr:
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
 
-        # Run container
-        docker run -d --name test-memgraph \
-          -p 6789:6789 \
-          "$TEST_TAG" \
-          run --access-log --log-level debug
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
 
-        # Give it a moment to start
-        sleep 3
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5.10.0
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
-        # Post-start network diagnostics
-        echo "=== Network diagnostics after container start ==="
-        docker ps -a
-        docker port test-memgraph
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-        # Wait for container to be ready (retry loop)
-        echo "Waiting for container to start..."
-        for i in {1..30}; do
-          if curl -sf http://localhost:6789/health > /dev/null 2>&1; then
-            echo "Container ready after $i seconds"
-            break
-          fi
-          if [ $i -eq 30 ]; then
-            echo "Container failed to start after 30 seconds"
-            docker logs test-memgraph
-            exit 1
-          fi
-          sleep 1
-        done
+      - name: Create manifest list and push to GHCR
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
-        # Test health endpoint
-        echo "=== Testing health endpoint IP4 ==="
-        curl -4 -f http://localhost:6789/health || exit 1
+      - name: Inspect image on GHCR
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
 
-        # Test health endpoint
-        echo "=== Testing health endpoint IP6 ==="
-        curl -6 -f http://localhost:6789/health || exit 1
+  merge-dockerhub:
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
 
-        # Test web UI
-        curl -f http://localhost:6789/ || exit 1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
 
-        # Show final logs
-        echo "=== Final container logs ==="
-        docker logs test-memgraph
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5.10.0
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
-        # Cleanup
-        docker stop test-memgraph
-        docker rm test-memgraph
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create manifest list and push to Docker Hub
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'docker.io/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image on Docker Hub
+        run: |
+          docker buildx imagetools inspect docker.io/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+
+  run-tests:
+    needs:
+        - merge-ghcr
+        - merge-dockerhub
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Test Docker image from GHCR
+        run: |
+          # Use the first tag for testing
+          TEST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
+          echo "Testing with tag: $TEST_TAG"
+
+          # Pull the built image
+          docker pull "$TEST_TAG"
+
+          # Configuration check
+          echo "Configuration info:"
+          docker run --rm "$TEST_TAG" config > config-output.txt
+          cat config-output.txt
+
+          # Run container
+          docker run -d --name test-memgraph \
+            -p 6789:6789 \
+            "$TEST_TAG" \
+            run --access-log --log-level debug
+
+          # Give it a moment to start
+          sleep 3
+
+          # Post-start network diagnostics
+          echo "=== Network diagnostics after container start ==="
+          docker ps -a
+          docker port test-memgraph
+
+          # Wait for container to be ready (retry loop)
+          echo "Waiting for container to start..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:6789/health > /dev/null 2>&1; then
+              echo "Container ready after $i seconds"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Container failed to start after 30 seconds"
+              docker logs test-memgraph
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Test health endpoint
+          echo "=== Testing health endpoint IP4 ==="
+          curl -4 -f http://localhost:6789/health || exit 1
+
+          # Test health endpoint
+          echo "=== Testing health endpoint IP6 ==="
+          curl -6 -f http://localhost:6789/health || exit 1
+
+          # Test web UI
+          curl -f http://localhost:6789/ || exit 1
+
+          # Show final logs
+          echo "=== Final container logs ==="
+          docker logs test-memgraph
+
+          # Cleanup
+          docker stop test-memgraph
+          docker rm test-memgraph
+
+          echo "All tests passed successfully!"
+
+      - name: Upload configuration output
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-output.txt
+          path: config-output.txt

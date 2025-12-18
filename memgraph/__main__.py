@@ -18,8 +18,10 @@ import shutil
 import subprocess
 import sys
 import time
+from typing import NoReturn
 import webbrowser
 from pathlib import Path
+from types import FrameType
 
 import click
 import psutil
@@ -44,7 +46,6 @@ from memgraph.launcher import (
     start_local_server,
 )
 from memgraph.service import run_server as run_server
-
 
 console = Console()
 
@@ -89,16 +90,16 @@ def start(
     detach: bool = False,
 ) -> None:
     """Start the Zabob Memgraph server"""
+    config_dir = ctx.obj['config_dir']
     # In Docker, 'start' behaves like 'run' (foreground)
     if IN_DOCKER:
         ctx.invoke(run,
                    port=port,
                    host=host,
                    reload=False,
-                   config_dir=ctx.obj['config_dir'],
+                   config_dir=config_dir,
                    database_path=database_path)
         return
-    config_dir: Path = ctx.obj['config_dir']
 
     if database_path is not None and not database_path.is_absolute():
         database_path = database_path.resolve()
@@ -128,28 +129,28 @@ def start(
             pass
         case ServerStatus.RUNNING, {'port': int() as port, 'pid': int() as pid}:
             console.print(f"❌ Server already running on port {port} (PID: {pid})")
-            exit(1)
+            sys.exit(1)
         case ServerStatus.RUNNING, {'docker_container': str() as container, 'container_id': str() as container_id}:
             console.print(f"❌ Server already running in Docker container {container} (ID: {container_id[:12]})")
-            exit(1)
+            sys.exit(1)
         case ServerStatus.RUNNING, {'docker_container': str() as container}:
             console.print(f"❌ Server already running in Docker container {container}")
-            exit(1)
+            sys.exit(1)
         case ServerStatus.RUNNING, _:
             console.print("❌ Server already running")
-            exit(1)
+            sys.exit(1)
         case ServerStatus.STOPPED, {'docker_container': str() as name, 'container_id': str() as cid}:
             console.print(f"✅ Starting stopped Docker container {name} ({cid[:12]})...")
             subprocess.run(['docker', 'start', name], check=True)
-            exit(0)
+            sys.exit(0)
         case ServerStatus.STOPPED, {'docker_container': str() as c_name}:
             console.print(f"✅ Starting stopped Docker container {c_name}")
             subprocess.run(['docker', 'start', '--detach', c_name], check=True)
-            exit(0)
+            sys.exit(0)
         case status, _:
             console.print(f"⚠️  Server process found but not working: {status}")
             console.print("Please stop it first using 'zabob-memgraph stop'")
-            exit(1)
+            sys.exit(1)
 
     if docker:
         start_docker_server(config,
@@ -176,7 +177,6 @@ def stop(ctx: click.Context, port: int | None, pid: int | None) -> None:
         console.print("❌ No matching server found to stop")
         return
     for info in servers:
-        pid = pid or info['pid']
         match info:
             case {"docker_container": str() as container}:
                 # Stop Docker container
@@ -533,6 +533,7 @@ def run(ctx: click.Context,
             console.print(f"📍 Using available port {port}")
 
     console.print(f"🚀 Starting server on {host}:{port}")
+    console.print(f"🌐 Web interface: http://{host}:{port}")
     if reload:
         console.print("🔄 Auto-reload enabled")
 
@@ -703,4 +704,11 @@ if is_dev_environment() and not IN_DOCKER:
 
 
 if __name__ == "__main__":
+    import signal
+
+    def signal_handler(_sig: int, _frame: FrameType | None) -> NoReturn:
+        console.print("\n👋 Server stopped")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
     cli()
