@@ -1,8 +1,6 @@
 name: build
 
 on:
-    push:
-        branches: [ main, develop, 'release-*' ]
     pull_request:
 
 permissions:
@@ -10,19 +8,20 @@ permissions:
     packages: write
 
 jobs:
-  build_and_test:
+  python_build_and_test:
     uses: ./.github/workflows/ci.yml
   build_docker:
-    needs: build_and_test
+    needs: python_build_and_test
     uses: ./.github/workflows/docker-build.yml
   label-success:
     needs:
-        - build_and_test
+        - python_build_and_test
         - build_docker
     if: |
-            github.event_name == 'pull_request' &&
-            github.event.action == 'synchronize' &&
-            needs.build_and_test.result == 'success' &&
+            (github.event.action == 'synchronize' ||
+            github.event.action == 'opened') &&
+            
+            needs.python_build_and_test.result == 'success' &&
             needs.build_docker.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -32,13 +31,13 @@ jobs:
 
   label-failure:
     needs:
-        - build_and_test
+        - python_build_and_test
         - build_docker
     if: |
-            github.event_name == 'pull_request' &&
-            github.event.action == 'synchronize' &&
-            needs.build_and_test.result != 'success' &&
-            needs.build_docker.result != 'success'
+            (github.event.action == 'synchronize' ||
+            github.event.action == 'opened') &&
+            (needs.python_build_and_test.result != 'success' ||
+             needs.build_docker.result != 'success')
     runs-on: ubuntu-latest
     steps:
         - name: Label Failure
