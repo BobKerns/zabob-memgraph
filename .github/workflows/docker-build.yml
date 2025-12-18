@@ -23,12 +23,6 @@ jobs:
           image_name=${{ env.IMAGE_NAME }}
           echo "image-name=${image_name,,}" >> $GITHUB_OUTPUT
 
-      - name: Prepare a filesystem-safe name for the platform pair
-        id: set-platform-pair
-        run: |
-            platform=${{ matrix.platform }}
-            echo "platform-pair=${platform//\//-}" >> $GITHUB_OUTPUT
-
   build:
     needs:
         - setup
@@ -98,7 +92,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.10.0
         with:
-          images: ${{ env.REGISTRY_GHCR }}/${{ needs }}
+          images: ${{ env.REGISTRY_GHCR }}/${{ needs.setup.outputs.image-name }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -109,8 +103,9 @@ jobs:
 
       - name: Save metadata
         run: |
-          # Save full JSON metadata to file (supports multi-line)
-          echo '${{ steps.meta.outputs.json }}' > ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json
+          cat > ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json << 'EOF'
+          ${{ steps.meta.outputs.json }}
+          EOF
 
       - name: Upload Metadata
         uses: actions/upload-artifact@v6
@@ -128,12 +123,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: ${{ matrix.platform }}
-          tags: ghcr.io/${{ needs.setup.outputs.image-name }}:${{ steps.meta.outputs.tags }}
+          tags: ghcr.io/${{ needs.setup.outputs.image-name }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
 
       - name: Save Build Info
         run: |
-          echo "imageid=${{ steps.build.outputs.metadata.json }}" >${{ steps.set-platform-pair.outputs.platform-pair }}-build-info.json
+          cat > ${{ steps.set-platform-pair.outputs.platform-pair }}-build-info.json << 'EOF'
+          ${{ steps.build.outputs.metadata }}
+          EOF
 
       - name: Upload Build Info
         uses: actions/upload-artifact@v6
@@ -186,7 +183,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.10.0
         with:
-          images: ${{ needs }}
+          images: ${{ needs.setup.outputs.image-name }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -243,6 +240,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
+          registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
