@@ -183,7 +183,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.10.0
         with:
-          images: ${{ needs.setup.outputs.image-name }}
+          images: ${{ env.REGISTRY_GHCR }}/${{ needs.setup.outputs.image-name }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -230,7 +230,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.10.0
         with:
-          images: ${{ needs.setup.outputs.image-name }}
+          images: docker.io/${{ needs.setup.outputs.image-name }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr

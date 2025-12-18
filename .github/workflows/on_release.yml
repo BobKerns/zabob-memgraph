@@ -18,6 +18,7 @@ jobs:
   build_docker:
     needs: build_python_package
     uses: ./.github/workflows/docker-build.yml
+    secrets: inherit
 
   publish_pypi_test:
     needs:

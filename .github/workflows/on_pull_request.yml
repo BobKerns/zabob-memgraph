@@ -13,6 +13,7 @@ jobs:
   build_docker:
     needs: python_build_and_test
     uses: ./.github/workflows/docker-build.yml
+    secrets: inherit
   label-success:
     needs:
         - python_build_and_test
@@ -20,7 +21,7 @@ jobs:
     if: |
             (github.event.action == 'synchronize' ||
             github.event.action == 'opened') &&
-            
+
             needs.python_build_and_test.result == 'success' &&
             needs.build_docker.result == 'success'
     runs-on: ubuntu-latest
