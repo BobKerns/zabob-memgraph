@@ -6,10 +6,14 @@ import json
 import sys
 from pathlib import Path
 
+from memgraph import load_config
+
+from memgraph.config import Config, default_config_dir
+
 # Add parent dir to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB
+from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB # noqa
 
 
 async def restore_relations():
@@ -19,6 +23,8 @@ async def restore_relations():
     json_path = Path(__file__).parent / "lost_relations_2025-12-14.json"
     print(f"Loading relations from: {json_path}")
 
+    config: Config = load_config(default_config_dir())
+
     with open(json_path) as f:
         data = json.load(f)
 
@@ -27,8 +33,7 @@ async def restore_relations():
     print(f"Context: {data['context']}\n")
 
     # Use the real database
-    db_path = Path.home() / ".zabob" / "memgraph" / "data" / "knowledge_graph.db"
-    db = SQLiteKnowledgeGraphDB(str(db_path))
+    db = SQLiteKnowledgeGraphDB(config)
 
     # Get initial count
     initial_stats = await db.get_stats()
@@ -77,7 +82,7 @@ async def restore_relations():
     final_count = final_stats.get("relation_count", 0)
 
     print(f"\n{'='*60}")
-    print(f"Restoration complete!")
+    print("Restoration complete!")
     print(f"  Initial count: {initial_count}")
     print(f"  Final count:   {final_count}")
     print(f"  Created:       {total_created}/{len(relations)}")
@@ -88,7 +93,7 @@ async def restore_relations():
         return True
     else:
         print(f"\n⚠️  WARNING: Only {total_created}/{len(relations)} relations created")
-        print(f"   Some may have been duplicates and were skipped")
+        print("   Some may have been duplicates and were skipped")
         return True
 
 

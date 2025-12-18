@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+
 # Index Optimization Analysis
 
 ## Query Pattern Analysis
