@@ -45,6 +45,7 @@
     "memgraph",
     "modelcontextprotocol",
     "mtch",
+    "multiarch",
     "multiplatform",
     "mypy",
     "networkidle",

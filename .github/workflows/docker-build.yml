@@ -167,16 +167,6 @@ jobs:
     needs:
       - setup
       - build
-    strategy:
-      matrix:
-        include:
-          - registry: ghcr.io
-            use_actor: true
-            password_secret: GITHUB_TOKEN
-          - registry: docker.io
-            use_actor: false
-            username_secret: DOCKERHUB_USERNAME
-            password_secret: DOCKERHUB_TOKEN
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -192,39 +182,119 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.10.0
         with:
-          images: ${{ matrix.registry }}/${{ needs.setup.outputs.image-name }}
+          images: ghcr.io/${{ needs.setup.outputs.image-name }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Log in to ${{ matrix.registry }}
+      - name: Log in to GHCR
         uses: docker/login-action@v3.6.0
         with:
-          registry: ${{ matrix.registry }}
-          username: ${{ matrix.use_actor && github.actor || secrets[matrix.username_secret] }}
-          password: ${{ secrets[matrix.password_secret] }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ matrix.registry }}/${{ needs.setup.outputs.image-name }}@sha256:%s ' *)
+          # Tags come from metadata-action
+          TAGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+
+          # Source digests from GHCR (where build pushed them)
+          SOURCE_DIGESTS=$(printf 'ghcr.io/${{ needs.setup.outputs.image-name }}@sha256:%s ' *)
+
+          # Create manifest and push to GHCR
+          docker buildx imagetools create $TAGS $SOURCE_DIGESTS
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ matrix.registry }}/${{ needs.setup.outputs.image-name }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ghcr.io/${{ needs.setup.outputs.image-name }}:${{ steps.meta.outputs.version }}
+  verify-multiarch:
+    needs:
+      - setup
+      - merge
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - name: Determine image tag
+        id: image-tag
+        run: |
+          # Use branch name for branch builds, github.ref_name for tags
+          if [[ "${{ github.ref }}" == refs/heads/* ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [[ "${{ github.ref }}" == refs/pull/* ]]; then
+            TAG="pr-${{ github.event.pull_request.number }}"
+          else
+            TAG="${{ github.sha }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using tag: $TAG"
+
+      - name: Pull and inspect image
+        run: |
+          IMAGE="ghcr.io/${{ needs.setup.outputs.image-name }}:${{ steps.image-tag.outputs.tag }}"
+          echo "Pulling: $IMAGE"
+
+          # Pull from GHCR
+          docker pull "$IMAGE"
+
+          # Verify architecture
+          ACTUAL_ARCH=$(docker inspect "$IMAGE" --format '{{.Architecture}}')
+          echo "Expected: ${{ matrix.arch }}"
+          echo "Actual: $ACTUAL_ARCH"
+
+          if [ "$ACTUAL_ARCH" != "${{ matrix.arch }}" ]; then
+            echo "ERROR: Architecture mismatch!"
+            exit 1
+          fi
+
+          echo "✓ Architecture verified: $ACTUAL_ARCH"
+
+      - name: Run basic functionality test
+        run: |
+          IMAGE="ghcr.io/${{ needs.setup.outputs.image-name }}:${{ steps.image-tag.outputs.tag }}"
+
+          # Quick smoke test
+          docker run --rm "$IMAGE" config
+          echo "✓ Container runs on ${{ matrix.arch }}"
+
   run-tests:
     needs:
+        - setup
         - merge
     runs-on: ubuntu-latest
     steps:
+      - name: Determine image tag
+        id: image-tag
+        run: |
+          # Use branch name for branch builds, github.ref_name for tags
+          if [[ "${{ github.ref }}" == refs/heads/* ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [[ "${{ github.ref }}" == refs/pull/* ]]; then
+            TAG="pr-${{ github.event.pull_request.number }}"
+          else
+            TAG="${{ github.sha }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using tag: $TAG"
 
       - name: Test Docker image from GHCR
         run: |
-          # Use the first tag for testing
-          TEST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
+          TEST_TAG="ghcr.io/${{ needs.setup.outputs.image-name }}:${{ steps.image-tag.outputs.tag }}"
           echo "Testing with tag: $TEST_TAG"
 
           # Pull the built image
