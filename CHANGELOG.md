@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.17] - 2025-12-19
+
+- Rebuild, to verify picking up OCI license key
+- Updated dependencies
+  - Default group
+    - mcp@1.25.0
+  - dev, ci groups:
+    - playwright@1.57.0
+    - ruff@1.14.10
+
 ## [0.1.16] - 2025-12-19
 
 ### Fixed
