@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.15] - 2025-12-18
+
+### Fixed
+
+Try to get multiplatform docker images.
+
+- Add label metadata for built images.
+- Matrix build the platforms
+- Merge step
+- Test step
+- Test includes showing configuration
+
+Print message on server exit on ^C
+Don't override the database path
+Use modern websockets
+Include version in HTTP health checks
+Include version in MCP health checks
+Declutter the explorer by folding related files.
+
+- Update dependencies:
+  - Main group
+    - mcp@1.24.0
+    - fastmcp@2.14.1
+  - Dev and CI groups
+    - mypy@1.19.1
+  - Actions
+    - docker/setup-buildx-action@v3.11.1
+    - docker/metadata-action@v5.10.0
+
 ## [0.1.14] - 2025-12-17
 
 ### Fixed

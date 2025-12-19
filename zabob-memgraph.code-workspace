@@ -21,7 +21,8 @@
     ],
     "makefile.configureOnOpen": false,
     "python.analysis.ignore": [
-        ".venv/"
+        ".venv/",
+        ".venv/**"
     ],
     "cSpell.ignorePaths": [
         "package-lock.json",
@@ -49,7 +50,24 @@
         "-v",
         "--tb=short"
     ],
-    "python.analysis.typeCheckingMode": "standard"
+    "python.analysis.typeCheckingMode": "standard",
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.*_cache": true
+    },
+    "files.watcherExclude": {
+        "**/.venv/**": true
+    },
+    "explorer.autoRevealExclude": {
+        "**/.venv": true,
+        "**/tests/out": true
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.expand": false,
+    "explorer.fileNesting.patterns": {
+        "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,cspell.json,.flake8",
+        "TODO.md": "SCHEMA_MIGRATION_STATUS.md,NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json"
+    }
     },
     "mcp": {
         "servers": {

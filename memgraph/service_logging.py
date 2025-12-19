@@ -98,7 +98,7 @@ async def service_async_context(
     def signal_handler(signum: int, frame: Any) -> None:
         service_logger.logger.info(f"Received signal {signum}, initiating graceful shutdown")
         service_logger.log_shutdown("signal")
-        exit(128 + signum)
+        sys.exit(128 + signum)
 
     def exit_handler() -> None:
         service_logger.log_shutdown("exit")
