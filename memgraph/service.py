@@ -7,6 +7,7 @@ Mounts web routes onto FastMCP's HTTP app for integrated operation.
 
 from pathlib import Path
 from typing import Any
+import sys
 
 from fastmcp import FastMCP
 import uvicorn
@@ -27,6 +28,8 @@ from memgraph.service_logging import (
     configure_uvicorn_logging,
     ServiceLogger,
 )
+
+from memgraph.__version__ import __version__
 
 
 def create_unified_app(config: Config,
@@ -89,7 +92,7 @@ def create_unified_app(config: Config,
         return FileResponse(index_path)
 
     async def health_check(request: Any) -> JSONResponse:
-        return JSONResponse({"status": "healthy", "service": "unified_service"})
+        return JSONResponse({"status": "healthy", "service": "unified_service", "version": __version__})
 
     # Add routes to the Starlette app
     app.routes.extend(
@@ -154,6 +157,7 @@ def run_server(
                         port=port,
                         log_level=config["log_level"].lower(),
                         access_log=config["access_log"],
+                        ws='websockets-sansio',
                         **uvicorn_config)
             return 0
 
@@ -190,6 +194,6 @@ if __name__ == "__main__":
         exit_code = run_server(config)
 
         if exit_code:
-            exit(exit_code)
+            sys.exit(exit_code)
 
     cli()

@@ -13,7 +13,7 @@ from memgraph.config import Config, default_config_dir
 # Add parent dir to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB # noqa
+from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB  # noqa
 
 
 async def restore_relations():

@@ -7,6 +7,7 @@ import ast
 import sys
 from pathlib import Path
 
+
 def check_syntax(file_path: Path) -> tuple[bool, str]:
     """Check syntax of a Python file."""
     try:
@@ -21,6 +22,7 @@ def check_syntax(file_path: Path) -> tuple[bool, str]:
         return False, f"Syntax error: {e}"
     except Exception as e:
         return False, f"Error reading file: {e}"
+
 
 def main():
     """Check all Python files in the memgraph package."""
@@ -58,6 +60,7 @@ def main():
     else:
         print(f"\nAll {len(python_files)} files have valid syntax!")
         return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

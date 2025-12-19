@@ -8,6 +8,7 @@ import json
 import shutil
 import sqlite3
 import tempfile
+import sys
 from pathlib import Path
 
 
@@ -217,4 +218,4 @@ async def test_migration():
 
 if __name__ == "__main__":
     success = asyncio.run(test_migration())
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

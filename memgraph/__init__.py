@@ -18,7 +18,6 @@ from memgraph.launcher import (
 )
 from memgraph.service import create_unified_app, run_server as run_server
 from memgraph.__version__ import __version__, __distribution__
-from memgraph.__main__ import cli
 
 __all__ = [
     'backup_database',
@@ -36,5 +35,4 @@ __all__ = [
     'start_local_server',
     '__version__',
     '__distribution__',
-    'cli'
 ]
