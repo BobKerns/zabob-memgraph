@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 import json
+import os
+import platform
 import re
 import socket
 import subprocess
@@ -9,16 +11,18 @@ import sys
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
+from memgraph.__version__ import __version__
 import click
 import requests
 import psutil
 
-from memgraph.config import DEFAULT_PORT, Config, save_config
+from memgraph.config import DEFAULT_PORT, Config, HostInfo, save_config
 from rich.console import Console
 
 
 class ServerInfo(TypedDict):
     launched_by: str
+    name: str
     port: int
     pid: int | None
     host: str
@@ -95,10 +99,11 @@ _RE_HOST_PORT = re.compile(r'^(?P<host>.+):(?P<port>\d+)$')
 
 
 def get_server_info(config_dir: Path, /, *,
+                    name: str | None = None,
                     port: int | None = None,
                     pid: int | None = None,
                     host: str | None = None,
-                    name: str | None = None,
+                    container_name: str | None = None,
                     container_id: str | None = None,
                     image: str | None = None,
                     database_path: Path | None = None,) -> list[ServerInfo]:
@@ -126,18 +131,19 @@ def get_server_info(config_dir: Path, /, *,
             data
             for info_file in servers_dir.glob('*.json')
             if (data := read_server_info(info_file))
+            and (name is None or data.get('name') == name)
             and (port is None or data.get('port') == port)
             and (pid is None or data.get('pid') == pid)
             and (host is None or data.get('host') == host)
-            and (name is None or name in (data.get('docker_container'), data.get('container_id')))
+            and (container_name is None or container_name in (data.get('docker_container'), data.get('container_id')))
             and (container_id is None or data.get('container_id') == container_id)
             and (image is None or data.get('image') == image)
             and (database_path is None or data.get('database_path') == database_path)
             ]
-    if servers or (not any([name, container_id])):
+    if servers or (not any([container_name, container_id])):
         return servers
 
-    for key, value in (('name', name), ('id', name), ('id', container_id)):
+    for key, value in (('name', container_name), ('id', container_name), ('id', container_id)):
         container_id = subprocess.run(
             ['docker', 'ps', '-q', '-f', f'{key}={value}'],
             capture_output=True,
@@ -162,10 +168,11 @@ def get_server_info(config_dir: Path, /, *,
             port = int(port_str)
             info = {
                 'launched_by': 'docker',
+                'name': name,
                 'port': port or 0,
                 'pid': None,
                 'host': host or 'localhost',
-                'docker_container': name,
+                'docker_container': container_name,
                 'image': image,
                 'container_id': container_id,
                 'database_path': database_path,
@@ -180,10 +187,11 @@ def get_server_info(config_dir: Path, /, *,
 
 
 def get_one_server_info(config_dir: Path, /, *,
+                        name: str | None = None,
                         port: int | None = None,
                         pid: int | None = None,
                         host: str | None = None,
-                        name: str | None = None,
+                        container_name: str | None = None,
                         image: str | None = None,
                         database_path: Path | None = None) -> ServerInfo | None:
     """
@@ -193,27 +201,32 @@ def get_one_server_info(config_dir: Path, /, *,
     where specifying which server to use is important if ambiguity exists.
 
     Args:
+        name (str, optional): Server name to filter by
         port (int, optional): Port number to filter by
         pid (int, optional): Process ID to filter by
         host (str, optional): Hostname to filter by
-        name (str, optional): Docker container name to filter by
+        container_name (str, optional): Docker container name to filter by
     Returns:
         dict: Server information if exactly one match is found, else exits.
     """
     servers = get_server_info(config_dir,
+                              name=name,
                               port=port,
                               pid=pid,
                               host=host,
-                              name=name,
+                              container_name=container_name,
                               image=image,
                               database_path=database_path)
     if len(servers) > 1:
         click.echo("❌ Multiple servers found, please specify which one to use:")
         for server in servers:
             click.echo(
-                f"- PID: {server.get('pid', 'N/A')}, Port: {server.get('port', 'N/A')}, "
-                f"Container: {server.get('docker_container', 'N/A')}"
-            )
+                ", ".join((
+                    f"- Name: {server.get('name', 'N/A')}",
+                    f"PID: {server.get('pid', 'N/A')}",
+                    f"Port: {server.get('port', 'N/A')}",
+                    f"Container: {server.get('docker_container', 'N/A')}"
+                )))
         sys.exit(1)
     return servers[0] if servers else None
 
@@ -294,6 +307,7 @@ def start_local_server(config: Config, /, *,
     try:
         process = subprocess.Popen(
                         [sys.executable, '-m', 'memgraph', 'run',
+                            '--name', config['name'],
                             '--port', str(config['port']),
                             '--host', config['host'],
                             '--config-dir', str(config_dir),
@@ -322,6 +336,7 @@ def start_docker_server(config: Config, /, *,
 
     container_name = config['container_name']
     docker_image = config['docker_image']
+    name = config['name']
     port = explicit_port or config['port']
     host = config['host']
     log_level = config['log_level']
@@ -347,58 +362,78 @@ def start_docker_server(config: Config, /, *,
             config['port'] = port
             save_config(config_dir, config)
 
+    data_dir = config['data_dir']
+    data_dir.mkdir(parents=True, exist_ok=True)
+    database_path = data_dir / database_path.name
+    host_dir = config_dir / str(port)
+    host_dir.mkdir(parents=True, exist_ok=True)
+    host_info_file = host_dir / 'host_info.json'
+    host_info = HostInfo(
+        os=os.name,
+        architecture=platform.machine(),
+        cpu_count=psutil.cpu_count(logical=True) or 0,
+        total_memory_gb=psutil.virtual_memory().total / (1024 ** 3),
+        memgraph_version=__version__,
+        database_path=database_path.resolve(),
+        data_dir=data_dir.resolve(),
+        port=port,
+        host=host,
+        container_name="TBD",
+    )
+
     # Build Docker run command
     cmd = [
         'docker',
         'run',
         '--rm',
         '--init',
-        '-it' if not detach else '-d',
+        *(('-it',) if not detach else ()),
+        '--detach',
         '--name', container_name,
         '-p', f'{port}:{DEFAULT_PORT}',
         '-v', f'{config_dir}:/app/.zabob/memgraph',
+        '-v', f'{data_dir}:/data',
+        '-v', f'{host_dir}:/host',
         docker_image,
         "run",
+        '--name', name,
+        '--database-path', str(database_path),
         '--access-log' if access_log else '--no-access-log',
         '--log-level', log_level,
     ]
 
     try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        container_id = result.stdout.strip()
+        with host_info_file.open('w') as f:
+            json.dump(host_info, f, indent=2)
+        server_info = save_server_info(
+            config_dir,
+            launched_by='docker',
+            name=name,
+            port=port,
+            docker_container=container_name,
+            container_id=container_id,
+            docker_image=docker_image,
+            log_level=log_level,
+            access_log=access_log,
+            host=host,
+            database_path=database_path,
+        )
+        console.print(f"✅ Docker container started: {container_name}")
+        console.print(f"🌐 Web interface: http://{host}:{port}")
         if detach:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            container_id = result.stdout.strip()
-            save_server_info(
-                config_dir,
-                launched_by='docker',
-                port=port,
-                docker_container=container_name,
-                container_id=container_id,
-                docker_image=docker_image,
-                log_level=log_level,
-                access_log=access_log,
-                host=host,
-                database_path=database_path,
-            )
-            console.print(f"✅ Docker container started: {container_name}")
-            console.print(f"🌐 Web interface: http://{host}:{port}")
+            console.print("ℹ️ To stop the container, run:")
+            console.print(f"   docker stop {container_name}")
         else:
-            info_file = save_server_info(
-                config_dir,
-                launched_by='docker',
-                port=port,
-                docker_container=container_name,
-                container_id=None,
-                docker_image=docker_image,
-                log_level=log_level,
-                access_log=access_log,
-                host=host,
-                database_path=database_path,
-            )
+            console.print("👋 Press Ctrl+C to stop the container")
             try:
-                console.print(f"🌐 Web interface: http://{host}:{port}")
-                subprocess.run(cmd, check=True)
+                subprocess.run(['docker', 'logs', '-f', container_name], check=True)
+            except KeyboardInterrupt:
+                console.print("\n👋 Stopping container...")
+                subprocess.run(['docker', 'stop', str(container_name)], capture_output=True)
             finally:
-                info_file.unlink(missing_ok=True)
+                server_info.unlink(missing_ok=True)
 
     except subprocess.CalledProcessError as e:
         console.print(f"❌ Failed to start Docker container: {e}")

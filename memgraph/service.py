@@ -92,7 +92,18 @@ def create_unified_app(config: Config,
         return FileResponse(index_path)
 
     async def health_check(request: Any) -> JSONResponse:
-        return JSONResponse({"status": "healthy", "service": "unified_service", "version": __version__})
+        '''
+        Report th
+        '''
+        return JSONResponse({
+            "status": "healthy",
+            "service": "unified_service",
+            "name": config['name'],
+            "version": __version__,
+            "in_docker": IN_DOCKER,
+            **({"container_name": config['container_name']} if IN_DOCKER else {}),
+            "port": config['real_port'] if IN_DOCKER else config['port'],
+            })
 
     # Add routes to the Starlette app
     app.routes.extend(

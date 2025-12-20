@@ -7,16 +7,15 @@ from collections.abc import AsyncGenerator
 import atexit
 from contextlib import asynccontextmanager
 from typing import Any
-import json
 import logging
 import os
 import webbrowser
-from pathlib import Path
+
 from starlette.types import Lifespan
 from fastapi import FastAPI
 from fastmcp import FastMCP
 
-from memgraph.config import Config, default_config_dir, load_config
+from memgraph.config import IN_DOCKER, Config, default_config_dir, load_config
 from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB
 
 from memgraph.launcher import save_server_info
@@ -199,7 +198,7 @@ def setup_mcp(config: Config) -> FastMCP:
             dict: Status of the operation with URL that was opened
         """
         # Check if we're in a Docker container
-        if os.getenv('DOCKER_CONTAINER') or os.path.exists('/.dockerenv'):
+        if IN_DOCKER:
             return {
                 "success": False,
                 "error": "Browser opening is not available when running in a Docker container.",
@@ -208,39 +207,11 @@ def setup_mcp(config: Config) -> FastMCP:
             }
 
         try:
-            # Get server info to find the correct port
-            config_dir = Path.home() / ".zabob" / "memgraph"
-            info_file = config_dir / "server_info.json"
-
-            port = None
-
-            if info_file.exists():
-                # Read server info
-                info = json.loads(info_file.read_text())
-                port = info.get('port', 6789)
-            else:
-                # Scan for any running server
-                logger.info("Scanning for running servers...")
-                for test_port in range(6789, 6800):
-                    try:
-                        import httpx
-                        response = httpx.get(f"http://localhost:{test_port}/health", timeout=1)
-                        if response.status_code == 200:
-                            port = test_port
-                            logger.info(f"Found server on port {port}")
-                            break
-                    except Exception:
-                        continue
-
-            if port is None:
-                return {
-                    "success": False,
-                    "error": "No server found running. Please start the server first.",
-                    "url": None
-                }
-
+            config_dir = default_config_dir()
+            config = load_config(config_dir)
+            real_port = config['real_port']
             # Build URL
-            url = f"http://localhost:{port}"
+            url = f"http://localhost:{real_port}"
             if node_id:
                 url += f"#{node_id}"
 

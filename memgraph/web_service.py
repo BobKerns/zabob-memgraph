@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse
 import uvicorn
 
 from memgraph.__version__ import __version__
-from memgraph.config import default_config_dir, load_config, Config
+from memgraph.config import IN_DOCKER, default_config_dir, load_config, Config
 from memgraph.service_logging import (
     service_setup_context,
     service_async_context,
@@ -81,8 +81,26 @@ def setup_static_routes(static_dir: str = "web", service_logger: Any = None, tar
 
     # Health check endpoint
     @target_app.get("/health")
-    async def health_check() -> dict[str, str]:
-        return {"status": "healthy", "service": "web_service", "version": __version__}
+    async def health_check() -> dict[str, str | int | bool | None]:
+        '''
+        Health check endpoint to verify service status and identity.
+        '''
+        config = load_config(default_config_dir())
+        if IN_DOCKER:
+            return {"status": "healthy",
+                    "service": "web_service",
+                    "name": config['name'],
+                    "version": __version__,
+                    "in_docker": True,
+                    "container_name": config['container_name'],
+                    "port": config['real_port']}
+        else:
+            return {"status": "healthy",
+                    "service": "web_service",
+                    "version": __version__,
+                    "in_docker": False,
+                    "container_name": None,
+                    "port": config['port']}
 
 
 def create_app(static_dir: str = "web", service_logger: Any = None) -> FastAPI:

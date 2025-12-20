@@ -14,6 +14,7 @@ Zabob Memgraph CLI
 Command-line interface for the Zabob Memgraph knowledge graph server.
 """
 
+from os import name
 import shutil
 import subprocess
 import sys
@@ -67,23 +68,25 @@ def cli(ctx: click.Context, config_dir: Path) -> None:
 
 
 @click.command()
+@click.option("--name", type=str, default=None, help="Server name")
 @click.option("--port", type=int, help="Specific port to use")
 @click.option("--host", default="localhost", help="Host to bind to")
 @click.option("--log-level", default=None, help="Logging level")
 @click.option("--access-log", type=bool, default=None, help="Enable access logging")
 @click.option("--docker", is_flag=True, default=False, help="Run using Docker")
-@click.option("--name", type=str, default=None, help="Docker container name")
+@click.option("--container-name", type=str, default=None, help="Docker container name")
 @click.option("--image", type=str, default=':latest', help="Docker image name and/or label")
 @click.option('--database-path', type=Path, default=None, help='Path to the database file')
 @click.option("--detach", "-d", is_flag=True, default=False, help="Run in background (Docker only)")
 @click.pass_context
 def start(
     ctx: click.Context,
+    name: str | None,
     port: int | None,
     host: str,
     log_level: str | None,
     access_log: bool | None,
-    name: str,
+    container_name: str,
     image: str,
     database_path: Path | None,
     docker: bool = False,
@@ -105,9 +108,10 @@ def start(
         database_path = database_path.resolve()
 
     config = load_config(config_dir,
+                         name=name,
                          host=host,
                          port=port,
-                         container_name=name,
+                         container_name=container_name,
                          image=image,
                          database_path=database_path,
                          log_level=log_level,
@@ -118,9 +122,10 @@ def start(
 
     # Check if server is already running
     info = get_one_server_info(config_dir,
+                               name=name,
                                port=port,
                                host=host,
-                               name=name,
+                               container_name=container_name,
                                image=image,
                                database_path=database_path)
     status = server_status(info)
@@ -139,9 +144,9 @@ def start(
         case ServerStatus.RUNNING, _:
             console.print("❌ Server already running")
             sys.exit(1)
-        case ServerStatus.STOPPED, {'docker_container': str() as name, 'container_id': str() as cid}:
-            console.print(f"✅ Starting stopped Docker container {name} ({cid[:12]})...")
-            subprocess.run(['docker', 'start', name], check=True)
+        case ServerStatus.STOPPED, {'docker_container': str() as container_name, 'container_id': str() as cid}:
+            console.print(f"✅ Starting stopped Docker container {container_name} ({cid[:12]})...")
+            subprocess.run(['docker', 'start', container_name], check=True)
             sys.exit(0)
         case ServerStatus.STOPPED, {'docker_container': str() as c_name}:
             console.print(f"✅ Starting stopped Docker container {c_name}")
@@ -166,13 +171,19 @@ def start(
 
 @click.command()
 @click.pass_context
+@click.option('--name', type=str, help="Specific server name to stop")
 @click.option("--port", type=int, help="Specific port the server is running on")
+@click.option('--container-name', type=str, help="Docker container name")
 @click.option("--pid", type=int, help="Specific PID of the server process")
-def stop(ctx: click.Context, port: int | None, pid: int | None) -> None:
+def stop(ctx: click.Context, name: str | None, port: int | None, container_name: str | None, pid: int | None) -> None:
     """Stop the Zabob Memgraph server"""
     config_dir: Path = ctx.obj['config_dir']
 
-    servers = get_server_info(config_dir, port=port, pid=pid)
+    servers = get_server_info(config_dir,
+                              name=name,
+                              port=port,
+                              container_name=container_name,
+                              pid=pid)
     if not servers:
         console.print("❌ No matching server found to stop")
         return
@@ -219,10 +230,11 @@ def stop(ctx: click.Context, port: int | None, pid: int | None) -> None:
 
 
 @click.command()
+@click.option("--name", type=str, default=None, help="Specific server name to restart")
 @click.option("--port", type=int, default=None, help="Specific port to use")
 @click.option("--host", default=None, help="Host to bind to")
 @click.option("--docker", is_flag=True, help="Run using Docker")
-@click.option("--name", type=str, default=None, help="Docker container name")
+@click.option("--container-name", type=str, default=None, help="Docker container name")
 @click.option("--image", type=str, default=':latest', help="Docker image name and/or label")
 @click.option('--database-path', type=Path, default=None, help='Path to the database file')
 @click.option('--log-level', type=str, default=None, help='Logging level')
@@ -231,10 +243,11 @@ def stop(ctx: click.Context, port: int | None, pid: int | None) -> None:
 @click.pass_context
 def restart(
     ctx: click.Context,
+    name: str | None,
     port: int | None,
     host: str | None,
     docker: bool,
-    name: str | None,
+    container_name: str | None,
     image: str,
     database_path: Path | None,
     log_level: str | None,
@@ -250,18 +263,20 @@ def restart(
     """
     config_dir: Path = ctx.obj['config_dir']
     config = load_config(config_dir,
+                         name=name,
                          port=port,
                          host=host,
-                         container_name=name,
+                         container_name=container_name,
                          database_path=database_path,
                          log_level=log_level,
                          access_log=access_log)
     database_path = Path(config['database_path']).resolve()
 
     server_info = get_one_server_info(config_dir,
+                                      name=name,
+                                      container_name=container_name,
                                       port=port,
                                       host=host,
-                                      name=name,
                                       database_path=database_path)
     if server_info and is_server_running(server_info):
         ctx.invoke(stop,
@@ -270,6 +285,7 @@ def restart(
                    docker=docker,
                    name=name,
                    image=image,
+                   container_name=container_name,
                    database_path=database_path)
 
         console.print("⏳ Waiting for server to stop...")
@@ -419,13 +435,13 @@ def monitor(ctx: click.Context, interval: int) -> None:
 @click.command()
 @click.option("--port", type=int, default=None, help="Port listening on")
 @click.option("--pid", type=int, default=None, help="Server main process PID")
-@click.option("--name", type=str, default=None, help="Docker container name")
+@click.option("--container-name", type=str, default=None, help="Docker container name")
 @click.pass_context
-def test(ctx: click.Context, port: int | None, pid: int | None, name: str | None) -> None:
+def test(ctx: click.Context, port: int | None, pid: int | None, container_name: str | None) -> None:
     """Test server endpoints"""
     config_dir: Path = ctx.obj['config_dir']
 
-    info = get_one_server_info(config_dir, port=port, pid=pid, name=name)
+    info = get_one_server_info(config_dir, port=port, pid=pid, container_name=container_name)
     if info is None:
         console.print("❌ No server running")
         console.print("Start the server first with: zabob-memgraph start")
@@ -467,6 +483,7 @@ def test(ctx: click.Context, port: int | None, pid: int | None, name: str | None
 
 # Development commands
 @click.command()
+@click.option('--name', type=str, default=None, help='Server instance name')
 @click.option('--port', type=int, default=None, help='Port to run on')
 @click.option('--host', default=None, help='Host to bind to')
 @click.option(
@@ -474,7 +491,7 @@ def test(ctx: click.Context, port: int | None, pid: int | None, name: str | None
 )
 @click.option('--config-dir', type=Path, default=None, help='Configuration directory')
 @click.option('--docker', is_flag=True, help='Run using Docker')
-@click.option('--name', type=str, default=None, help='Docker container name')
+@click.option('--container-name', type=str, default=None, help='Docker container name')
 @click.option('--docker-image', type=str, default=':latest', help='Docker image name and/or label')
 @click.option('--database-path', type=Path, default=None, help='Path to the database file')
 @click.option('--log-level', type=str, default=None, help='Logging level')
@@ -486,7 +503,7 @@ def run(ctx: click.Context,
         reload: bool,
         config_dir: Path | None,
         docker: bool,
-        name: str | None,
+        container_name: str | None,
         docker_image: str,
         database_path: Path | None,
         log_level: str | None,
@@ -504,10 +521,11 @@ def run(ctx: click.Context,
     config_dir = config_dir or Path(ctx.obj.get('config_dir', CONFIG_DIR))
     config_dir.mkdir(parents=True, exist_ok=True)
     config = load_config(config_dir,
+                         name=name,
                          port=port,
                          host=host,
                          reload=reload,
-                         container_name=name,
+                         container_name=container_name,
                          docker_image=docker_image,
                          database_path=database_path,
                          log_level=log_level,
@@ -636,23 +654,27 @@ def clean() -> None:
 
 
 @click.command("config")
+@click.option('--name', type=str, default=None, help='Server instance name')
 @click.option('--port', type=int, default=None, help='Port the server is running on')
 @click.option('--host', default=None, help='Host the server is binding to')
-@click.option('--name', type=str, default=None, help='Docker container name')
+@click.option('--container-name', type=str, default=None, help='Docker container name')
 @click.option('--image', type=str, default=None, help='Docker image name and/or label')
 @click.option('--database-path', type=Path, default=None, help='Path to the database file')
 @click.option('--log-level', type=str, default=None, help='Logging level')
 @click.option('--access-log/--no-access-log', default=None, help='Enable or disable access log')
+@click.option('--docker', is_flag=True, default=False, help='As if run using Docker')
 @click.option('--update', is_flag=True, default=False, help='Update configuration file with shown values')
 @click.pass_context
 def show_config(ctx: click.Context,
+                name: str | None,
                 port: int | None,
                 host: str | None,
-                name: str | None,
+                container_name: str | None,
                 image: str | None,
                 log_level: str | None,
                 access_log: bool | None,
                 database_path: Path | None,
+                docker: bool,
                 update: bool) -> None:
     """
     Show current configuration
@@ -662,6 +684,7 @@ def show_config(ctx: click.Context,
     """
     config_dir: Path = ctx.obj['config_dir']
     config = load_config(config_dir,
+                         name=name,
                          port=port,
                          host=host,
                          container_name=name,
@@ -669,6 +692,7 @@ def show_config(ctx: click.Context,
                          database_path=database_path,
                          log_level=log_level,
                          access_log=access_log,
+                         docker=docker,
                          )
     lines = [
         f"[bold]{key}:[/bold] {value}"
@@ -677,6 +701,9 @@ def show_config(ctx: click.Context,
     panel = Panel("\n".join(lines), title="🛠️ Current Configuration")
     console.print(panel)
     if update:
+        if docker:
+            raise click.ClickException("Cannot update configuration file in Docker mode")
+        console.print("💾 Updating configuration file...")
         save_config(config_dir, config)
 
 

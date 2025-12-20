@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18] - 2025-12-20
+
+## New
+
+- The `config` subcommand now has a `--docker` option to show what the container sees.
+- The `health` endpoints now include server name, version, port, in_docker, and (if applicable) container name. This allows distinguishing different servers.
+- Containers are now always started detached. But if run with `run` rather than start, the logs are followed and the server is stopped on control-C.
+
+### Breaking
+
+- The `--name` option, which formerly indicated the docker container name to use, has been renamed to `--container-name` to better reflect its purpose
+- A new `--name` option across all server types gives a name to help identify servers. This is useful for multi-agent scenarios
+
+### Fixed
+
+- Undefined `config_dir` error in some startup paths.
+
 ## [0.1.17] - 2025-12-19
 
 - Rebuild, to verify picking up OCI license key
