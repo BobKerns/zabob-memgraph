@@ -498,6 +498,7 @@ def test(ctx: click.Context, port: int | None, pid: int | None, container_name: 
 @click.option('--access-log/--no-access-log', default=None, help='Enable or disable access log')
 @click.pass_context
 def run(ctx: click.Context,
+        name: str | None,
         port: int | None,
         host: str | None,
         reload: bool,
@@ -687,7 +688,7 @@ def show_config(ctx: click.Context,
                          name=name,
                          port=port,
                          host=host,
-                         container_name=name,
+                         container_name=container_name,
                          docker_image=image,
                          database_path=database_path,
                          log_level=log_level,

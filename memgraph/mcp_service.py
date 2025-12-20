@@ -71,6 +71,36 @@ def setup_mcp(config: Config) -> FastMCP:
         return await DB.search_nodes(query)
 
     @mcp.tool
+    async def get_server_info() -> dict[str, Any]:
+        """
+        Get information about this server instance.
+
+        Returns server identity information including name, version, port, host,
+        database path, and container details if running in Docker.
+        Useful for distinguishing between multiple server instances in multi-agent scenarios.
+
+        Returns:
+            dict: Server information with name, version, port, host, database_path,
+                  in_docker, and container_name (if applicable)
+        """
+        from memgraph.__version__ import __version__
+        
+        info = {
+            "name": config.get('name', 'default'),
+            "version": __version__,
+            "port": config.get('real_port') if IN_DOCKER else config.get('port'),
+            "host": config.get('host'),
+            "database_path": str(config.get('database_path')),
+            "in_docker": IN_DOCKER,
+        }
+        
+        if IN_DOCKER:
+            info["container_name"] = config.get('container_name')
+        
+        logger.info(f"Returning server info for '{info['name']}'")
+        return info
+
+    @mcp.tool
     async def get_stats() -> dict[str, Any]:
         """
         Get statistics about the knowledge graph.
