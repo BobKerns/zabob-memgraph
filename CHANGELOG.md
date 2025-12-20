@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - mcp@1.25.0
   - dev, ci groups:
     - playwright@1.57.0
-    - ruff@1.14.10
+    - ruff@0.14.10
 
 ## [0.1.16] - 2025-12-19
 
