@@ -159,6 +159,8 @@ addopts = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+    "ui_basic: marks basic UI tests (page load, health, layout)",
+    "ui_interactive: marks interactive UI tests (clicks, search, details)",
 ]
 # Playwright configuration
 asyncio_mode = "auto"

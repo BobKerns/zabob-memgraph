@@ -65,9 +65,14 @@ jobs:
       run: |
         uv run playwright install --with-deps chromium
 
-    - name: Run tests
+    - name: Run unit and integration tests
       run: |
-        uv run pytest
+        uv run pytest -m "not (ui_basic or ui_interactive)" -n auto
+
+    - name: Run UI tests in parallel
+      run: |
+        # Run basic and interactive UI tests in parallel using xdist
+        uv run pytest -m "ui_basic or ui_interactive" -n 2
 
     - name: Test dev utilities
       run: |

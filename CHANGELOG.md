@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `config` subcommand now has a `--docker` option to show what the container sees.
 - The `health` endpoints now include server name, version, port, in_docker, and (if applicable) container name. This allows distinguishing different servers.
 - Containers are now always started detached. But if run with `run` rather than start, the logs are followed and the server is stopped on control-C.
+- New MCP tool `get_server_info` allows agents to query server identity information (name, version, port, host, database path, container details).
+- Faster Playwright testing by nearly 50%.
 
 ### Breaking
 
