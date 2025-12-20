@@ -275,6 +275,7 @@ def start_local_server(config: Config, /, *,
     # Determine port
     port = config['port']
     host = config['host']
+    config_dir = config['config_dir']
 
     if explicit_port:
         console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")
@@ -285,7 +286,6 @@ def start_local_server(config: Config, /, *,
         port = find_free_port(port)
         config['port'] = port
         console.print(f"📍 Found available port {port}, updating default")
-        config_dir = config['config_dir']
         save_config(config_dir, config)
 
     console.print(f"🚀 Starting server on {host}:{port}")
