@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zabob-memgraph"
-version = "0.1.18"
+version = "0.1.19"
 description = "Zabob Memgraph - Knowledge graph visualization and MCP server"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi",
-    "uvicorn>=0.38.0",
+    "uvicorn>=0.40.0",
     "mcp>=1.25.0",
     "fastmcp>=2.14.1",
     "pydantic>=2.12.5",
@@ -25,6 +25,7 @@ dependencies = [
 
 [project.scripts]
 zabob-memgraph = "memgraph.__main__:cli"
+zabob-memgraph-stdio = "memgraph.stdio_service:main"
 
 [project.optional-dependencies]
 # CI group: Testing and linting (no compiled deps like watchfiles)

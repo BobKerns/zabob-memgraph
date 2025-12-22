@@ -125,6 +125,12 @@ docker run -d --name zabob-memgraph \
 
 Then configure Claude Desktop to connect to `http://localhost:6789/mcp`
 
+### Visual Studio Code
+
+Visual Studio Code is a hostile environment. If you have a lot of tools, it will randomly decide to stop presenting some to the agent. To combat this, include a reference to #zabob-memgraph in every message where it is of use. A /prompt may simplify this.
+
+Visual Studio Code will also close your server if it's HTTP, so a running as a stdio is essential. Use the `run` subcommand, and it will automatically start in stdio mode if appropriate.
+
 **📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment options**
 
 ## Usage
