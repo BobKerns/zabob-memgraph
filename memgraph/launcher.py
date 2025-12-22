@@ -52,16 +52,14 @@ def find_free_port(start_port: int = DEFAULT_PORT) -> int:
     for port in range(start_port, start_port + 100):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('localhost', port))
+                s.bind(("localhost", port))
                 return port
         except OSError:
             continue
-    raise RuntimeError(
-        f"Could not find a free port in range {start_port}-{start_port + 100}"
-    )
+    raise RuntimeError(f"Could not find a free port in range {start_port}-{start_port + 100}")
 
 
-def is_port_available(port: int, host: str = 'localhost') -> bool:
+def is_port_available(port: int, host: str = "localhost") -> bool:
     """Check if a port is available"""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -89,26 +87,30 @@ def server_status(info: ServerInfo | None) -> ServerStatus:
             return check_container(container_id)
         case {"docker_container": str() as container}:
             return check_container(container)
-        case {'pid': int() as pid, 'host': str() as host, 'port': int() as port}:
-            return check_pid(pid, f'http://{host}:{port}/')
+        case {"pid": int() as pid, "host": str() as host, "port": int() as port}:
+            return check_pid(pid, f"http://{host}:{port}/")
         case _:
             raise ValueError("Invalid ServerInfo format")
 
 
-_RE_HOST_PORT = re.compile(r'^(?P<host>.+):(?P<port>\d+)$')
+_RE_HOST_PORT = re.compile(r"^(?P<host>.+):(?P<port>\d+)$")
 
 
-def get_server_info(config_dir: Path, /, *,
-                    name: str | None = None,
-                    port: int | None = None,
-                    pid: int | None = None,
-                    host: str | None = None,
-                    container_name: str | None = None,
-                    container_id: str | None = None,
-                    image: str | None = None,
-                    database_path: Path | None = None,) -> list[ServerInfo]:
+def get_server_info(
+    config_dir: Path,
+    /,
+    *,
+    name: str | None = None,
+    port: int | None = None,
+    pid: int | None = None,
+    host: str | None = None,
+    container_name: str | None = None,
+    container_id: str | None = None,
+    image: str | None = None,
+    database_path: Path | None = None,
+) -> list[ServerInfo]:
     """Get server information from servers/*.json"""
-    servers_dir = config_dir / 'servers'
+    servers_dir = config_dir / "servers"
     servers_dir.mkdir(parents=True, exist_ok=True)
 
     # Canonicalize 0 or "" to None
@@ -120,39 +122,39 @@ def get_server_info(config_dir: Path, /, *,
         try:
             with open(info_file) as f:
                 data = json.load(f)
-                db = data.get('database_path')
+                db = data.get("database_path")
                 if db is not None:
-                    data['database_path'] = Path(db)
+                    data["database_path"] = Path(db)
                 return cast(ServerInfo, data)
         except Exception:
             return None
 
     servers = [
-            data
-            for info_file in servers_dir.glob('*.json')
-            if (data := read_server_info(info_file))
-            and (name is None or data.get('name') == name)
-            and (port is None or data.get('port') == port)
-            and (pid is None or data.get('pid') == pid)
-            and (host is None or data.get('host') == host)
-            and (container_name is None or container_name in (data.get('docker_container'), data.get('container_id')))
-            and (container_id is None or data.get('container_id') == container_id)
-            and (image is None or data.get('image') == image)
-            and (database_path is None or data.get('database_path') == database_path)
-            ]
+        data
+        for info_file in servers_dir.glob("*.json")
+        if (data := read_server_info(info_file))
+        and (name is None or data.get("name") == name)
+        and (port is None or data.get("port") == port)
+        and (pid is None or data.get("pid") == pid)
+        and (host is None or data.get("host") == host)
+        and (container_name is None or container_name in (data.get("docker_container"), data.get("container_id")))
+        and (container_id is None or data.get("container_id") == container_id)
+        and (image is None or data.get("image") == image)
+        and (database_path is None or data.get("database_path") == database_path)
+    ]
     if servers or (not any([container_name, container_id])):
         return servers
 
-    for key, value in (('name', container_name), ('id', container_name), ('id', container_id)):
+    for key, value in (("name", container_name), ("id", container_name), ("id", container_id)):
         container_id = subprocess.run(
-            ['docker', 'ps', '-q', '-f', f'{key}={value}'],
+            ["docker", "ps", "-q", "-f", f"{key}={value}"],
             capture_output=True,
             text=True,
             check=False,
         ).stdout.strip()
         if container_id:
             ports = subprocess.run(
-                ['docker', 'port', container_id, str(DEFAULT_PORT)],
+                ["docker", "port", container_id, str(DEFAULT_PORT)],
                 capture_output=True,
                 text=True,
             ).stdout.strip()
@@ -163,37 +165,37 @@ def get_server_info(config_dir: Path, /, *,
             mtch = _RE_HOST_PORT.match(portspec)
             if mtch is None:
                 raise RuntimeError(f"Could not parse port specification: {portspec}")
-            host = mtch.group('host')
-            port_str = mtch.group('port')
+            host = mtch.group("host")
+            port_str = mtch.group("port")
             port = int(port_str)
             info = {
-                'launched_by': 'docker',
-                'name': name,
-                'port': port or 0,
-                'pid': None,
-                'host': host or 'localhost',
-                'docker_container': container_name,
-                'image': image,
-                'container_id': container_id,
-                'database_path': database_path,
+                "launched_by": "docker",
+                "name": name,
+                "port": port or 0,
+                "pid": None,
+                "host": host or "localhost",
+                "docker_container": container_name,
+                "image": image,
+                "container_id": container_id,
+                "database_path": database_path,
             }
-            svr_info = {
-                k: v
-                for k, v in info.items()
-                if k is not None
-            }
+            svr_info = {k: v for k, v in info.items() if k is not None}
             return [cast(ServerInfo, svr_info)]
     return servers
 
 
-def get_one_server_info(config_dir: Path, /, *,
-                        name: str | None = None,
-                        port: int | None = None,
-                        pid: int | None = None,
-                        host: str | None = None,
-                        container_name: str | None = None,
-                        image: str | None = None,
-                        database_path: Path | None = None) -> ServerInfo | None:
+def get_one_server_info(
+    config_dir: Path,
+    /,
+    *,
+    name: str | None = None,
+    port: int | None = None,
+    pid: int | None = None,
+    host: str | None = None,
+    container_name: str | None = None,
+    image: str | None = None,
+    database_path: Path | None = None,
+) -> ServerInfo | None:
     """
     Get information for a single matching server.
 
@@ -209,24 +211,29 @@ def get_one_server_info(config_dir: Path, /, *,
     Returns:
         dict: Server information if exactly one match is found, else exits.
     """
-    servers = get_server_info(config_dir,
-                              name=name,
-                              port=port,
-                              pid=pid,
-                              host=host,
-                              container_name=container_name,
-                              image=image,
-                              database_path=database_path)
+    servers = get_server_info(
+        config_dir,
+        name=name,
+        port=port,
+        pid=pid,
+        host=host,
+        container_name=container_name,
+        image=image,
+        database_path=database_path,
+    )
     if len(servers) > 1:
         click.echo("❌ Multiple servers found, please specify which one to use:")
         for server in servers:
             click.echo(
-                ", ".join((
-                    f"- Name: {server.get('name', 'N/A')}",
-                    f"PID: {server.get('pid', 'N/A')}",
-                    f"Port: {server.get('port', 'N/A')}",
-                    f"Container: {server.get('docker_container', 'N/A')}"
-                )))
+                ", ".join(
+                    (
+                        f"- Name: {server.get('name', 'N/A')}",
+                        f"PID: {server.get('pid', 'N/A')}",
+                        f"Port: {server.get('port', 'N/A')}",
+                        f"Container: {server.get('docker_container', 'N/A')}",
+                    )
+                )
+            )
         sys.exit(1)
     return servers[0] if servers else None
 
@@ -242,15 +249,15 @@ def info_file_path(config_dir: Path, /, **info: Any) -> Path:
     Returns:
         Path: Path to the server info file
     """
-    servers_dir = config_dir / 'servers'
+    servers_dir = config_dir / "servers"
     servers_dir.mkdir(parents=True, exist_ok=True)
 
     match info:
-        case {'container': container_name} if container_name is not None:
+        case {"container": container_name} if container_name is not None:
             return servers_dir / f"container_{container_name}.json"
-        case {'pid': int() as pid} if pid > 0:
+        case {"pid": int() as pid} if pid > 0:
             return servers_dir / f"pid_{pid}.json"
-        case {'port': int() as port} if port > 0:
+        case {"port": int() as port} if port > 0:
             return servers_dir / f"{port}.json"
         case _:
             raise RuntimeError("Insufficient info to determine server info file path")
@@ -261,34 +268,27 @@ def save_server_info(config_dir: Path, /, **info: Any) -> Path:
     Save server information to servers.[filename].json
     """
     info_file = info_file_path(config_dir, **info)
-    json_info = {
-        k: (v if not isinstance(v, Path) else str(v))
-        for k, v in info.items()
-        if v is not None
-        }
+    json_info = {k: (v if not isinstance(v, Path) else str(v)) for k, v in info.items() if v is not None}
 
-    with info_file.open('w') as f:
+    with info_file.open("w") as f:
         json.dump(json_info, f, indent=2)
     return info_file
 
 
-def cleanup_server_info(config_dir: Path,
-                        **info: Any) -> None:
+def cleanup_server_info(config_dir: Path, **info: Any) -> None:
     """Remove server information file"""
     info_file = info_file_path(config_dir, **info)
     print(f"Cleaning up server info file: {info_file}")
     info_file.unlink(missing_ok=True)
 
 
-def start_local_server(config: Config, /, *,
-                       console: Console,
-                       explicit_port: int | None) -> None:
+def start_local_server(config: Config, /, *, console: Console, explicit_port: int | None) -> None:
     """Start the server locally as a background process"""
 
     # Determine port
-    port = config['port']
-    host = config['host']
-    config_dir = config['config_dir']
+    port = config["port"]
+    host = config["host"]
+    config_dir = config["config_dir"]
 
     if explicit_port:
         console.print(f"🔒 Port explicitly set to {port} (auto-finding disabled)")
@@ -297,7 +297,7 @@ def start_local_server(config: Config, /, *,
     else:
         console.print(f"⚠️ Port {port} is not available, trying to find a free port...")
         port = find_free_port(port)
-        config['port'] = port
+        config["port"] = port
         console.print(f"📍 Found available port {port}, updating default")
         save_config(config_dir, config)
 
@@ -306,20 +306,30 @@ def start_local_server(config: Config, /, *,
 
     try:
         process = subprocess.Popen(
-                        [sys.executable, '-m', 'memgraph', 'run',
-                            '--name', config['name'],
-                            '--port', str(config['port']),
-                            '--host', config['host'],
-                            '--config-dir', str(config_dir),
-                            '--log-level', config['log_level'],
-                            '--database-path', str(config['database_path']),
-                            *(['--access-log'] if config['access_log'] else []),
-                         ],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        stdin=subprocess.DEVNULL,
-                        start_new_session=True,
-            )
+            [
+                sys.executable,
+                "-m",
+                "memgraph",
+                "run",
+                "--name",
+                config["name"],
+                "--port",
+                str(config["port"]),
+                "--host",
+                config["host"],
+                "--config-dir",
+                str(config_dir),
+                "--log-level",
+                config["log_level"],
+                "--database-path",
+                str(config["database_path"]),
+                *(["--access-log"] if config["access_log"] else []),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
         console.print(f"✅ Server started (PID: {process.pid})")
 
     except Exception as e:
@@ -327,25 +337,28 @@ def start_local_server(config: Config, /, *,
         sys.exit(1)
 
 
-def start_docker_server(config: Config, /, *,
-                        console: Console,
-                        explicit_port: int | None,
-                        detach: bool = True,
-                        ) -> None:
+def start_docker_server(
+    config: Config,
+    /,
+    *,
+    console: Console,
+    explicit_port: int | None,
+    detach: bool = True,
+) -> None:
     """Start the server using Docker"""
 
-    container_name = config['container_name']
-    docker_image = config['docker_image']
-    name = config['name']
-    port = explicit_port or config['port']
-    host = config['host']
-    log_level = config['log_level']
-    access_log = config['access_log']
-    config_dir = config['config_dir']
-    database_path = config['database_path']
+    container_name = config["container_name"]
+    docker_image = config["docker_image"]
+    name = config["name"]
+    port = explicit_port or config["port"]
+    host = config["host"]
+    log_level = config["log_level"]
+    access_log = config["access_log"]
+    config_dir = config["config_dir"]
+    database_path = config["database_path"]
 
     container_id = subprocess.run(
-        ['docker', 'ps', '-q', '--all', '-f', f'name={container_name}'],
+        ["docker", "ps", "-q", "--all", "-f", f"name={container_name}"],
         capture_output=True,
         text=True,
         check=False,
@@ -359,20 +372,20 @@ def start_docker_server(config: Config, /, *,
     if not explicit_port:
         if not is_port_available(port, host):
             port = find_free_port(port)
-            config['port'] = port
+            config["port"] = port
             save_config(config_dir, config)
 
-    data_dir = config['data_dir']
+    data_dir = config["data_dir"]
     data_dir.mkdir(parents=True, exist_ok=True)
     database_path = data_dir / database_path.name
     host_dir = config_dir / str(port)
     host_dir.mkdir(parents=True, exist_ok=True)
-    host_info_file = host_dir / 'host_info.json'
+    host_info_file = host_dir / "host_info.json"
     host_info = HostInfo(
         os=os.name,
         architecture=platform.machine(),
         cpu_count=psutil.cpu_count(logical=True) or 0,
-        total_memory_gb=psutil.virtual_memory().total / (1024 ** 3),
+        total_memory_gb=psutil.virtual_memory().total / (1024**3),
         memgraph_version=__version__,
         database_path=database_path.resolve(),
         data_dir=data_dir.resolve(),
@@ -383,32 +396,40 @@ def start_docker_server(config: Config, /, *,
 
     # Build Docker run command
     cmd = [
-        'docker',
-        'run',
-        '--rm',
-        '--init',
-        '--detach',
-        '--name', container_name,
-        '-p', f'{port}:{DEFAULT_PORT}',
-        '-v', f'{config_dir}:/app/.zabob/memgraph',
-        '-v', f'{data_dir}:/data',
-        '-v', f'{host_dir}:/host',
+        "docker",
+        "run",
+        "--rm",
+        "--init",
+        "--detach",
+        "--name",
+        container_name,
+        "-p",
+        f"{port}:{DEFAULT_PORT}",
+        "-v",
+        f"{config_dir}:/app/.zabob/memgraph",
+        "-v",
+        f"{data_dir}:/data",
+        "-v",
+        f"{host_dir}:/host",
         docker_image,
         "run",
-        '--name', name,
-        '--database-path', str(database_path),
-        '--access-log' if access_log else '--no-access-log',
-        '--log-level', log_level,
+        "--name",
+        name,
+        "--database-path",
+        str(database_path),
+        "--access-log" if access_log else "--no-access-log",
+        "--log-level",
+        log_level,
     ]
 
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         container_id = result.stdout.strip()
-        with host_info_file.open('w') as f:
+        with host_info_file.open("w") as f:
             json.dump(host_info, f, indent=2)
         server_info = save_server_info(
             config_dir,
-            launched_by='docker',
+            launched_by="docker",
             name=name,
             port=port,
             docker_container=container_name,
@@ -427,10 +448,10 @@ def start_docker_server(config: Config, /, *,
         else:
             console.print("👋 Press Ctrl+C to stop the container")
             try:
-                subprocess.run(['docker', 'logs', '-f', container_name], check=True)
+                subprocess.run(["docker", "logs", "-f", container_name], check=True)
             except KeyboardInterrupt:
                 console.print("\n👋 Stopping container...")
-                subprocess.run(['docker', 'stop', str(container_name)], capture_output=True)
+                subprocess.run(["docker", "stop", str(container_name)], capture_output=True)
             finally:
                 server_info.unlink(missing_ok=True)
 
@@ -439,19 +460,21 @@ def start_docker_server(config: Config, /, *,
         sys.exit(1)
     except KeyboardInterrupt:
         console.print("\n👋 Stopping container...")
-        subprocess.run(['docker', 'stop', str(container_name)], capture_output=True)
-        cleanup_server_info(config_dir,
-                            port=port,
-                            docker_container=container_name,
-                            container_id=container_id,
-                            docker_image=docker_image,
-                            host=host,)
+        subprocess.run(["docker", "stop", str(container_name)], capture_output=True)
+        cleanup_server_info(
+            config_dir,
+            port=port,
+            docker_container=container_name,
+            container_id=container_id,
+            docker_image=docker_image,
+            host=host,
+        )
 
 
 def check_container(container: str) -> ServerStatus:
     try:
         result = subprocess.run(
-            ['docker', 'inspect', '-f', '{{.State.Running}}', container],
+            ["docker", "inspect", "-f", "{{.State.Running}}", container],
             capture_output=True,
             text=True,
             check=True,

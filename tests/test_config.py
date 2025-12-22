@@ -1,5 +1,6 @@
 """Unit tests for configuration loading and defaulting logic"""
 
+import importlib
 import json
 from pathlib import Path, PosixPath
 from typing import Any
@@ -10,7 +11,6 @@ from memgraph.config import (
     save_config,
     DEFAULT_PORT,
     DEFAULT_CONFIG,
-    Config,
 )
 
 
@@ -40,12 +40,62 @@ def config_file_with_values(clean_config_dir: Path) -> tuple[Path, dict[str, Any
 
 
 @pytest.fixture
-def mock_in_docker(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock IN_DOCKER environment"""
+def mock_in_docker(monkeypatch: pytest.MonkeyPatch):
+    """Mock IN_DOCKER environment with proper module reload.
+
+    Yields the reloaded memgraph.config module with mocked environment.
+    Tests should use the yielded module reference to avoid stale imports.
+
+    Pattern:
+        def test_something(mock_in_docker):
+            config = mock_in_docker
+            assert config.IN_DOCKER is True
+
+    Note: This handles edge cases (module not loaded, custom import machinery)
+    but can't avoid all corner cases that arise from reloading:
+    - Cached class instances may fail isinstance() checks after reload
+    - System hooks (atexit, sys.displayhook, etc.) may hold stale references
+    - Metaclass registries, weakref callbacks, global registries stay stale
+    - @cache decorators work (function code is part of key) but object caches don't
+
+    If tests exhibit strange behavior, it may be an unavoidable reload corner case.
+    For most config/environment testing, these issues won't arise.
+    """
+    import sys
+
+    # Save original module from sys.modules for proper restoration
+    original_module = sys.modules.get('memgraph.config')
+
+    # Set mock environment BEFORE importing
     monkeypatch.setenv('DOCKER_CONTAINER', '1')
-    # Need to reimport to pick up the new env var
+    monkeypatch.setenv("MEMGRAPH_HOST", "fred")
+    monkeypatch.setenv("MEMGRAPH_PORT", "9876")
+
+    # Import and reload - yield the result directly (module reference may change)
     import memgraph.config
-    monkeypatch.setattr(memgraph.config, 'IN_DOCKER', True)
+    yield importlib.reload(memgraph.config)
+
+    # Cleanup - restore or remove module from sys.modules
+    monkeypatch.undo()
+    if original_module is not None:
+        sys.modules['memgraph.config'] = original_module
+        importlib.reload(memgraph.config)
+    else:
+        # Module wasn't loaded before - remove it and let it reload naturally when needed
+        del sys.modules['memgraph.config']
+
+
+@pytest.mark.skip("Demonstration only - shows proper mock_in_docker usage pattern")
+def test_mock_in_docker_fixture(mock_in_docker) -> None:
+    """Demonstrates proper usage of mock_in_docker fixture.
+
+    Key point: Use the yielded module reference, not a fresh import.
+    A fresh import would give you the cached, unmodified module.
+    """
+    config = mock_in_docker  # Use yielded reference, not 'import memgraph.config'
+    assert config.IN_DOCKER is True
+    assert config.DEFAULT_CONFIG['host'] == "fred"
+    assert config.DEFAULT_CONFIG['port'] == 9876
 
 
 class TestConfigDefaulting:

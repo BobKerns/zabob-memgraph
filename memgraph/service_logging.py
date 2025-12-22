@@ -28,15 +28,13 @@ class ServiceLogger:
         if self.log_file:
             logging.basicConfig(
                 level=logging.INFO,
-                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                 filename=self.log_file,
-                filemode='a'  # Append to existing log
+                filemode="a",  # Append to existing log
             )
         else:
             logging.basicConfig(
-                level=logging.INFO,
-                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                stream=sys.stderr
+                level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", stream=sys.stderr
             )
 
         return logging.getLogger(self.service_name)

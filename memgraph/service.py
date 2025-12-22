@@ -32,10 +32,11 @@ from memgraph.service_logging import (
 from memgraph.__version__ import __version__
 
 
-def create_unified_app(config: Config,
-                       static_dir: Path | str = Path(__file__).parent / "web",
-                       service_logger: ServiceLogger | None = None,
-                       ) -> Any:
+def create_unified_app(
+    config: Config,
+    static_dir: Path | str = Path(__file__).parent / "web",
+    service_logger: ServiceLogger | None = None,
+) -> Any:
     """
     Create unified application with both web and MCP routes.
 
@@ -92,18 +93,20 @@ def create_unified_app(config: Config,
         return FileResponse(index_path)
 
     async def health_check(request: Any) -> JSONResponse:
-        '''
-        Report th
-        '''
-        return JSONResponse({
-            "status": "healthy",
-            "service": "unified_service",
-            "name": config['name'],
-            "version": __version__,
-            "in_docker": IN_DOCKER,
-            **({"container_name": config['container_name']} if IN_DOCKER else {}),
-            "port": config['real_port'] if IN_DOCKER else config['port'],
-            })
+        """
+        Report the unified service health status and basic metadata.
+        """
+        return JSONResponse(
+            {
+                "status": "healthy",
+                "service": "unified_service",
+                "name": config["name"],
+                "version": __version__,
+                "in_docker": IN_DOCKER,
+                **({"container_name": config["container_name"]} if IN_DOCKER else {}),
+                "port": config["real_port"] if IN_DOCKER else config["port"],
+            }
+        )
 
     # Add routes to the Starlette app
     app.routes.extend(
@@ -142,15 +145,11 @@ def run_server(
     if config is None:
         config = load_config(default_config_dir())
 
-    host = config['host']
-    port = config['port']
-    static_dir = config['static_dir']
-    log_file = str(config['log_file']) if config['log_file'] else None
-    log_args = {
-        "host": host,
-        "port": port,
-        "static_dir": static_dir,
-        "log_file": log_file}
+    host = config["host"]
+    port = config["port"]
+    static_dir = config["static_dir"]
+    log_file = str(config["log_file"]) if config["log_file"] else None
+    log_args = {"host": host, "port": port, "static_dir": static_dir, "log_file": log_file}
 
     with service_setup_context("unified_service", log_args, log_file) as service_logger:
         try:
@@ -162,14 +161,16 @@ def run_server(
             # Configure uvicorn logging to use same log file
             uvicorn_config = configure_uvicorn_logging(log_file)
 
-            uvicorn.run(app,
-                        workers=1,
-                        host=host,
-                        port=port,
-                        log_level=config["log_level"].lower(),
-                        access_log=config["access_log"],
-                        ws='websockets-sansio',
-                        **uvicorn_config)
+            uvicorn.run(
+                app,
+                workers=1,
+                host=host,
+                port=port,
+                log_level=config["log_level"].lower(),
+                access_log=config["access_log"],
+                ws="websockets-sansio",
+                **uvicorn_config,
+            )
             return 0
 
         except FileNotFoundError as e:
@@ -189,19 +190,20 @@ if __name__ == "__main__":
     @click.option("--static-dir", default=None, help="Static files directory")
     @click.option("--log-file", default=None, help="Log file path (default: stderr)")
     @click.option("--config-dir", type=Path, default=None, help="Configuration directory")
-    def cli(host: str, port: int, static_dir: str | None, log_file: str | None,
-            config_dir: Path | None) -> None:
+    def cli(host: str, port: int, static_dir: str | None, log_file: str | None, config_dir: Path | None) -> None:
         """Knowledge Graph Unified Service - Web + MCP on single port."""
         if static_dir is None:
             static_path = Path(__file__).parent / "web"
         else:
             static_path = Path(static_dir)
         config_dir = config_dir or default_config_dir()
-        config = load_config(config_dir,
-                             port=port,
-                             host=host,
-                             static_dir=static_path,
-                             log_file=log_file,)
+        config = load_config(
+            config_dir,
+            port=port,
+            host=host,
+            static_dir=static_path,
+            log_file=log_file,
+        )
         exit_code = run_server(config)
 
         if exit_code:

@@ -7,9 +7,7 @@ import datetime
 from pathlib import Path
 
 
-def backup_database(db_path: Path,
-                    min_backups: int = 5,
-                    min_age: int = 7) -> None:
+def backup_database(db_path: Path, min_backups: int = 5, min_age: int = 7) -> None:
     """
     Create a backup of the database if it exists.
 

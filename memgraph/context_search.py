@@ -71,6 +71,7 @@ from enum import Enum
 
 class SearchStatus(Enum):
     """Status of a search head."""
+
     ACTIVE = "active"
     EXHAUSTED = "exhausted"
     PAUSED = "paused"
@@ -84,6 +85,7 @@ class SearchHead:
     Maintains its own deque of nodes to visit but shares visited set
     with other heads to avoid duplicate work.
     """
+
     context_node_id: str
     to_visit: deque[tuple[str, int]] = field(default_factory=deque)  # (node_id, distance)
     status: SearchStatus = SearchStatus.ACTIVE
@@ -98,6 +100,7 @@ class SearchHead:
 @dataclass
 class SearchResult:
     """Result from a context-aware search."""
+
     entity_id: str
     distance: int  # Graph distance from nearest context node
     context_node: str  # Which context node provided this result
@@ -111,13 +114,16 @@ class Context:
 
     Contexts can be saved, restored, and shared between agents.
     """
+
     name: str
     node_ids: list[str]  # Ordered list of context nodes
-    search_params: dict[str, int] = field(default_factory=lambda: {
-        "max_distance": 5,
-        "steps_per_expansion": 10,
-        "max_results": 100,
-    })
+    search_params: dict[str, int] = field(
+        default_factory=lambda: {
+            "max_distance": 5,
+            "steps_per_expansion": 10,
+            "max_results": 100,
+        }
+    )
 
     def __post_init__(self) -> None:
         """Validate context has at least one node."""
@@ -206,20 +212,24 @@ class ContextSearch:
                 if query:
                     match_score = self.match_query(current_id, query)
                     if match_score > 0:
-                        results.append(SearchResult(
+                        results.append(
+                            SearchResult(
+                                entity_id=current_id,
+                                distance=distance,
+                                context_node=head.context_node_id,
+                                relevance_score=self._calculate_relevance(distance, match_score),
+                            )
+                        )
+                else:
+                    # No query - return all reachable nodes
+                    results.append(
+                        SearchResult(
                             entity_id=current_id,
                             distance=distance,
                             context_node=head.context_node_id,
-                            relevance_score=self._calculate_relevance(distance, match_score),
-                        ))
-                else:
-                    # No query - return all reachable nodes
-                    results.append(SearchResult(
-                        entity_id=current_id,
-                        distance=distance,
-                        context_node=head.context_node_id,
-                        relevance_score=self._calculate_relevance(distance, 1.0),
-                    ))
+                            relevance_score=self._calculate_relevance(distance, 1.0),
+                        )
+                    )
 
                 # Stop if we hit result limit
                 if len(results) >= max_results:
@@ -257,7 +267,7 @@ class ContextSearch:
 
         Closer nodes are more relevant. Uses exponential decay.
         """
-        distance_weight = 1.0 / (2.0 ** distance)
+        distance_weight = 1.0 / (2.0**distance)
         return match_score * distance_weight
 
     def _rank_results(
