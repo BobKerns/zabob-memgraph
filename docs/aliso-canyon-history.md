@@ -1,4 +1,4 @@
-![Zabob Memory Holodeck](../images/zabob-banner.jpg)
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
 
 # Aliso Canyon and LA Gas Storage History
 

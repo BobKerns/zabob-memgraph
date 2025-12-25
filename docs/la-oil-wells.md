@@ -1,4 +1,4 @@
-![Zabob Memory Holodeck](../images/zabob-banner.jpg)
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
 
 # LA Basin Oil Wells - Historical Reference
 
@@ -50,10 +50,10 @@ The Los Angeles Basin has extensive oil well infrastructure, much of it historic
 ## Abandoned/Orphan Wells
 
 Let's consider well #0403705859
-![alt text](../images/well-0403705859-map.png).
+![alt text](images/well-0403705859-map.png).
 
 This well lies beneath the Wright Middle School. The owner (lease holder and operator) is Sentinel Oil Company.
-![alt text](../images/well-0403705859-zoom.png)
+![alt text](images/well-0403705859-zoom.png)
 
 ### Scale of Problem
 

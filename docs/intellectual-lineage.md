@@ -1,4 +1,4 @@
-![Zabob Memory Holodeck](../images/zabob-banner.jpg)
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
 
 # Intellectual Lineage: From Ada to Zabob
 

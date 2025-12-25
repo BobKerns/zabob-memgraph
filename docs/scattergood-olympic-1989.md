@@ -165,7 +165,7 @@ He has also preserved a copy of the original email on archive.org[^copy]
 First, some geography. At the very bottom right corner, you can't quite make out Scattergood power plant. But you can barely make out the Hyperion waste treatment plant just to its north. To preserve what detail I could, I cropped out the massive Chevron oil refinery immediately to the south (El Segundo, for which the city is named; El Primero is up here n Richmond). I'll get back to that a bit.
 
 But here's a picture from Wikipedia that's better than anything I can provide:
-![Scattergood as viewed from the bike path](../images/Marvin_Braude_Bike_Path_view_of_Scattergood_Steam_Plant.jpg)
+![Scattergood as viewed from the bike path](images/Marvin_Braude_Bike_Path_view_of_Scattergood_Steam_Plant.jpg)
 > By Facewizard - Own work, CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=121758072
 
 Go up the coast and you can see the ends of LAX runways 24L/R and 25 L/R. We'll touch on what lies underneath those in a moment, but it's not our cable; that runs along Pershing Drive just off the end of the airport in that area. And you can see clearly the Santa Monica airport.
@@ -175,21 +175,21 @@ But while we're here, let's stop and appreciate that these dunes are the home of
 But it travels along Pershing to Culver, crosses the Ballona wetlands (We'll back), to S Centinela,and Bundy.
 
 In more detail, here's the fault location
-![Fault location](../images/fault-location.jpg)
+![Fault location](images/fault-location.jpg)
 And how it crosses Ballona Creek
-![Ballona Creek crossing](../images/Ballona-creek-crossing.jpg)
+![Ballona Creek crossing](images/Ballona-creek-crossing.jpg)
 
 (Both images courtesy TLM)
 
 At the very top, you can make out the LA Department of Water and Power (so much history behind that name!). The blue marker to its right denotes Receiving Station K, the our cable's destination.
 
-![Context map](../images/context-map.png)
+![Context map](images/context-map.png)
 
 So that's our electrical path north. The story mentions the ground returns, anchors off Dockweiler Beach and in the Santa Monica Bay. I don't have any details on those, but see where it says Will Rogers State Beach?
 
 There, in the parking lot, is the similar but grander southern ground return of the HVDC Pacific Intertie, 3.1 GW of power link between LA and hydropower in the Dardanelles, Oregon.
 
-![Anchor location, landward view](../images/anchor-inland-view.png) ![Anchor location, seaward view](../images/anchor-seaward-view.png)
+![Anchor location, landward view](images/anchor-inland-view.png) ![Anchor location, seaward view](images/anchor-seaward-view.png)
 
 There used to be a nice video of the work of replacing the anchor a few years bac, from the barge contractor if I remember correctly, but it doesn't seem to be online.
 
@@ -199,7 +199,7 @@ You might think, with the Chevron refinery next door, it comes from there, but y
 
 But LA's history with oil comes into it[^la-oil-wells]. Take a look at this map.
 
-![Annotated DOGGER map](../images/dogger-map-annotated.png)
+![Annotated DOGGER map](images/dogger-map-annotated.png)
 
 - The red rectangle is the Chevron plant I mentioned.
 - Green is the Scattergood Generating Station[^scattergood], central to this whole story.
@@ -217,7 +217,7 @@ It is much like its much larger sibling, the Aliso Canyon field with the huge bl
 
 This is the pumping and dewatering infrastructure for the PDR field. I am preparing a separate document about it, see[^pdr-field].
 
-![PDR storage field infrastructure](../images/PDR-storage-site.png)
+![PDR storage field infrastructure](images/PDR-storage-site.png)
 
 ### The 2018 Update
 
@@ -225,7 +225,7 @@ A new cable was laid parallel to the original in 2018. It parallels the original
 
 Here's a cross-section of the new cable, made with modern insulation. This was sent to Tom by the LADWP in recognition of his original posting, which has long been famous within the department.
 
-![Cable cross section](../images/cable-cross-section-closeup.jpg)
+![Cable cross section](images/cable-cross-section-closeup.jpg)
 
 I could go into a LOT more detail, about Scattergood's past and future[^scattergood]. Its last upgrade cost nearly $1B, which isn't out of line for our energy infrastructure; the next will be considerably more. The capital investment in our energy and communications networks is staggering.
 
