@@ -10,7 +10,7 @@ To protect this document from such a fate, I have established a separate [Errata
 ---
 
 **Date:** Wed, 27 Sep 89 10:27 PDT
-**From:** "Thomas L. Mc Mahon" \<tlm@riverside.scrc.symbolics.com>
+**From:** "Thomas L. McMahon" \<tlm@riverside.scrc.symbolics.com>
 **Subject:** Cuts and jumpers (on a different scale)
 **To:** \<Hardware@riverside.scrc.symbolics.com>
 

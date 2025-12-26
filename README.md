@@ -4,9 +4,9 @@
 
 This repository was occasioned by the disappearance the famous "engineering porn" post from its longstanding home. To help preserve it, I have captured it from my archives and added more context and my own musings about history and the importance of connections.
 
-The story you are looking for begins here: [The famous Engineering Porn post](docs/scattergood-olympic-1989.md).
+The story you are looking for begins here: [The famous Engineering Pornography post](docs/scattergood-olympic-1989.md).
 
-Don't worry, it's completely suitable for work! It's about an important cable under the streets of Los Angeles.
+Don't worry, it's completely suitable for work! It's about an important cable under the streets of Los Angeles. I didn't choose the name, but that's how it has become known.
 
 ![Cable](docs/images/cable-cross-section-closeup.jpg)
 
