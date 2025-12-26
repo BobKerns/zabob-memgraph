@@ -1,5 +1,10 @@
 # Graphs in Computation: From Patch Cables to Pipelines
 
+> !NOTE
+> A few of the references here are strictly AI provided. I didn't think of Don Buchla, GRASS, Max, IRCAM completely slipped my mind. LabView is another great addition. I mentioned Moog but not CV/Gate They're all pretty good, though I'm not sure how far I want to take this branch. The dates are all AI-supplied; the ones I don't know seem right.
+>
+> I may opt to expand the telephony aspect, something I know a fair bit about; I had literally had operating Strowger switches in a closet next to my room at MIT.
+
 ## The Evolution of Visual Dataflow Programming
 
 This document traces how **graphs became the interface for computation**, starting with physical patch cables and evolving into modern node-based systems like Houdini.
@@ -19,10 +24,12 @@ Unlike the [intellectual lineage](intellectual-lineage.md) which focuses on **kn
 ### Modular Synthesizers (1960s)
 
 **Don Buchla** (1963):
+
 - Buchla Music Easel and modular systems
 - West Coast synthesis approach
 
 **Robert Moog** (1964):
+
 - Moog modular synthesizers
 - Standardized voltage control (CV/Gate)
 
@@ -44,11 +51,28 @@ Unlike the [intellectual lineage](intellectual-lineage.md) which focuses on **kn
 - Popularized graph-based synthesis in consumer market
 - Based on John Chowning's work at Stanford's CCRMA
 
-**Significance**: Graphs-as-computation reached consumer products, not just studios. Musicians understood "algorithm 4" meant a specific operator graph topology.
+**Significance**: Graphs-as-computation reached consumer products, not just studios. Musicians understood "algorithm 4" meant a specific operator graph topology. [RWK: The choices are printed on the front panel, as graphs]
+
+![John Chowning](images/Chowning.jpg)
+![Yamaha DX7](images/Yamaha%20DX7%20Mk%201.jpg)
 
 ---
 
 ## Software Takes the Metaphor (1970s-1990s)
+
+RWK notes:
+
+- I am aware of at least one commercial attempt at visual programming late 1970s
+  - MIT people
+  - Saw a working demo
+  - I've forgotten names of people, company, product
+- Business Process Languages
+  - BPEL
+    - XML-based, web-services oriented, OASIS standard
+  - BEA Systems had a a workflow system
+  - HP
+  - IBM
+  - Microsoft BizTalk
 
 ### GRASS - Graphics Symbiosis System (1970s)
 
@@ -59,6 +83,7 @@ Unlike the [intellectual lineage](intellectual-lineage.md) which focuses on **kn
 ### Max/MSP (1980s+)
 
 **Miller Puckette at IRCAM** (Paris, mid-1980s):
+
 - Took the physical patch cable metaphor into software
 - Max (originally on NeXT computers)
 - Later Max/MSP (with MSP audio extension)
@@ -69,6 +94,7 @@ Unlike the [intellectual lineage](intellectual-lineage.md) which focuses on **kn
 ### LabVIEW (1986)
 
 **National Instruments**:
+
 - Visual dataflow programming for instrumentation
 - Different domain (test equipment, DAQ), same graph metaphor
 - Shows parallel discovery of graphs-as-interface across fields
@@ -80,6 +106,7 @@ Unlike the [intellectual lineage](intellectual-lineage.md) which focuses on **kn
 ### Early Shader Networks
 
 **Research Questions** (to be filled in):
+
 - **RenderMan shader networks** (Pixar, 1988-1989)?
 - **Alias/Wavefront shader systems** (mid-1980s)?
 - **Symbolics graphics capabilities** - Node-based or procedural?
@@ -88,6 +115,7 @@ Unlike the [intellectual lineage](intellectual-lineage.md) which focuses on **kn
 ### Prisms → Houdini
 
 **SideFX Software**:
+
 - **Prisms** (1980s): Precursor to Houdini
 - **Houdini** (1996+): Comprehensive node-based 3D
 - **Key innovation**: Not just shading, but entire production pipeline as graph
@@ -95,8 +123,9 @@ Unlike the [intellectual lineage](intellectual-lineage.md) which focuses on **kn
   - Dynamics simulation (DOPs)
   - Rendering (ROPs)
   - Compositing (COPs)
+  - Production workflow pipeline (TOPs)
 
-**Why this matters**: Houdini made **proceduralism through graphs** the central paradigm for an entire production pipeline. The graph wasn't an afterthought - it was the foundation.
+**Why this matters**: Houdini made **procedure through graphs** the central paradigm for an entire production pipeline. The graph wasn't an afterthought - it was the foundation.
 
 ---
 
@@ -139,12 +168,14 @@ The notation (patch cables vs pixels) varied, but the **topology was fundamental
 The MIT AI Lab and music communities overlapped but it's hard to draw direct causal lines:
 
 **MIT Music Environment (1970s-1980s)**:
+
 - **Barry Vercoe's Electronic Music Lab** at MIT
 - **Computer Music Journal** (Curtis Roads, editor) - bridging research and practice
 - **William Kornfeld's music notation system** on Lisp Machines (pre-Symbolics)
-- Many AI Lab people were musicians (e.g., Bernie Greenberg, Symbolics founder and accomplished organist)
+- Many AI Lab and Symbolics people were musicians (e.g., Bernie Greenberg, Symbolics founder and accomplished organist)
 
 **Stanford Parallel Track**:
+
 - **CCRMA** (Center for Computer Research in Music and Acoustics)
 - **John Chowning**: FM synthesis research → Yamaha DX7
 
@@ -161,27 +192,40 @@ The overlap was more about **shared environment and culture** than one domain bo
 **Ivan Sutherland's Legacy**:
 
 **Utah Graphics Program (1960s-1970s)**:
+
 - **Sketchpad** (1963): Geometric constraints, object-oriented programming
 - Foundational shading algorithms (Gouraud, Phong)
 - **The Utah Teapot**: Still used today for testing
 - Texture mapping, hidden surface removal
 
+![Original physical teapot](images/Original_Utah_Teapot.jpg)
+Original physical teapot
+![Newell's drawing](images/Newell-teapot-notes-102695462-03-01.jpg)
+Newell's drawing
+![Newell's Wireframe](images/Newell-wireframe-102672453-03-01.jpg)
+Newell's Wireframe
+![Phong Shading](images/phong-teapot.png)
+
 **Notable Alumni**:
+
 - **Danny Cohen**: Clipping algorithms
 - **Alan Kay**: Smalltalk, OOP, Xerox PARC
 - **Ed Catmull**: Founded Pixar, now Disney Animation head
 
 **Evans & Sutherland** (1968):
+
 - Co-founded by Sutherland and David Evans
 - Display technology, flight simulators
 - **Alumni**: Jim Clark (SGI), John Warnock (Adobe)
 
 **Information International, Inc. (Triple-I)** (1970s-1980s):
+
 - Pioneered CGI for film (including **Tron**, 1982)
 - Used Tom McMahon's graphics hardware
 - Bridge between academic research and commercial production
 
 **Symbolics Corporation** (1980s-1990s):
+
 - MIT AI Lab lineage
 - Lisp Machines with integrated graphics
 - **TLM's genlock hardware** for video synchronization
@@ -190,6 +234,7 @@ The overlap was more about **shared environment and culture** than one domain bo
 - **Craig Reynolds' Boids** (1986) debuted on Symbolics
 
 **Modern Synthesis**:
+
 - **Ed Catmull's path**: Utah → NYIT → Lucasfilm → Pixar → Disney
 - **Houdini**: Node graphs meet procedural generation
 - **CGI for AI training**: Classical graphics techniques now generate synthetic training data
@@ -198,12 +243,14 @@ The overlap was more about **shared environment and culture** than one domain bo
 ### The zabob-houdini Project
 
 **Current application bringing threads together**:
+
 - AI assistance for Houdini workflows
 - Knowledge graphs (zabob-memgraph) meet production pipelines
 - Inspired by virtual world creation for AI training
 - Combines: graph-based computation + graph-based knowledge + AI collaboration
 
 **Synthesis Points**:
+
 - **Knowledge graphs** (from intellectual lineage) meet **computation graphs** (from this history)
 - AI agents use graph memory to work with graph-based tools
 - Full integration of both parallel threads
@@ -244,6 +291,7 @@ The [intellectual lineage](intellectual-lineage.md) document traces the evolutio
 This document traces how **computation itself became graph-based** through the interface (switchboards → synthesizers → Max → Houdini).
 
 **They're parallel threads that converge**:
+
 - **Symbolics era**: Both threads present (AI Lab knowledge work + graphics computation)
 - **Houdini**: Computation-as-graph reaches maturity
 - **zabob-houdini**: Both threads synthesize (knowledge graphs + computation graphs + AI)
@@ -260,5 +308,5 @@ The separation preserves thematic clarity while acknowledging deep connections.
 
 ---
 
-**Last Updated**: December 24, 2025  
+**Last Updated**: December 24, 2025
 **Status**: Skeleton with research questions - to be expanded
