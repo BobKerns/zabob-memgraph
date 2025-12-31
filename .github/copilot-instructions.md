@@ -19,23 +19,25 @@ zabob-memgraph/
 │   ├── workflows/                # CI/CD workflows
 │   └── copilot-instructions.md   # This file
 ├── memgraph/                     # Core package
-│   ├── server.py                 # FastAPI application
-│   ├── sqlite_backend.py         # Thread-safe SQLite backend
-│   ├── knowledge_live.py         # Knowledge graph data layer
-│   ├── *_mcp_client.py           # MCP client implementations (docker, stdio, subprocess, real, etc.)
-│   ├── simple_mcp_bridge.py      # Simple MCP bridge implementation
-│   ├── fastmcp_client.py         # FastMCP client
-│   ├── mcp_protocol_client.py    # MCP protocol client
-│   └── web/                      # Static web assets for visualization
+    ├── __init__.py               # Package initializer
+    |── __main__.py               # Entrypoint for package
+    |── __version__.py            # Auto-detects version from pyproject.toml-supplied metadata
+    ├── backup/                   # Database backup management
+    ├── config.py                  # Configuration management
+    ├── context_search.py         # Not yet integrated hybrid search algorithm
+    ├── launcher.py               # Handles running subprocesses
+    ├── service_logging.py        # Logging setup
+    ├── mcp_service.py            # MCP protocol endpoints implementations
+    ├── service.py                # FastAPI application
+    ├── sqlite_backend.py         # Thread-safe SQLite backend
+    ├── config.py                  # Configuration management
+    ├── web_service.py            # Web visualization static endpoints (data is via MCP)
+    └── web/                      # Static web assets for visualization
 ├── tests/                        # Test suite
 ├── docs/                         # Documentation and images
-├── main.py                       # Server entrypoint
-├── zabob-memgraph-dev.py         # Development CLI tool
-├── zabob-memgraph-launcher.py    # Process management launcher
-├── zabob-memgraph-install.py     # Installation script
 ├── pyproject.toml                # Project configuration
 ├── uv.lock                       # uv lock file
-├── Dockerfile                    # Docker image definition
+├── Dockerfile                     # Docker image definition
 └── docker-compose.yml            # Docker Compose configuration
 ```
 
@@ -138,18 +140,6 @@ uv run pytest tests/test_ui_playwright.py::test_page_loads -v
 - Properly handle connection pooling and retries for locked databases
 - Avoid shared mutable state without proper locking
 
-### Backend Selection Pattern
-
-The server uses a fallback pattern to select the best available backend:
-1. SQLite backend (preferred, production)
-2. Docker MCP client
-3. Stdio MCP client
-4. Simple MCP bridge
-5. Real MCP client
-6. Direct MCP client
-
-This ensures graceful degradation if certain backends are unavailable.
-
 ### API Design
 
 - All endpoints should return JSON responses
@@ -160,16 +150,22 @@ This ensures graceful degradation if certain backends are unavailable.
 
 ### Configuration
 
-- Store runtime data in `~/.zabob-memgraph/`
-- Use environment variables for Docker/deployment configs:
-  - `MEMGRAPH_HOST`, `MEMGRAPH_PORT`, `MEMGRAPH_LOG_LEVEL`, `MEMGRAPH_CONFIG_DIR`
-- Support both config file (`config.json`) and environment variables
-- Provide sensible defaults
+- Configuration is handled via `memgraph/config.py`
+- The configuration location is determined by the get_config_dir() function
+- Initial configuration is in DEFAULT_CONFIG dict
+- Environment variables can determine some default config values.
+- A config file, if present, overrides defaults
+- Command-line arguments override both config file and defaults
+- Being in Docker hardwires certain config values.
+  - host, port, database_path
+  - These are fixed inside the Docker container, and mapped to the host machine via docker run options.
+- Our CLI is the preferred way to start a docker container, as it sets up these mappings correctly. Supply --docker
 
 ### Database Management
 
 - Always create backups before operations that modify schema
-- Keep only the 5 most recent backups (configurable via `max_backups`)
+- Keep only the 5 most recent backups (configurable via `min_backups`)
+  - But do not delete backups under `min_backup_age` days.
 - Use automatic backup rotation
 - Log all database operations
 
@@ -191,6 +187,7 @@ This ensures graceful degradation if certain backends are unavailable.
 - **Isolated Database**: Uses a temporary SQLite database in a temp directory
 - **Dynamic Port**: Finds a free port automatically to avoid conflicts
 - **Session Scope**: Server starts once and is shared across all tests in a session
+  - **Parallel Sessions**: Tests are assigned to one of two server instances to allow parallel execution.
 - **Automatic Cleanup**: Server and database are cleaned up after tests complete
 
 This ensures:
@@ -251,6 +248,7 @@ The CI pipeline automatically:
 
 ### Error Handling
 
+In web_service or service modules, use FastAPI's HTTPException for error responses:
 ```python
 try:
     # Operation
@@ -292,7 +290,6 @@ async def endpoint_name() -> ResponseType:
 - ❌ Don't commit commented-out code (use git history instead)
 - ❌ Don't mix formatting changes with functional changes
 - ❌ Don't break thread-safety guarantees
-- ❌ Don't bypass the existing backend selection logic
 - ❌ Don't modify the launcher or installer scripts without careful testing
 
 ## External Resources

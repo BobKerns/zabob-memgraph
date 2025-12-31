@@ -1,6 +1,6 @@
-'''
+"""
 Get the version number.
-'''
+"""
 
 from __future__ import annotations
 from importlib.metadata import version, PackageNotFoundError
@@ -13,4 +13,4 @@ except PackageNotFoundError:
     # Package is not installed, fallback for development
     __version__ = "0.0.0-dev"
 
-__all__ = ['__version__', '__distribution__']
+__all__ = ["__version__", "__distribution__"]

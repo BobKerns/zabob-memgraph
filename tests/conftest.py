@@ -212,18 +212,24 @@ def populated_test_server(test_server):
             ]))
 
             # Create sample relations
-            loop.run_until_complete(db.create_relations([
-                {
-                    "from_entity": "FastAPI",
-                    "to": "Python",
-                    "relationType": "written_in"
-                },
-                {
-                    "from_entity": "FastAPI",
-                    "to": "SQLite",
-                    "relationType": "supports"
-                }
-            ]))
+            loop.run_until_complete(db.create_relations(
+                relations=[
+                    {
+                        "from_entity": "FastAPI",
+                        "to": "Python",
+                        "relationType": "written_in",
+                    },
+                    {
+                        "from_entity": "FastAPI",
+                        "to": "SQLite",
+                        "relationType": "supports"
+                    }
+                ],
+                external_refs=[
+                    "FastAPI",
+                    "Python",
+                    "SQLite"
+                ]))
         finally:
             loop.close()
 
