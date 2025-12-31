@@ -1,4 +1,4 @@
-![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
 
 # Index Optimization Analysis
 

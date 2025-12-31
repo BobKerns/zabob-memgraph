@@ -41,6 +41,7 @@ class SQLiteKnowledgeGraphDB:
     """
     SQLite-based knowledge graph database with MCP import functionality.
     """
+
     _lock: asyncio.Lock
     db_path: Path
     """Location of the SQLite database file"""
@@ -51,12 +52,14 @@ class SQLiteKnowledgeGraphDB:
     backup_on_start: bool
     """Whether to perform a backup on startup"""
 
-    def __init__(self, config: Config | None = None,
-                 db_path: str | Path | None = None,
-                 min_backups: int = 5,
-                 min_age: int = 7,
-                 backup_on_start: bool = True) -> None:
-
+    def __init__(
+        self,
+        config: Config | None = None,
+        db_path: str | Path | None = None,
+        min_backups: int = 5,
+        min_age: int = 7,
+        backup_on_start: bool = True,
+    ) -> None:
         self._lock = asyncio.Lock()
         if config:
             db_path = config.get("database_path", db_path)
@@ -68,7 +71,7 @@ class SQLiteKnowledgeGraphDB:
         if db_path is None:
             config_dir = Path.home() / ".zabob" / "memgraph"
             db_path = config_dir / "data" / "knowledge_graph.db"
-            db_path = Path(os.getenv('MEMGRAPH_DATABASE_PATH', str(db_path)))
+            db_path = Path(os.getenv("MEMGRAPH_DATABASE_PATH", str(db_path)))
             if not db_path.is_absolute():
                 raise ValueError("MEMGRAPH_DATABASE_PATH must be an absolute path")
 
@@ -193,9 +196,7 @@ class SQLiteKnowledgeGraphDB:
     def _ensure_schema_version(self, conn: sqlite3.Connection) -> None:
         """Ensure schema is at the correct version"""
         try:
-            cursor = conn.execute(
-                "SELECT version FROM schema_metadata ORDER BY updated_at DESC LIMIT 1"
-            )
+            cursor = conn.execute("SELECT version FROM schema_metadata ORDER BY updated_at DESC LIMIT 1")
             row = cursor.fetchone()
             if row and row[0] >= 2:
                 return  # Schema is up to date
@@ -544,6 +545,8 @@ class SQLiteKnowledgeGraphDB:
                             print(f"Failed to import relation {relation}: {e}")
 
                     conn.commit()
+                    # Force WAL checkpoint for immediate visibility
+                    conn.execute("PRAGMA wal_checkpoint(FULL)")
 
                 return {
                     "status": "success",
@@ -638,13 +641,33 @@ class SQLiteKnowledgeGraphDB:
                         print(f"Failed to create entity {entity['name']}: {e}")
 
                 conn.commit()
+                # Force WAL checkpoint for immediate visibility to next tool call
+                conn.execute("PRAGMA wal_checkpoint(FULL)")
 
-    async def create_relations(self, relations: list[dict[str, Any]]) -> None:
-        """Create new relations in the database"""
+    async def create_relations(self, relations: list[dict[str, Any]], external_refs: list[str]) -> None:
+        """Create new relations in the database
+
+        Args:
+            relations: List of relation objects to create
+            external_refs: List of entity names that must exist (validates before creating)
+        """
         async with self._lock:
             timestamp = datetime.now(UTC).isoformat()
 
             with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+
+                # Validate external references (now required)
+                placeholders = ",".join("?" * len(external_refs))
+                cursor = conn.execute(
+                    f"SELECT name FROM entities WHERE name IN ({placeholders})",
+                    external_refs,
+                )
+                found = {row["name"] for row in cursor}
+                missing = set(external_refs) - found
+                if missing:
+                    raise ValueError(f"Referenced entities not found: {sorted(missing)}")
+
                 for relation in relations:
                     try:
                         conn.execute(
@@ -665,3 +688,145 @@ class SQLiteKnowledgeGraphDB:
                         print(f"Failed to create relation {relation}: {e}")
 
                 conn.commit()
+                # Force WAL checkpoint for immediate visibility to next tool call
+                conn.execute("PRAGMA wal_checkpoint(FULL)")
+
+    async def create_subgraph(
+        self,
+        entities: list[dict[str, Any]],
+        relations: list[dict[str, Any]],
+        external_refs: list[str] | None = None,
+        observations: dict[str, list[str]] | None = None,
+    ) -> None:
+        """Create a subgraph atomically with entities, relations, and observations
+
+        Args:
+            entities: New entities to create (with their initial observations)
+            relations: Relations to create
+            external_refs: Existing entity names being referenced (default: [])
+            observations: Additional observations to add to any entity (new or existing)
+        """
+        async with self._lock:
+            timestamp = datetime.now(UTC).isoformat()
+            external_refs = external_refs or []
+            observations = observations or {}
+
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+
+                # Validate external references exist
+                if external_refs:
+                    placeholders = ",".join("?" * len(external_refs))
+                    cursor = conn.execute(
+                        f"SELECT name FROM entities WHERE name IN ({placeholders})",
+                        external_refs,
+                    )
+                    found = {row["name"] for row in cursor}
+                    missing = set(external_refs) - found
+                    if missing:
+                        raise ValueError(f"Referenced entities not found: {sorted(missing)}")
+
+                # Step 1: Create new entities with their initial observations
+                created_entity_ids: dict[str, int] = {}
+                for entity in entities:
+                    try:
+                        entity_name = entity["name"]
+                        entity_type = entity["entityType"]
+                        initial_obs = entity.get("observations", [])
+
+                        # Check if entity exists
+                        cursor = conn.execute(
+                            "SELECT id FROM entities WHERE name = ?",
+                            (entity_name,),
+                        )
+                        existing = cursor.fetchone()
+
+                        if existing:
+                            # Update existing entity
+                            entity_id = existing["id"]
+                            conn.execute(
+                                "UPDATE entities SET entity_type = ?, updated_at = ? WHERE id = ?",
+                                (entity_type, timestamp, entity_id),
+                            )
+                        else:
+                            # Create new entity
+                            cursor = conn.execute(
+                                """
+                                INSERT INTO entities (name, entity_type, created_at, updated_at)
+                                VALUES (?, ?, ?, ?)
+                            """,
+                                (entity_name, entity_type, timestamp, timestamp),
+                            )
+                            entity_id = cursor.lastrowid
+                        if entity_id is None:
+                            raise ValueError(f"Failed to retrieve entity ID for {entity_name}")
+                        created_entity_ids[entity_name] = entity_id
+
+                        # Add initial observations
+                        for obs_content in initial_obs:
+                            conn.execute(
+                                """
+                                INSERT INTO observations (entity_id, content, created_at)
+                                VALUES (?, ?, ?)
+                            """,
+                                (entity_id, obs_content, timestamp),
+                            )
+
+                    except Exception as e:
+                        print(f"Failed to create entity {entity['name']}: {e}")
+                        raise
+
+                # Step 2: Add additional observations to both new and existing entities
+                for entity_name, obs_list in observations.items():
+                    try:
+                        # Get entity_id (either from created entities or lookup existing)
+                        if entity_name in created_entity_ids:
+                            entity_id = created_entity_ids[entity_name]
+                        else:
+                            cursor = conn.execute(
+                                "SELECT id FROM entities WHERE name = ?",
+                                (entity_name,),
+                            )
+                            row = cursor.fetchone()
+                            if not row:
+                                raise ValueError(f"Entity not found for observations: {entity_name}")
+                            entity_id = row["id"]
+
+                        # Add observations
+                        for obs_content in obs_list:
+                            conn.execute(
+                                """
+                                INSERT INTO observations (entity_id, content, created_at)
+                                VALUES (?, ?, ?)
+                            """,
+                                (entity_id, obs_content, timestamp),
+                            )
+
+                    except Exception as e:
+                        print(f"Failed to add observations to {entity_name}: {e}")
+                        raise
+
+                # Step 3: Create relations
+                for relation in relations:
+                    try:
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO relations
+                            (from_entity, to_entity, relation_type, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?)
+                        """,
+                            (
+                                relation["from_entity"],
+                                relation["to"],
+                                relation["relationType"],
+                                timestamp,
+                                timestamp,
+                            ),
+                        )
+                    except Exception as e:
+                        print(f"Failed to create relation {relation}: {e}")
+                        raise
+
+                conn.commit()
+                # Force WAL checkpoint for immediate visibility to next tool call
+                conn.execute("PRAGMA wal_checkpoint(FULL)")

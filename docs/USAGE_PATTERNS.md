@@ -1,4 +1,4 @@
-![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
 <!-- markdownlint-disable-file MD036 -->
 # Zabob Memgraph Usage Patterns
 
@@ -137,7 +137,7 @@ pnpm run build:web
 ## Comparison
 
 | Feature | Docker HTTP | MCP Stdio | Local Python |
-|---------|-------------|-----------|--------------|
+| ------- | ----------- | --------- | ------------ |
 | Web UI | ✅ | ❌ | ✅ (dev mode) |
 | MCP Protocol | ✅ (SSE) | ✅ (stdio) | ✅ (both) |
 | Persistent Data | ✅ (volume) | ✅ (~/.zabob) | ✅ (~/.zabob) |

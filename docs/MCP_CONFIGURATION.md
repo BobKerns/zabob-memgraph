@@ -1,6 +1,6 @@
 # MCP Configuration for Zabob Memgraph
 
-> **⚠️ NOTE**: This document is partially outdated. REST API endpoints have been removed. See [USAGE_PATTERNS.md](../USAGE_PATTERNS.md) for current deployment options.
+> **⚠️ NOTE**: This document is partially outdated. REST API endpoints have been removed. See [USAGE_PATTERNS.md](./USAGE_PATTERNS.md) for current deployment options.
 
 ## Overview
 
