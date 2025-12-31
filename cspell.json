@@ -80,6 +80,7 @@
     "multiarch",
     "multiplatform",
     "mypy",
+    "nethistory",
     "networkidle",
     "nullspace",
     "oneline",
