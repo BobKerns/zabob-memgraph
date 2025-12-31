@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.zip
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/**
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Development
+.mypy_cache/
+.ruff_cache/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Memgraph runtime files
+.memgraph/
+port
+pid
+server_info.json
+
+# Backup files
+backup/
+*.backup
+
+# Docker
+.dockerignore
+
+node_modules/
+
+# Web bundles (built from web-src/)
+memgraph/web/*.bundle.js
+memgraph/web/*.bundle.js.map
+
+# Vendored dependencies (no longer used)
+memgraph/web/vendor/
+
+memory.json
+tests/out
+
+*-convo.md
+
+*.bak

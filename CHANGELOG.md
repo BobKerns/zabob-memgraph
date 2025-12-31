@@ -9,6 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.20] 0 2025-12-31
+
+## Added
+
+- feat: add stdio service for zabob-memgraph and enhance web service
+- Introduced a new stdio service in memgraph/stdio_service.py for direct MCP protocol transport.
+- Enhanced web service in memgraph/web_service.py to support concurrent stdio and web server operations.
+operations.
+- Updated pyproject.toml to include new stdio service entry point and bumped uvicorn dependency to version 0.40.0, fastmcp to 2.14.2, and psutil to 7.2.1
+- Improved test configurations and added mock_in_docker fixture for better environment handling.
+- Removed zabob-memgraph-install.py as part of cleanup and refactoring.
+- Updated workspace settings for improved development experience and added new MCP server configurations.
+- Net history mirror
+
+## [0.1.19] - 2025-12-21
+
+### Added
+
+- **NEW TOOL:** `create_subgraph` - Atomically create entities, relations, and observations together. Supports adding observations to both new and existing entities. This is the high-level convenience tool for adding complete, self-contained graph patterns.
+
+### Fixed
+
+- **CRITICAL:** Fixed commit visibility issue between tool calls. Changes from one MCP tool call are now immediately visible to the next call via WAL checkpoint after each commit. Previously, sequential operations could fail because entities/relations from the previous call weren't visible yet.
+- **CRITICAL:** Fixed `create_relations` silent failures when referenced entities don't exist. Now returns explicit error: "Referenced entities not found: [...]"
+- Added `external_refs` parameter to `create_relations` and `add_observations` MCP tools for explicit entity reference validation. When provided, validates all referenced entities exist before performing operations, returning clear error messages if any are missing.
+- `add_observations` now validates that the target entity exists by default, preventing silent failures.
+
+### Changed
+
+- **BREAKING:** `create_relations` now requires `external_refs` parameter. This forces intentionality about entity dependencies and prevents silent failures. Use `create_subgraph` if you need to create entities and relations together.
+- `create_relations` and `add_observations` now support `external_refs` parameter for explicit validation of entity dependencies.
+- Error responses from tools now include `{"error": "message", ...}` structure for programmatic handling.
+
+### Tool Purpose Clarification
+
+- `create_entities` - Primitive for standalone entities, contexts, initial setup
+- `create_relations` - Primitive, requires `external_refs`, relations-only (no entity creation)
+- `create_subgraph` - High-level convenience, creates entities + relations + observations atomically
+- `add_observations` - Updates existing entities with additional observations
+
+#### Development
+
+Added Playwright MCP configuration.
+
+## [0.1.18] - 2025-12-20
+
+## New
+
+- The `config` subcommand now has a `--docker` option to show what the container sees.
+- The `health` endpoints now include server name, version, port, in_docker, and (if applicable) container name. This allows distinguishing different servers.
+- Containers are now always started detached. But if run with `run` rather than start, the logs are followed and the server is stopped on control-C.
+- New MCP tool `get_server_info` allows agents to query server identity information (name, version, port, host, database path, container details).
+- Faster Playwright testing by nearly 50%.
+
+### Breaking
+
+- The `--name` option, which formerly indicated the docker container name to use, has been renamed to `--container-name` to better reflect its purpose
+- A new `--name` option across all server types gives a name to help identify servers. This is useful for multi-agent scenarios
+
+### Fixed
+
+- Undefined `config_dir` error in some startup paths.
+
 ## [0.1.17] - 2025-12-19
 
 - Rebuild, to verify picking up OCI license key
@@ -17,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - mcp@1.25.0
   - dev, ci groups:
     - playwright@1.57.0
-    - ruff@1.14.10
+    - ruff@0.14.10
 
 ## [0.1.16] - 2025-12-19
 

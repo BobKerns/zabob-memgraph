@@ -19,6 +19,10 @@ let svg, container, zoom;
 let autoFitTimeout = null;
 let currentHighlightedNode = null;
 
+// Check for test mode (disables animations for faster testing)
+const urlParams = new URLSearchParams(window.location.search);
+const testMode = urlParams.get('testMode') === 'true';
+
 // Color mapping for node groups
 const colorMap = {
     person: "#e74c3c",
@@ -330,17 +334,25 @@ function updateKnowledgeGraph(nodes, links) {
         console.log('Force simulation restarting with alpha 1.0');
 
         // Force restart with very high alpha for strong initial layout
-        simulation.alpha(1.0).alphaTarget(0.3).restart();
-
-        // Remove alpha target after longer settling period
-        setTimeout(() => {
-            console.log('Removing alphaTarget, allowing natural cooling');
-            try {
+        // In test mode, skip animation for faster testing
+        if (testMode) {
+            simulation.alpha(1.0).restart();
+            // Settle immediately in test mode
+            setTimeout(() => {
                 simulation.alphaTarget(0);
-            } catch (e) {
-                console.error('Error removing alphaTarget:', e);
-            }
-        }, 5000);
+            }, 100);
+        } else {
+            simulation.alpha(1.0).alphaTarget(0.3).restart();
+            // Remove alpha target after longer settling period
+            setTimeout(() => {
+                console.log('Removing alphaTarget, allowing natural cooling');
+                try {
+                    simulation.alphaTarget(0);
+                } catch (e) {
+                    console.error('Error removing alphaTarget:', e);
+                }
+            }, 5000);
+        }
 
     } catch (e) {
         console.error('Error in simulation setup:', e);

@@ -18,21 +18,21 @@ from fastapi.responses import FileResponse
 import uvicorn
 
 from memgraph.__version__ import __version__
-from memgraph.config import default_config_dir, load_config, Config
+from memgraph.config import IN_DOCKER, default_config_dir, load_config, Config
 from memgraph.service_logging import (
     service_setup_context,
     service_async_context,
     log_app_creation,
     log_route_mounting,
     log_server_start,
-    configure_uvicorn_logging
+    configure_uvicorn_logging,
 )
 
 
 app = FastAPI(
     title="Knowledge Graph Web Service",
     description="Static content server for knowledge graph visualization",
-    version="1.0.0"
+    version=__version__,
 )
 
 
@@ -81,8 +81,30 @@ def setup_static_routes(static_dir: str = "web", service_logger: Any = None, tar
 
     # Health check endpoint
     @target_app.get("/health")
-    async def health_check() -> dict[str, str]:
-        return {"status": "healthy", "service": "web_service", "version": __version__}
+    async def health_check() -> dict[str, str | int | bool | None]:
+        """
+        Health check endpoint to verify service status and identity.
+        """
+        config = load_config(default_config_dir())
+        if IN_DOCKER:
+            return {
+                "status": "healthy",
+                "service": "web_service",
+                "name": config["name"],
+                "version": __version__,
+                "in_docker": True,
+                "container_name": config["container_name"],
+                "port": config["real_port"],
+            }
+        else:
+            return {
+                "status": "healthy",
+                "service": "web_service",
+                "version": __version__,
+                "in_docker": False,
+                "container_name": None,
+                "port": config["port"],
+            }
 
 
 def create_app(static_dir: str = "web", service_logger: Any = None) -> FastAPI:
@@ -96,6 +118,7 @@ def create_app(static_dir: str = "web", service_logger: Any = None) -> FastAPI:
     Returns:
         Configured FastAPI application
     """
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         async with service_async_context(service_logger):
@@ -104,15 +127,12 @@ def create_app(static_dir: str = "web", service_logger: Any = None) -> FastAPI:
     app = FastAPI(
         title="Knowledge Graph Web Service",
         description="Static content server for knowledge graph visualization",
-        version="1.0.0",
-        lifespan=lifespan
+        version=__version__,
+        lifespan=lifespan,
     )
 
     if service_logger:
-        log_app_creation(service_logger, "web", {
-            "static_dir": static_dir,
-            "title": "Knowledge Graph Web Service"
-        })
+        log_app_creation(service_logger, "web", {"static_dir": static_dir, "title": "Knowledge Graph Web Service"})
 
     setup_static_routes(static_dir, service_logger, app)
     return app
@@ -132,39 +152,39 @@ def run_web_service(config: Config | None = None) -> int:
     """
     config_dir = default_config_dir()
     config = config or load_config(config_dir)
-    log_file = str(config['log_file']) if config['log_file'] else None
+    log_file = str(config["log_file"]) if config["log_file"] else None
     log_args = {
-        "host": config['host'],
-        "port": config['port'],
-        "static_dir": str(config['static_dir']),
-        "reload": config['reload'],
-        "log_file": log_file
+        "host": config["host"],
+        "port": config["port"],
+        "static_dir": str(config["static_dir"]),
+        "reload": config["reload"],
+        "log_file": log_file,
     }
 
     with service_setup_context("web_service", log_args, log_file) as service_logger:
         try:
             # Use create_app instead of global app for better encapsulation
-            app_instance = create_app(str(config['static_dir']), service_logger)
-            log_server_start(service_logger, config['host'], config['port'])
+            app_instance = create_app(str(config["static_dir"]), service_logger)
+            log_server_start(service_logger, config["host"], config["port"])
 
             # Configure uvicorn logging to use same log file
             uvicorn_config = configure_uvicorn_logging(log_file)
 
             uvicorn.run(
                 app_instance,
-                host=config['host'],
-                port=config['port'],
-                log_level=config['log_level'].lower(),
-                reload=config['reload'],
-                access_log=config['access_log'],
-                ws='websockets-sansio',
-                **uvicorn_config
+                host=config["host"],
+                port=config["port"],
+                log_level=config["log_level"].lower(),
+                reload=config["reload"],
+                access_log=config["access_log"],
+                ws="websockets-sansio",
+                **uvicorn_config,
             )
             return 0
 
         except FileNotFoundError as e:
             service_logger.logger.error(f"Configuration error: {e}")
-            static_dir = config['static_dir']
+            static_dir = config["static_dir"]
             service_logger.logger.error(f"Please ensure the '{static_dir}' directory exists and contains web assets.")
             return 1
         except Exception as e:
@@ -182,23 +202,13 @@ if __name__ == "__main__":
     @click.option("--reload", is_flag=True, help="Enable auto-reload")
     @click.option("--log-file", help="Log file path (default: stderr)")
     @click.option("--config-dir", type=Path, default=None, help="Path to configuration file")
-    def cli(host: str,
-            port: int,
-            static_dir: str,
-            reload: bool,
-            log_file: str | None,
-            config_dir: Path | None) -> None:
+    def cli(host: str, port: int, static_dir: str, reload: bool, log_file: str | None, config_dir: Path | None) -> None:
         """
         Knowledge Graph Web Service - Static content server.
         """
 
         config_dir = config_dir or default_config_dir()
-        config = load_config(config_dir,
-                             host=host,
-                             port=port,
-                             static_dir=static_dir,
-                             reload=reload,
-                             log_file=log_file)
+        config = load_config(config_dir, host=host, port=port, static_dir=static_dir, reload=reload, log_file=log_file)
         exit_code = run_web_service(config)
 
         if exit_code:

@@ -10,6 +10,7 @@
 #     "uvicorn[standard]",
 # ]
 # ///
+# flake8: noqa E402
 """
 MCP to SQLite Import Utility
 
@@ -21,7 +22,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import httpx
 
@@ -34,6 +35,7 @@ from mcp.types import TextContent
 from fastmcp.client.transports import StdioTransport
 from shutil import which
 
+
 async def import_from_memory_mcp() :
     docker = which("docker")
     if not docker:
@@ -43,7 +45,7 @@ async def import_from_memory_mcp() :
     transport = StdioTransport(
         command=docker,
         args=[
-            "run", #"--rm",
+            "run",  # "--rm",
             "-i",
             "-v", "claude-memory:/app/data",
             "mcp/memory",
@@ -61,11 +63,13 @@ async def import_from_memory_mcp() :
         print(f"Read {[d.text for d in response]!r} items from memory MCP")
         return json.loads(response[0].text)
 
+
 async def send_to_server(graph_data: dict, server_url: str = "http://localhost:8080"):
     """Send data to zabob-memgraph server"""
     async with httpx.AsyncClient() as client:
         response = await client.post(f"{server_url}/api/import-mcp", json=graph_data)
         return response.json()
+
 
 # Put it together
 async def main():
