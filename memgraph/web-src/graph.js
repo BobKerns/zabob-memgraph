@@ -454,34 +454,9 @@ async function performServerSearch(query) {
         // Search via MCP
         const data = await searchNodes(query);
 
-        // Convert backend format to search results
-        const results = [];
-        if (data.entities) {
-            data.entities.forEach(entity => {
-                // Add entity name as a result
-                results.push({
-                    type: 'name',
-                    entity: entity.name,
-                    content: entity.name,
-                    entityType: entity.entityType
-                });
-
-                // Add observations as results
-                if (entity.observations) {
-                    entity.observations.forEach((obs, index) => {
-                        results.push({
-                            type: 'observation',
-                            entity: entity.name,
-                            content: obs,
-                            entityType: entity.entityType,
-                            observationIndex: index
-                        });
-                    });
-                }
-            });
-        }
-
-        return results;
+        // Backend already returns deduplicated entities with all observations
+        // Just pass through the structure
+        return data.entities || [];
     } catch (error) {
         console.error('Search error:', error);
         return [];
@@ -520,16 +495,32 @@ async function showSearchResults(query) {
         return;
     }
 
-    container.innerHTML = results.map(result => {
-        const snippet = result.content.length > 120 ?
-            result.content.substring(0, 120) + '...' :
-            result.content;
+    // Display consolidated results with collapsible observations
+    container.innerHTML = results.map(entity => {
+        const observationsHtml = entity.observations && entity.observations.length > 0 ? `
+            <div class="observations-toggle" onclick="toggleObservations('${entity.name.replace(/'/g, "\\'")}')">
+                <span class="toggle-icon">▼</span>
+                <span>${entity.observations.length} observation${entity.observations.length > 1 ? 's' : ''}</span>
+            </div>
+            <div class="observations-list" id="obs-${entity.name.replace(/[^a-zA-Z0-9]/g, '_')}" style="display: none;">
+                ${entity.observations.map((obs, index) => {
+                    const snippet = obs.length > 120 ? obs.substring(0, 120) + '...' : obs;
+                    return `
+                        <div class="observation-item" onclick="event.stopPropagation(); showEntityDetails('${entity.name.replace(/'/g, "\\'")}', ${index})">
+                            ${highlightText(snippet, query)}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        ` : '';
 
         return `
-            <div class="search-result" onclick="showEntityDetails('${result.entity}', ${result.observationIndex || 'null'})">
-                <div class="result-title">${highlightText(result.entity, query)}</div>
-                <div class="result-type">${result.entityType} • ${result.type}</div>
-                <div class="result-snippet">${highlightText(snippet, query)}</div>
+            <div class="search-result" onclick="showEntityDetails('${entity.name.replace(/'/g, "\\'")}')">
+                <div class="result-title">
+                    ${highlightText(entity.name, query)}
+                    <span class="result-type-inline">(${entity.entityType})</span>
+                </div>
+                ${observationsHtml}
             </div>
         `;
     }).join('');
@@ -654,6 +645,23 @@ function toggleSearch() {
 function clearSearch() {
     document.getElementById('searchInput').value = '';
     document.getElementById('searchResults').innerHTML = '';
+}
+
+function toggleObservations(entityName) {
+    const safeId = entityName.replace(/[^a-zA-Z0-9]/g, '_');
+    const observationsList = document.getElementById(`obs-${safeId}`);
+    const toggleIcon = event.currentTarget.querySelector('.toggle-icon');
+    
+    if (observationsList.style.display === 'none') {
+        observationsList.style.display = 'block';
+        toggleIcon.textContent = '▲';
+    } else {
+        observationsList.style.display = 'none';
+        toggleIcon.textContent = '▼';
+    }
+    
+    // Prevent click from bubbling to parent search-result
+    event.stopPropagation();
 }
 
 function closeDetail() {

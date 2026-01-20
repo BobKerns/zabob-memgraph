@@ -274,55 +274,82 @@ class SQLiteKnowledgeGraphDB:
                 return {"entities": [], "relations": []}
 
     async def search_nodes(self, query: str) -> dict[str, Any]:
-        """Search nodes using SQLite FTS"""
+        """Search nodes using SQLite FTS with OR logic and BM25 ranking
+
+        Searches entity names, types, and observations using OR logic (any term matches).
+        Results ranked by relevance using BM25 scoring, with entity name matches weighted highest.
+        """
+        # Validate query is not empty
+        if not query or not query.strip():
+            return {"entities": [], "relations": []}
+
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
 
-                    # Search in both entities and observations FTS
-                    entity_ids: set[int] = set()
+                    # Convert query to OR syntax: "word1 word2" -> "word1 OR word2"
+                    terms = query.split()
+                    or_query = " OR ".join(terms)
 
-                    # Search entities
+                    # Search entities with BM25 scoring (higher is better, more negative = worse)
+                    # Entity name matches get highest weight
+                    entity_scores: dict[int, float] = {}
+
                     entity_search = conn.execute(
                         """
-                        SELECT e.id
+                        SELECT e.id, bm25(entities_fts) as score
                         FROM entities e
-                        JOIN entities_fts fts ON e.id = fts.rowid
+                        JOIN entities_fts ON e.id = entities_fts.rowid
                         WHERE entities_fts MATCH ?
+                        ORDER BY score
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["id"] for row in entity_search)
+                    for row in entity_search:
+                        # BM25 returns negative scores (closer to 0 is better)
+                        # Weight entity matches higher (multiply by 2)
+                        entity_scores[row["id"]] = row["score"] * 2.0
 
-                    # Search observations
+                    # Search observations with BM25 scoring
                     obs_search = conn.execute(
                         """
-                        SELECT o.entity_id
+                        SELECT o.entity_id, bm25(observations_fts) as score
                         FROM observations o
-                        JOIN observations_fts fts ON o.id = fts.rowid
+                        JOIN observations_fts ON o.id = observations_fts.rowid
                         WHERE observations_fts MATCH ?
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["entity_id"] for row in obs_search)
+                    for row in obs_search:
+                        entity_id = row["entity_id"]
+                        score = row["score"]
+                        # Combine scores: if entity already found, add observation score
+                        if entity_id in entity_scores:
+                            entity_scores[entity_id] += score
+                        else:
+                            entity_scores[entity_id] = score
 
-                    # Get full entity data for matches
+                    # Sort entities by score (best first - closest to 0 for BM25)
+                    sorted_entity_ids = sorted(entity_scores.keys(), key=lambda eid: entity_scores[eid])
+
+                    # Get full entity data for matches (deduplicated by entity)
                     entities = []
                     entity_names = set()
 
-                    if entity_ids:
-                        placeholders = ",".join("?" * len(entity_ids))
+                    if sorted_entity_ids:
+                        placeholders = ",".join("?" * len(sorted_entity_ids))
                         entities_cursor = conn.execute(
                             f"""
                             SELECT e.id, e.name, e.entity_type
                             FROM entities e
                             WHERE e.id IN ({placeholders})
-                            ORDER BY e.name
                         """,
-                            list(entity_ids),
+                            sorted_entity_ids,
                         )
 
+                        # Build dict for deduplication and sorting
+                        entity_data = {}
                         for row in entities_cursor:
                             entity_id = row["id"]
                             entity_name = row["name"]
@@ -334,14 +361,27 @@ class SQLiteKnowledgeGraphDB:
                             )
                             observations = [obs_row["content"] for obs_row in obs_cursor]
 
-                            entities.append(
-                                {
-                                    "name": entity_name,
-                                    "entityType": row["entity_type"],
-                                    "observations": observations,
-                                }
-                            )
+                            entity_data[entity_id] = {
+                                "name": entity_name,
+                                "entityType": row["entity_type"],
+                                "observations": observations,
+                                "score": entity_scores[entity_id],  # Store score for sorting
+                            }
                             entity_names.add(entity_name)
+
+                        # Sort by score first (relevance), then by name (case-insensitive) for ties
+                        sorted_entities = sorted(
+                            entity_data.values(),
+                            key=lambda e: (e["score"], e["name"].lower())
+                        )
+
+                        # Remove score from output (internal only)
+                        for entity in sorted_entities:
+                            entities.append({
+                                "name": entity["name"],
+                                "entityType": entity["entityType"],
+                                "observations": entity["observations"],
+                            })
 
                     # Get relations for matching entities
                     if entity_names:
