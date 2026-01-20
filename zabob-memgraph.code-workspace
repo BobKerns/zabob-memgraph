@@ -87,7 +87,22 @@
 			},
 			"inputs": []
         },
-        "explorer.enableUndo": false
+        "explorer.enableUndo": false,
+        "chat.useAgentSkills": true,
+        "chat.tools.terminal.autoApprove": {
+            "/^uv run mypy --strict memgraph/sqlite_backend\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv sync --extra dev && \\./check_types\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run ruff format memgraph/sqlite_backend\\.py && \\./check_types\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            }
+        }
 	},
 	"mcp": {
 		"servers": {
