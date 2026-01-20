@@ -274,53 +274,82 @@ class SQLiteKnowledgeGraphDB:
                 return {"entities": [], "relations": []}
 
     async def search_nodes(self, query: str) -> dict[str, Any]:
-        """Search nodes using SQLite FTS"""
+        """Search nodes using SQLite FTS with OR logic and BM25 ranking"""
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
 
-                    # Search in both entities and observations FTS
-                    entity_ids: set[int] = set()
+                    # Transform query to use OR logic: split terms and join with OR
+                    # This allows partial matches instead of requiring all terms
+                    terms = query.strip().split()
+                    if not terms:
+                        return {"entities": [], "relations": []}
 
-                    # Search entities
+                    # Create OR query from terms
+                    or_query = " OR ".join(terms)
+
+                    # Search in both entities and observations FTS with ranking
+                    # Using dict to store (entity_id, score) pairs, keeping best score
+                    entity_scores: dict[int, float] = {}
+
+                    # Search entities with BM25 ranking
                     entity_search = conn.execute(
                         """
-                        SELECT e.id
+                        SELECT e.id, bm25(entities_fts) as score
                         FROM entities e
                         JOIN entities_fts fts ON e.id = fts.rowid
                         WHERE entities_fts MATCH ?
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["id"] for row in entity_search)
+                    for row in entity_search:
+                        entity_id = row["id"]
+                        score = row["score"]
+                        # BM25 returns negative scores (closer to 0 is better)
+                        # Keep the best (highest/closest to 0) score
+                        if entity_id not in entity_scores or score > entity_scores[entity_id]:
+                            entity_scores[entity_id] = score
 
-                    # Search observations
+                    # Search observations with BM25 ranking
                     obs_search = conn.execute(
                         """
-                        SELECT o.entity_id
+                        SELECT o.entity_id, bm25(observations_fts) as score
                         FROM observations o
                         JOIN observations_fts fts ON o.id = fts.rowid
                         WHERE observations_fts MATCH ?
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["entity_id"] for row in obs_search)
+                    for row in obs_search:
+                        entity_id = row["entity_id"]
+                        score = row["score"]
+                        # Keep the best score for this entity
+                        if entity_id not in entity_scores or score > entity_scores[entity_id]:
+                            entity_scores[entity_id] = score
 
-                    # Get full entity data for matches
+                    # Sort entity IDs by score (best first)
+                    entity_ids = sorted(entity_scores.keys(), key=lambda eid: entity_scores[eid], reverse=True)
+
+                    # Get full entity data for matches (in ranked order)
                     entities = []
                     entity_names = set()
 
                     if entity_ids:
                         placeholders = ",".join("?" * len(entity_ids))
+                        # Use CASE to preserve the ranking order
+                        order_cases = " ".join([
+                            f"WHEN e.id = ? THEN {i}"
+                            for i in range(len(entity_ids))
+                        ])
                         entities_cursor = conn.execute(
                             f"""
                             SELECT e.id, e.name, e.entity_type
                             FROM entities e
                             WHERE e.id IN ({placeholders})
-                            ORDER BY e.name
+                            ORDER BY CASE {order_cases} END
                         """,
-                            list(entity_ids),
+                            list(entity_ids) + list(entity_ids),  # IDs for IN clause + IDs for CASE
                         )
 
                         for row in entities_cursor:
