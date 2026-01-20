@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CRITICAL:** Fixed `search_nodes` returning empty results. Changed from implicit AND logic (all terms must match) to OR logic with BM25 ranking (any term matches, ranked by relevance). This enables flexible multi-word searches and prevents AI agents from creating duplicate entities due to failed searches.
+
 ## [0.1.20] 0 2025-12-31
 
 ## Added
