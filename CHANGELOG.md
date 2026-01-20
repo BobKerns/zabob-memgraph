@@ -18,12 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Search results now ranked by relevance using BM25 scoring - more matching terms = higher rank.
 - Entity name matches weighted 2x higher than observation matches for better precision.
 
+### Notes
+
+- Issue #23 (relations not being saved) was fixed in v0.1.19 with `external_refs` validation and WAL checkpointing.
+
 ### Changed
 
 - `search_nodes` query transformation: "word1 word2 word3" → "word1 OR word2 OR word3" for FTS5
 - Search results ordered by combined BM25 score from entity and observation matches
 - Graceful degradation: partial matches return results instead of failing completely
 - Updated dependencies
+- Fix test connection failures on GitHub
 
 ## [0.1.20] - 2025-12-31
 
@@ -47,8 +52,8 @@ operations.
 
 ### Fixed
 
+- **CRITICAL - Issue #23:** Fixed `create_relations` silent failures when referenced entities don't exist. Now returns explicit error: "Referenced entities not found: [...]" and validates all entity references before creating relations.
 - **CRITICAL:** Fixed commit visibility issue between tool calls. Changes from one MCP tool call are now immediately visible to the next call via WAL checkpoint after each commit. Previously, sequential operations could fail because entities/relations from the previous call weren't visible yet.
-- **CRITICAL:** Fixed `create_relations` silent failures when referenced entities don't exist. Now returns explicit error: "Referenced entities not found: [...]"
 - Added `external_refs` parameter to `create_relations` and `add_observations` MCP tools for explicit entity reference validation. When provided, validates all referenced entities exist before performing operations, returning clear error messages if any are missing.
 - `add_observations` now validates that the target entity exists by default, preventing silent failures.
 

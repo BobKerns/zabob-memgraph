@@ -100,13 +100,29 @@ def service_py(package_dir: Path) -> Path:
 
 
 @pytest.fixture(scope="session")
-def port():
-    """Find a free port for testing"""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-    return port
+def port(request):
+    """Find a free port for testing, xdist-aware"""
+    from memgraph.launcher import find_free_port
+
+    # Handle parallel test execution with pytest-xdist
+    worker_id = getattr(request.config, 'workerinput', {}).get('workerid', 'master')
+
+    # Use different port ranges for different workers to avoid conflicts
+    if worker_id == 'master':
+        start_port = 50000
+    elif worker_id == 'gw0':
+        start_port = 50100
+    elif worker_id == 'gw1':
+        start_port = 50200
+    else:
+        # For additional workers, parse the number
+        import re
+        match = re.match(r'gw(\d+)', worker_id)
+        worker_num = int(match.group(1)) if match else 0
+        start_port = 50000 + (worker_num * 100)
+
+    # Use the existing find_free_port function with worker-specific start port
+    return find_free_port(start_port)
 
 
 @pytest.fixture(scope="session")
@@ -136,26 +152,42 @@ def test_server(port, tmp_path_factory):
         cwd=str(project_dir)
     )
 
-    # Wait for server to be ready (max 30 seconds with retries for CI)
+    # Wait for server to be ready (max 60 seconds with retries for CI)
     start_time = time.time()
     server_ready = False
     base_url = f"http://localhost:{port}"
 
-    while time.time() - start_time < 30:
+    # Check if process died early
+    max_wait = 60
+    poll_interval = 0.5
+
+    while time.time() - start_time < max_wait:
+        # Check if process crashed
+        if process.poll() is not None:
+            stdout, stderr = process.communicate(timeout=5)
+            pytest.fail(
+                f"Test server process died during startup on port {port}\n"
+                f"Exit code: {process.returncode}\n"
+                f"Stdout: {stdout}\nStderr: {stderr}"
+            )
+
         try:
-            response = requests.get(f"{base_url}/health", timeout=3)
+            response = requests.get(f"{base_url}/health", timeout=5)
             if response.status_code == 200:
                 server_ready = True
                 # Extra wait to ensure server is fully ready (longer for CI)
                 time.sleep(2.0)
                 break
         except (requests.ConnectionError, requests.Timeout):
-            time.sleep(0.5)
+            time.sleep(poll_interval)
 
     if not server_ready:
         process.terminate()
         stdout, stderr = process.communicate(timeout=5)
-        pytest.fail(f"Test server failed to start on port {port}\nStdout: {stdout}\nStderr: {stderr}")
+        pytest.fail(
+            f"Test server failed to start within {max_wait}s on port {port}\n"
+            f"Stdout: {stdout}\nStderr: {stderr}"
+        )
 
     # Additional stabilization delay after health check passes
     time.sleep(1.0)
