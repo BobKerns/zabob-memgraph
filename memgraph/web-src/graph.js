@@ -496,17 +496,19 @@ async function showSearchResults(query) {
     }
 
     // Display consolidated results with collapsible observations
+    // Use data attributes instead of inline onclick to avoid XSS and string escaping issues
     container.innerHTML = results.map(entity => {
+        const safeId = entity.name.replace(/[^a-zA-Z0-9]/g, '_');
         const observationsHtml = entity.observations && entity.observations.length > 0 ? `
-            <div class="observations-toggle" onclick="toggleObservations('${entity.name.replace(/'/g, "\\'")}')">
+            <div class="observations-toggle" data-entity-name="${entity.name}">
                 <span class="toggle-icon">▼</span>
                 <span>${entity.observations.length} observation${entity.observations.length > 1 ? 's' : ''}</span>
             </div>
-            <div class="observations-list" id="obs-${entity.name.replace(/[^a-zA-Z0-9]/g, '_')}" style="display: none;">
+            <div class="observations-list" id="obs-${safeId}" style="display: none;">
                 ${entity.observations.map((obs, index) => {
                     const snippet = obs.length > 120 ? obs.substring(0, 120) + '...' : obs;
                     return `
-                        <div class="observation-item" onclick="event.stopPropagation(); showEntityDetails('${entity.name.replace(/'/g, "\\'")}', ${index})">
+                        <div class="observation-item" data-entity-name="${entity.name}" data-obs-index="${index}">
                             ${highlightText(snippet, query)}
                         </div>
                     `;
@@ -515,7 +517,7 @@ async function showSearchResults(query) {
         ` : '';
 
         return `
-            <div class="search-result" onclick="showEntityDetails('${entity.name.replace(/'/g, "\\'")}')">
+            <div class="search-result" data-entity-name="${entity.name}">
                 <div class="result-title">
                     ${highlightText(entity.name, query)}
                     <span class="result-type-inline">(${entity.entityType})</span>
@@ -524,6 +526,45 @@ async function showSearchResults(query) {
             </div>
         `;
     }).join('');
+
+    // Attach event listeners using delegation
+    container.querySelectorAll('.search-result').forEach(result => {
+        const entityName = result.dataset.entityName;
+        result.addEventListener('click', (e) => {
+            // Don't trigger if clicking on observations toggle or observation item
+            if (e.target.closest('.observations-toggle') || e.target.closest('.observation-item')) {
+                return;
+            }
+            showEntityDetails(entityName);
+        });
+    });
+
+    container.querySelectorAll('.observations-toggle').forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const entityName = toggle.dataset.entityName;
+            const safeId = entityName.replace(/[^a-zA-Z0-9]/g, '_');
+            const observationsList = document.getElementById(`obs-${safeId}`);
+            const toggleIcon = toggle.querySelector('.toggle-icon');
+
+            if (observationsList.style.display === 'none') {
+                observationsList.style.display = 'block';
+                toggleIcon.textContent = '▲';
+            } else {
+                observationsList.style.display = 'none';
+                toggleIcon.textContent = '▼';
+            }
+        });
+    });
+
+    container.querySelectorAll('.observation-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const entityName = item.dataset.entityName;
+            const obsIndex = parseInt(item.dataset.obsIndex, 10);
+            showEntityDetails(entityName, obsIndex);
+        });
+    });
 }
 
 function showEntityDetails(entityName, highlightObservationIndex = null) {
