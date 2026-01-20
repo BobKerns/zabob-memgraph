@@ -58,7 +58,7 @@ def sample_data(db):
                 "name": "Python Import Issue",
                 "entityType": "Bug",
                 "observations": [
-                    "hython import failure",
+                    "Python import failure",
                     "Resolved by updating dependencies"
                 ]
             }
@@ -217,11 +217,13 @@ def test_single_word_search(sample_data):
 
         entity_names = [e["name"] for e in entities]
 
-        # Should find entities with "python" in observations
+        # Should find entities with "python" in name or observations
         # Note: exact entity found depends on sample data
-        assert any("Python" in name or any("python" in str(e.get("observations", [])).lower()
-                   for e in entities) for name in entity_names), \
-            "Should find entities related to Python"
+        assert any(
+            "python" in name.lower()
+            or "python" in str(entity.get("observations", [])).lower()
+            for name, entity in zip(entity_names, entities)
+        ), "Should find entities related to Python"
 
     # Run async test
     loop = asyncio.new_event_loop()

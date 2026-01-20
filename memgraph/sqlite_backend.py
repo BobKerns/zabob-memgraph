@@ -279,6 +279,10 @@ class SQLiteKnowledgeGraphDB:
         Searches entity names, types, and observations using OR logic (any term matches).
         Results ranked by relevance using BM25 scoring, with entity name matches weighted highest.
         """
+        # Validate query is not empty
+        if not query or not query.strip():
+            return {"entities": [], "relations": []}
+
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
@@ -317,15 +321,6 @@ class SQLiteKnowledgeGraphDB:
                     """,
                         (or_query,),
                     )
-                    for row in obs_search:
-                        entity_id = row["entity_id"]
-                        score = row["score"]
-                        # Combine scores: if entity already found, add observation score
-                        if entity_id in entity_scores:
-                            entity_scores[entity_id] += score
-                        else:
-                            entity_scores[entity_id] = score
-
                     for row in obs_search:
                         entity_id = row["entity_id"]
                         score = row["score"]

@@ -117,7 +117,10 @@ def port(request):
         # For additional workers, parse the number
         import re
         match = re.match(r'gw(\d+)', worker_id)
-        worker_num = int(match.group(1)) if match else 0
+        if match:
+            worker_num = int(match.group(1))
+        else:
+            worker_num = 0
         start_port = 50000 + (worker_num * 100)
 
     # Use the existing find_free_port function with worker-specific start port

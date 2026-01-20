@@ -97,6 +97,10 @@
             "/^uv run ruff format memgraph/sqlite_backend\\.py && \\./check_types\\.py$/": {
                 "approve": true,
                 "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_search_nodes\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
             }
         }
 	},
