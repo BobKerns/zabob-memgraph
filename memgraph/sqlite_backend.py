@@ -376,12 +376,14 @@ class SQLiteKnowledgeGraphDB:
                         )
 
                         # Remove score from output (internal only)
-                        for entity in sorted_entities:
-                            entities.append({
+                        entities = [
+                            {
                                 "name": entity["name"],
                                 "entityType": entity["entityType"],
                                 "observations": entity["observations"],
-                            })
+                            }
+                            for entity in sorted_entities
+                        ]
 
                     # Get relations for matching entities
                     if entity_names:
@@ -396,15 +398,14 @@ class SQLiteKnowledgeGraphDB:
                             list(entity_names) + list(entity_names),
                         )
 
-                        relations = []
-                        for row in relations_cursor:
-                            relations.append(
-                                {
-                                    "from_entity": row["from_entity"],
-                                    "to": row["to_entity"],
-                                    "relationType": row["relation_type"],
-                                }
-                            )
+                        relations = [
+                            {
+                                "from_entity": row["from_entity"],
+                                "to": row["to_entity"],
+                                "relationType": row["relation_type"],
+                            }
+                            for row in relations_cursor
+                        ]
                     else:
                         relations = []
 
@@ -445,32 +446,29 @@ class SQLiteKnowledgeGraphDB:
                 entities = []
                 entity_names = set()
 
+                def _build_entity(row: sqlite3.Row, conn: sqlite3.Connection) -> dict[str, Any]:
+                    """Build entity dict with observations from a row"""
+                    entity_id = row["id"]
+                    obs_cursor = conn.execute(
+                        "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
+                        (entity_id,),
+                    )
+                    observations = [obs_row["content"] for obs_row in obs_cursor]
+                    return {
+                        "name": row["name"],
+                        "entityType": row["entity_type"],
+                        "observations": observations,
+                    }
+
                 if entity_ids:
                     placeholders = ",".join("?" * len(entity_ids))
                     entities_cursor = conn.execute(
                         f"SELECT id, name, entity_type FROM entities WHERE id IN ({placeholders})",
                         list(entity_ids),
                     )
-
-                    for row in entities_cursor:
-                        entity_id = row["id"]
-                        entity_name = row["name"]
-
-                        # Get observations
-                        obs_cursor = conn.execute(
-                            "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
-                            (entity_id,),
-                        )
-                        observations = [obs_row["content"] for obs_row in obs_cursor]
-
-                        entities.append(
-                            {
-                                "name": entity_name,
-                                "entityType": row["entity_type"],
-                                "observations": observations,
-                            }
-                        )
-                        entity_names.add(entity_name)
+                    rows = list(entities_cursor)
+                    entities = [_build_entity(row, conn) for row in rows]
+                    entity_names = {row["name"] for row in rows}
 
                 # Get relations
                 if entity_names:
