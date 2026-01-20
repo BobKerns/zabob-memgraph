@@ -7,7 +7,6 @@ from collections.abc import Generator
 from typing import Any, Literal, Protocol, cast, overload
 import pytest
 import shutil
-import socket
 import logging
 import os
 import stat

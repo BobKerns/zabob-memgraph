@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graceful degradation: partial matches return results instead of failing completely
 - Updated dependencies
 - Fix test connection failures on GitHub
+- Reworked cSpell:
+  - `.zabob.dic` -> `.memgraph.dic`
+  - Support `.net-history.dic`
+  - Get rid of `cspell.json`
 
 ## [0.1.20] - 2025-12-31
 
