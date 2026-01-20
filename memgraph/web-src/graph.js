@@ -651,7 +651,7 @@ function toggleObservations(entityName) {
     const safeId = entityName.replace(/[^a-zA-Z0-9]/g, '_');
     const observationsList = document.getElementById(`obs-${safeId}`);
     const toggleIcon = event.currentTarget.querySelector('.toggle-icon');
-    
+
     if (observationsList.style.display === 'none') {
         observationsList.style.display = 'block';
         toggleIcon.textContent = '▲';
@@ -659,7 +659,7 @@ function toggleObservations(entityName) {
         observationsList.style.display = 'none';
         toggleIcon.textContent = '▼';
     }
-    
+
     // Prevent click from bubbling to parent search-result
     event.stopPropagation();
 }
