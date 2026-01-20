@@ -384,12 +384,6 @@ class SQLiteKnowledgeGraphDB:
                             })
 
                     # Get relations for matching entities
-                        for entity_id in sorted_entity_ids:
-                            if entity_id in entity_data:
-                                entities.append(entity_data[entity_id])
->>>>>>> origin/release-0.1
-
-                    # Get relations for matching entities
                     if entity_names:
                         placeholders = ",".join("?" * len(entity_names))
                         relations_cursor = conn.execute(
