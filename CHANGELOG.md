@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Issue #43:** Search results now consolidated and easier to navigate with large result sets
+  - Entities deduplicated (one entry per entity with all observations grouped)
+  - Case-insensitive sorting by entity name (after relevance ranking)
+  - Collapsible observations with toggle arrows in web UI
+  - Compact display with entity type as italicized parenthetical
+  - Click individual observation to jump to detail view
+
 ## [0.1.21] - 2026-01-19
 
 ### Fixed
