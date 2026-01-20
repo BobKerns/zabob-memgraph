@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.20] 0 2025-12-31
+## [0.1.21] - 2026-01-19
+
+### Fixed
+
+- **CRITICAL - Issue #29:** Fixed `search_nodes` to use OR logic instead of implicit AND, making multi-word searches actually work. Previously, "agent coordination memory design architecture" returned 0 results because it required ALL terms to match. Now uses any-term-matches with BM25 ranking.
+- **CRITICAL - Issue #29:** Entity names are now properly indexed and searched with highest priority weight (2x). Previously only observations were effectively searched, causing exact entity name searches to fail.
+- Search results now ranked by relevance using BM25 scoring - more matching terms = higher rank.
+- Entity name matches weighted 2x higher than observation matches for better precision.
+
+### Changed
+
+- `search_nodes` query transformation: "word1 word2 word3" → "word1 OR word2 OR word3" for FTS5
+- Search results ordered by combined BM25 score from entity and observation matches
+- Graceful degradation: partial matches return results instead of failing completely
+- Updated dependencies
+
+## [0.1.20] - 2025-12-31
 
 ## Added
 
