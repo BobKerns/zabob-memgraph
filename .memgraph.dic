@@ -6,6 +6,7 @@ ASGI
 asyncio
 bobkerns
 Buildx
+checkpointing
 clippy
 conftest
 convo
@@ -90,6 +91,7 @@ uvicorn
 uvloop
 uvx
 watchfiles
+workerid
 workerinput
 Xfrozen
 zabob

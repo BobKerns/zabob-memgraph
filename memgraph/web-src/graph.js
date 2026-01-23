@@ -454,34 +454,9 @@ async function performServerSearch(query) {
         // Search via MCP
         const data = await searchNodes(query);
 
-        // Convert backend format to search results
-        const results = [];
-        if (data.entities) {
-            data.entities.forEach(entity => {
-                // Add entity name as a result
-                results.push({
-                    type: 'name',
-                    entity: entity.name,
-                    content: entity.name,
-                    entityType: entity.entityType
-                });
-
-                // Add observations as results
-                if (entity.observations) {
-                    entity.observations.forEach((obs, index) => {
-                        results.push({
-                            type: 'observation',
-                            entity: entity.name,
-                            content: obs,
-                            entityType: entity.entityType,
-                            observationIndex: index
-                        });
-                    });
-                }
-            });
-        }
-
-        return results;
+        // Backend already returns deduplicated entities with all observations
+        // Just pass through the structure
+        return data.entities || [];
     } catch (error) {
         console.error('Search error:', error);
         return [];
@@ -502,6 +477,17 @@ function highlightText(text, query) {
     return highlighted;
 }
 
+/**
+ * Escape HTML special characters to prevent XSS and attribute breakage
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text safe for HTML attributes and content
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 async function showSearchResults(query) {
     const container = document.getElementById('searchResults');
 
@@ -520,19 +506,80 @@ async function showSearchResults(query) {
         return;
     }
 
-    container.innerHTML = results.map(result => {
-        const snippet = result.content.length > 120 ?
-            result.content.substring(0, 120) + '...' :
-            result.content;
+    // Display consolidated results with collapsible observations
+    // Use data attributes with HTML escaping to prevent XSS and attribute breakage
+    container.innerHTML = results.map(entity => {
+        // Use URL encoding for collision-free IDs (e.g., 'entity-1' vs 'entity_1')
+        const safeId = encodeURIComponent(entity.name);
+        const escapedName = escapeHtml(entity.name);
+        const observationsHtml = entity.observations && entity.observations.length > 0 ? `
+            <div class="observations-toggle" data-entity-name="${escapedName}">
+                <span class="toggle-icon">▶</span>
+                <span>${entity.observations.length} observation${entity.observations.length > 1 ? 's' : ''}${
+                    (entity.observationMatches !== undefined && entity.observationMatches > 0) ? ` (${entity.observationMatches} match${entity.observationMatches > 1 ? 'es' : ''})` : ''
+                }</span>
+            </div>
+            <div class="observations-list" id="obs-${safeId}" style="display: none;">
+                ${entity.observations.map((obs, index) => {
+                    const snippet = obs.length > 120 ? obs.substring(0, 120) + '...' : obs;
+                    return `
+                        <div class="observation-item" data-entity-name="${escapedName}" data-obs-index="${index}">
+                            ${highlightText(snippet, query)}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        ` : '';
 
         return `
-            <div class="search-result" onclick="showEntityDetails('${result.entity}', ${result.observationIndex || 'null'})">
-                <div class="result-title">${highlightText(result.entity, query)}</div>
-                <div class="result-type">${result.entityType} • ${result.type}</div>
-                <div class="result-snippet">${highlightText(snippet, query)}</div>
+            <div class="search-result" data-entity-name="${escapedName}">
+                <div class="result-title">
+                    ${highlightText(entity.name, query)}
+                    <span class="result-type-inline">(${escapeHtml(entity.entityType)})</span>
+                </div>
+                ${observationsHtml}
             </div>
         `;
     }).join('');
+
+    // Attach event listeners using delegation
+    container.querySelectorAll('.search-result').forEach(result => {
+        const entityName = result.dataset.entityName;
+        result.addEventListener('click', (e) => {
+            // Don't trigger if clicking on observations toggle or observation item
+            if (e.target.closest('.observations-toggle') || e.target.closest('.observation-item')) {
+                return;
+            }
+            showEntityDetails(entityName);
+        });
+    });
+
+    container.querySelectorAll('.observations-toggle').forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const entityName = toggle.dataset.entityName;
+            const safeId = encodeURIComponent(entityName);
+            const observationsList = document.getElementById(`obs-${safeId}`);
+            const toggleIcon = toggle.querySelector('.toggle-icon');
+
+            if (observationsList.style.display === 'none') {
+                observationsList.style.display = 'block';
+                toggleIcon.textContent = '▼';
+            } else {
+                observationsList.style.display = 'none';
+                toggleIcon.textContent = '▶';
+            }
+        });
+    });
+
+    container.querySelectorAll('.observation-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const entityName = item.dataset.entityName;
+            const obsIndex = parseInt(item.dataset.obsIndex, 10);
+            showEntityDetails(entityName, obsIndex);
+        });
+    });
 }
 
 function showEntityDetails(entityName, highlightObservationIndex = null) {

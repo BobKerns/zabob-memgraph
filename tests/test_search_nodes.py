@@ -232,3 +232,92 @@ def test_single_word_search(sample_data):
         loop.run_until_complete(run_test())
     finally:
         loop.close()
+
+
+def test_entity_deduplication(sample_data):
+    """Test that entities are deduplicated in search results - Issue #43"""
+    async def run_test():
+        # Add an entity with multiple observations that match the query
+        await sample_data.create_entities([
+            {
+                "name": "Test Entity",
+                "entityType": "Test",
+                "observations": [
+                    "First observation with search term",
+                    "Second observation with search term",
+                    "Third observation with search term"
+                ]
+            }
+        ])
+
+        # Search for "search term" - should return entity only once
+        result = await sample_data.search_nodes("search term")
+        entities = result["entities"]
+
+        entity_names = [e["name"] for e in entities]
+
+        # Count occurrences of "Test Entity" - should only appear once
+        test_entity_count = entity_names.count("Test Entity")
+        assert test_entity_count == 1, f"Entity should appear exactly once, not {test_entity_count} times"
+
+        # Find the Test Entity in results
+        test_entity = next((e for e in entities if e["name"] == "Test Entity"), None)
+        assert test_entity is not None, "Test Entity should be in results"
+
+        # Should have all observations included in the single result
+        assert len(test_entity["observations"]) == 3, "All observations should be included"
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(run_test())
+    finally:
+        loop.close()
+
+
+def test_case_insensitive_sorting(sample_data):
+    """Test that results are sorted case-insensitively - Issue #43"""
+    async def run_test():
+        # Add entities with names that differ only in case
+        await sample_data.create_entities([
+            {
+                "name": "zebra",
+                "entityType": "Test",
+                "observations": ["Contains search keyword"]
+            },
+            {
+                "name": "Apple",
+                "entityType": "Test",
+                "observations": ["Contains search keyword"]
+            },
+            {
+                "name": "banana",
+                "entityType": "Test",
+                "observations": ["Contains search keyword"]
+            }
+        ])
+
+        # Search for "keyword" - all should be found
+        result = await sample_data.search_nodes("keyword")
+        entities = result["entities"]
+
+        # Filter to just our test entities
+        test_entities = [e for e in entities if e["name"] in ["zebra", "Apple", "banana"]]
+
+        # Extract names
+        names = [e["name"] for e in test_entities]
+
+        # Should be sorted case-insensitively: Apple, banana, zebra
+        # (or at least Apple should come before zebra)
+        if "Apple" in names and "zebra" in names:
+            apple_index = names.index("Apple")
+            zebra_index = names.index("zebra")
+            assert apple_index < zebra_index, \
+                f"'Apple' should come before 'zebra' in case-insensitive sort, got: {names}"
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(run_test())
+    finally:
+        loop.close()

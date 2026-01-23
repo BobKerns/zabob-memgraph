@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Issue #43:** Search results now consolidated and easier to navigate with large result sets
+  - Entities deduplicated (one entry per entity with all observations grouped)
+  - Case-insensitive sorting by entity name (after relevance ranking)
+  - Collapsible observations with toggle arrows in web UI (▶ for closed, ▼ for open)
+  - Compact display with entity type as italicized parenthetical
+  - Click individual observation to jump to detail view
+  - Matching observations sorted first, followed by non-matching (helps with entities with 135+ observations)
+  - Observation match count shown in UI (e.g., "135 observations (13 matches)")
+  - Prevents unnecessary drilling down on entities where only the name matches
+
+### Security
+
+- **Issue #43:** Fixed XSS vulnerabilities in search results display
+  - Replaced inline onclick handlers with proper event delegation
+  - Uses data attributes instead of string escaping for entity names
+  - Prevents injection attacks through malicious entity names
+
 ## [0.1.21] - 2026-01-19
 
 ### Fixed
