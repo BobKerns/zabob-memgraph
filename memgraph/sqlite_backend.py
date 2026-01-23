@@ -358,7 +358,7 @@ class SQLiteKnowledgeGraphDB:
                             # Use subquery to identify matching observations
                             obs_cursor = conn.execute(
                                 """
-                                SELECT 
+                                SELECT
                                     o.content,
                                     o.created_at,
                                     CASE WHEN o.id IN (
@@ -370,7 +370,7 @@ class SQLiteKnowledgeGraphDB:
                                 """,
                                 (or_query, entity_id),
                             )
-                            
+
                             observations = []
                             matching_count = 0
                             for obs_row in obs_cursor:
