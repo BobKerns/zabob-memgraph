@@ -101,6 +101,18 @@
             "/^uv run pytest tests/test_search_nodes\\.py -v$/": {
                 "approve": true,
                 "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_observation_sorting\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_search_nodes\\.py tests/test_observation_sorting\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_observation_sorting\\.py tests/test_search_nodes\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
             }
         }
 	},
