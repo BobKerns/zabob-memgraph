@@ -233,7 +233,7 @@ def test_search_functionality(page: Page, populated_base_url: str):
     # Verify result structure
     first_result = page.locator("#searchResults .search-result").first
     expect(first_result.locator(".result-title")).to_be_visible()
-    expect(first_result.locator(".result-type")).to_be_visible()
+    expect(first_result.locator(".result-type-inline")).to_be_visible()
 
 
 @pytest.mark.ui_interactive

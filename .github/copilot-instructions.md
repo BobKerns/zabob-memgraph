@@ -131,6 +131,32 @@ uv run pytest tests/test_ui_playwright.py::test_page_loads -v
 ./zabob-memgraph-dev.py docker-stop
 ```
 
+### Testing and Debugging
+
+**Always run tests with verbose output to see actual failures:**
+
+- Use `uv run pytest tests/test_file.py -v --tb=short` to see error messages
+- For specific tests: `uv run pytest tests/test_file.py::test_name -v`
+- For test suites: `uv run pytest tests/test_observation_sorting.py tests/test_search_nodes.py -v`
+
+**Test Architecture:**
+- Tests use isolated test servers with temporary databases
+- Playwright UI tests automatically start their own server instances on free ports
+- Multiple test runs can execute simultaneously without conflicts
+- Exit codes indicate actual test failures - investigate error output first
+
+**Common Test Failure Patterns:**
+- **SQL errors**: Check query syntax, especially with FTS5 virtual tables (bm25() requires table name, not alias)
+- **Async test failures**: Ensure proper event loop handling in test fixtures
+- **UI test failures**: Verify CSS selectors match actual HTML structure
+- **Database locked errors**: Check for proper connection handling and WAL mode
+
+**Debugging Workflow:**
+1. Run test with `-v --tb=short` to see the actual error
+2. Check error type (SQL, assertion, async, etc.)
+3. Create minimal reproduction if needed (see test_query.py pattern)
+4. Fix root cause, then verify with test suite
+
 ## Expected Behavior and Architecture
 
 ### Thread-Safety Requirements

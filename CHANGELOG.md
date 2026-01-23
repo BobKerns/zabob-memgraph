@@ -9,7 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.20] 0 2025-12-31
+## [0.1.21] - 2026-01-19
+
+### Fixed
+
+- **CRITICAL - Issue #29:** Fixed `search_nodes` to use OR logic instead of implicit AND, making multi-word searches actually work. Previously, "agent coordination memory design architecture" returned 0 results because it required ALL terms to match. Now uses any-term-matches with BM25 ranking.
+- **CRITICAL - Issue #29:** Entity names are now properly indexed and searched with highest priority weight (2x). Previously only observations were effectively searched, causing exact entity name searches to fail.
+- Search results now ranked by relevance using BM25 scoring - more matching terms = higher rank.
+- Entity name matches weighted 2x higher than observation matches for better precision.
+- **Issue #43:** Search results now consolidated and easier to navigate with large result sets
+  - Entities deduplicated (one entry per entity with all observations grouped)
+  - Case-insensitive sorting by entity name (after relevance ranking)
+  - Collapsible observations with toggle arrows in web UI (▶ for closed, ▼ for open)
+  - Compact display with entity type as italicized parenthetical
+  - Click individual observation to jump to detail view
+  - Matching observations sorted first, followed by non-matching (helps with entities with 135+ observations)
+  - Observation match count shown in UI (e.g., "135 observations (13 matches)")
+  - Prevents unnecessary drilling down on entities where only the name matches
+
+### Security
+
+- **Issue #43:** Fixed XSS vulnerabilities in search results display
+  - Replaced inline onclick handlers with proper event delegation
+  - Uses data attributes instead of string escaping for entity names
+  - Prevents injection attacks through malicious entity names
+
+### Notes
+
+- Issue #23 (relations not being saved) was fixed in v0.1.19 with `external_refs` validation and WAL checkpointing.
+
+### Changed
+
+- `search_nodes` query transformation: "word1 word2 word3" → "word1 OR word2 OR word3" for FTS5
+- Search results ordered by combined BM25 score from entity and observation matches
+- Graceful degradation: partial matches return results instead of failing completely
+- Updated dependencies
+- Fix test connection failures on GitHub
+- Reworked cSpell:
+  - `.zabob.dic` -> `.memgraph.dic`
+  - Support `.net-history.dic`
+  - Get rid of `cspell.json`
+
+## [0.1.20] - 2025-12-31
 
 ## Added
 
@@ -31,8 +72,8 @@ operations.
 
 ### Fixed
 
+- **CRITICAL - Issue #23:** Fixed `create_relations` silent failures when referenced entities don't exist. Now returns explicit error: "Referenced entities not found: [...]" and validates all entity references before creating relations.
 - **CRITICAL:** Fixed commit visibility issue between tool calls. Changes from one MCP tool call are now immediately visible to the next call via WAL checkpoint after each commit. Previously, sequential operations could fail because entities/relations from the previous call weren't visible yet.
-- **CRITICAL:** Fixed `create_relations` silent failures when referenced entities don't exist. Now returns explicit error: "Referenced entities not found: [...]"
 - Added `external_refs` parameter to `create_relations` and `add_observations` MCP tools for explicit entity reference validation. When provided, validates all referenced entities exist before performing operations, returning clear error messages if any are missing.
 - `add_observations` now validates that the target entity exists by default, preventing silent failures.
 

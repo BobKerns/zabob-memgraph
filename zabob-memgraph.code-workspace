@@ -12,13 +12,6 @@
 			"MD036": false,
 			"MD034": false
 		},
-		"cSpell.words": [
-			"memgraph",
-			"modelcontextprotocol",
-			"pyproject",
-			"sdist",
-			"zabob"
-		],
 		"makefile.configureOnOpen": false,
 		"python.analysis.ignore": [
 			".venv/",
@@ -32,17 +25,34 @@
 			".git/{index,*refs,*HEAD}",
 			".vscode",
 			".vscode-insiders",
-			".venv"
+			".venv",
+            "**/*.bundle.js",
+            "**/*.bundle.js.map",
+            "pnpm-lock.yaml",
+            "uv.lock",
+            "__pycache__",
+            "*.egg-info"
 		],
 		"cSpell.dictionaryDefinitions": [
 			{
-				"name": "zabob",
-				"path": "./.zabob.dic",
+				"name": "memgraph",
+				"path": "./.memgraph.dic",
 				"scope": "workspace",
-				"description": "Zabob custom dictionary",
+				"description": "Zabob memgraph custom dictionary",
 				"addWords": true
-			}
+			},
+            {
+                "name": "net-history",
+                "path": "./docs/historical/.net-history.dic",
+                "scope": "workspace",
+                "description": ".NET historical terms",
+                "addWords": true
+            }
 		],
+        "cSpell.dictionaries": [
+            "memgraph",
+            "net-history"
+        ],
 		"python.testing.autoTestDiscoverOnSavePattern": "test/**/*.py",
 		"python.testing.pytestEnabled": true,
 		"python.testing.pytestArgs": [
@@ -70,24 +80,49 @@
 		"explorer.fileNesting.patterns": {
             "TODO.md": "SCHEMA_MIGRATION_STATUS.md,NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json",
             "LICENSE.md": "LICENSE",
-            "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,cspell.json,.flake8,playwright.config.py",
+            "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,.memgraph.dic,.flake8,playwright.config.py",
             "install.sh": "install-uv.sh"
         },
-		"mcp": {
-			"servers": {
-				"microsoft/playwright-mcp": {
-					"type": "stdio",
-					"command": "npx",
-					"args": [
-						"@playwright/mcp@latest"
-					],
-					"gallery": "https://api.mcp.github.com",
-					"version": "0.0.1-seed"
-				}
-			},
-			"inputs": []
-        },
-        "explorer.enableUndo": false
+        "explorer.enableUndo": false,
+        "chat.useAgentSkills": true,
+        "chat.tools.terminal.autoApprove": {
+            "/^uv run mypy --strict memgraph/sqlite_backend\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv sync --extra dev && \\./check_types\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run ruff format memgraph/sqlite_backend\\.py && \\./check_types\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_search_nodes\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_observation_sorting\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_search_nodes\\.py tests/test_observation_sorting\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_observation_sorting\\.py tests/test_search_nodes\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_search_nodes\\.py::test_entity_deduplication -v$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_observation_sorting\\.py::test_matching_observations_sorted_first -v --tb=short$/": {
+                "approve": true,
+                "matchCommandLine": true
+            }
+        }
 	},
 	"mcp": {
 		"servers": {
@@ -200,6 +235,15 @@
 			"gh-copilot": {
 				"type": "http",
 				"url": "https://api.githubcopilot.com/mcp/x/copilot"
+			},
+			"microsoft/playwright-mcp": {
+				"type": "stdio",
+				"command": "npx",
+				"args": [
+					"@playwright/mcp@latest"
+				],
+				"gallery": "https://api.mcp.github.com",
+				"version": "0.0.1-seed"
 			},
 			"gh-copilot_spaces": {
 				"type": "http",

@@ -274,74 +274,135 @@ class SQLiteKnowledgeGraphDB:
                 return {"entities": [], "relations": []}
 
     async def search_nodes(self, query: str) -> dict[str, Any]:
-        """Search nodes using SQLite FTS"""
+        """Search nodes using SQLite FTS with OR logic and BM25 ranking
+
+        Searches entity names, types, and observations using OR logic (any term matches).
+        Results ranked by relevance using BM25 scoring, with entity name matches weighted highest.
+        """
+        # Validate query is not empty
+        if not query or not query.strip():
+            return {"entities": [], "relations": []}
+
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.row_factory = sqlite3.Row
 
-                    # Search in both entities and observations FTS
-                    entity_ids: set[int] = set()
+                    # Convert query to OR syntax: "word1 word2" -> "word1 OR word2"
+                    terms = query.split()
+                    or_query = " OR ".join(terms)
 
-                    # Search entities
+                    # Search entities with BM25 scoring (higher is better, more negative = worse)
+                    # Entity name matches get highest weight
+                    entity_scores: dict[int, float] = {}
+
                     entity_search = conn.execute(
                         """
-                        SELECT e.id
+                        SELECT e.id, bm25(entities_fts) as score
                         FROM entities e
-                        JOIN entities_fts fts ON e.id = fts.rowid
+                        JOIN entities_fts ON e.id = entities_fts.rowid
                         WHERE entities_fts MATCH ?
+                        ORDER BY score
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["id"] for row in entity_search)
+                    for row in entity_search:
+                        # BM25 returns negative scores (closer to 0 is better)
+                        # Weight entity matches higher (multiply by 2)
+                        entity_scores[row["id"]] = row["score"] * 2.0
 
-                    # Search observations
+                    # Search observations with BM25 scoring
                     obs_search = conn.execute(
                         """
-                        SELECT o.entity_id
+                        SELECT o.entity_id, bm25(observations_fts) as score
                         FROM observations o
-                        JOIN observations_fts fts ON o.id = fts.rowid
+                        JOIN observations_fts ON o.id = observations_fts.rowid
                         WHERE observations_fts MATCH ?
                     """,
-                        (query,),
+                        (or_query,),
                     )
-                    entity_ids.update(row["entity_id"] for row in obs_search)
+                    for row in obs_search:
+                        entity_id = row["entity_id"]
+                        score = row["score"]
+                        # Combine scores: if entity already found, add observation score
+                        if entity_id in entity_scores:
+                            entity_scores[entity_id] += score
+                        else:
+                            entity_scores[entity_id] = score
 
-                    # Get full entity data for matches
+                    # Sort entities by score (best first - closest to 0 for BM25)
+                    sorted_entity_ids = sorted(entity_scores.keys(), key=lambda eid: entity_scores[eid])
+
+                    # Get full entity data for matches (deduplicated by entity)
                     entities = []
                     entity_names = set()
 
-                    if entity_ids:
-                        placeholders = ",".join("?" * len(entity_ids))
+                    if sorted_entity_ids:
+                        placeholders = ",".join("?" * len(sorted_entity_ids))
                         entities_cursor = conn.execute(
                             f"""
                             SELECT e.id, e.name, e.entity_type
                             FROM entities e
                             WHERE e.id IN ({placeholders})
-                            ORDER BY e.name
                         """,
-                            list(entity_ids),
+                            sorted_entity_ids,
                         )
 
+                        # Build dict for deduplication and sorting
+                        entity_data = {}
                         for row in entities_cursor:
                             entity_id = row["id"]
                             entity_name = row["name"]
 
-                            # Get observations
+                            # Get all observations with match info in a single query
+                            # Use subquery to identify matching observations
                             obs_cursor = conn.execute(
-                                "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
-                                (entity_id,),
+                                """
+                                SELECT
+                                    o.content,
+                                    o.created_at,
+                                    CASE WHEN o.id IN (
+                                        SELECT rowid FROM observations_fts WHERE observations_fts MATCH ?
+                                    ) THEN 1 ELSE 0 END as is_match
+                                FROM observations o
+                                WHERE o.entity_id = ?
+                                ORDER BY is_match DESC, o.created_at ASC
+                                """,
+                                (or_query, entity_id),
                             )
-                            observations = [obs_row["content"] for obs_row in obs_cursor]
 
-                            entities.append(
-                                {
-                                    "name": entity_name,
-                                    "entityType": row["entity_type"],
-                                    "observations": observations,
-                                }
-                            )
+                            observations = []
+                            matching_count = 0
+                            for obs_row in obs_cursor:
+                                observations.append(obs_row["content"])
+                                if obs_row["is_match"]:
+                                    matching_count += 1
+
+                            entity_data[entity_id] = {
+                                "name": entity_name,
+                                "entityType": row["entity_type"],
+                                "observations": observations,
+                                "observationMatches": matching_count,
+                                "score": entity_scores[entity_id],  # Store score for sorting
+                            }
                             entity_names.add(entity_name)
+
+                        # Sort by score first (relevance), then by name (case-insensitive) for ties
+                        sorted_entities = sorted(
+                            entity_data.values(),
+                            key=lambda e: (e["score"], e["name"].lower())
+                        )
+
+                        # Remove score from output (internal only)
+                        entities = [
+                            {
+                                "name": entity["name"],
+                                "entityType": entity["entityType"],
+                                "observations": entity["observations"],
+                                "observationMatches": entity["observationMatches"],
+                            }
+                            for entity in sorted_entities
+                        ]
 
                     # Get relations for matching entities
                     if entity_names:
@@ -356,15 +417,14 @@ class SQLiteKnowledgeGraphDB:
                             list(entity_names) + list(entity_names),
                         )
 
-                        relations = []
-                        for row in relations_cursor:
-                            relations.append(
-                                {
-                                    "from_entity": row["from_entity"],
-                                    "to": row["to_entity"],
-                                    "relationType": row["relation_type"],
-                                }
-                            )
+                        relations = [
+                            {
+                                "from_entity": row["from_entity"],
+                                "to": row["to_entity"],
+                                "relationType": row["relation_type"],
+                            }
+                            for row in relations_cursor
+                        ]
                     else:
                         relations = []
 
@@ -405,32 +465,29 @@ class SQLiteKnowledgeGraphDB:
                 entities = []
                 entity_names = set()
 
+                def _build_entity(row: sqlite3.Row, conn: sqlite3.Connection) -> dict[str, Any]:
+                    """Build entity dict with observations from a row"""
+                    entity_id = row["id"]
+                    obs_cursor = conn.execute(
+                        "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
+                        (entity_id,),
+                    )
+                    observations = [obs_row["content"] for obs_row in obs_cursor]
+                    return {
+                        "name": row["name"],
+                        "entityType": row["entity_type"],
+                        "observations": observations,
+                    }
+
                 if entity_ids:
                     placeholders = ",".join("?" * len(entity_ids))
                     entities_cursor = conn.execute(
                         f"SELECT id, name, entity_type FROM entities WHERE id IN ({placeholders})",
                         list(entity_ids),
                     )
-
-                    for row in entities_cursor:
-                        entity_id = row["id"]
-                        entity_name = row["name"]
-
-                        # Get observations
-                        obs_cursor = conn.execute(
-                            "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
-                            (entity_id,),
-                        )
-                        observations = [obs_row["content"] for obs_row in obs_cursor]
-
-                        entities.append(
-                            {
-                                "name": entity_name,
-                                "entityType": row["entity_type"],
-                                "observations": observations,
-                            }
-                        )
-                        entity_names.add(entity_name)
+                    rows = list(entities_cursor)
+                    entities = [_build_entity(row, conn) for row in rows]
+                    entity_names = {row["name"] for row in rows}
 
                 # Get relations
                 if entity_names:
