@@ -703,23 +703,6 @@ function clearSearch() {
     document.getElementById('searchResults').innerHTML = '';
 }
 
-function toggleObservations(entityName) {
-    const safeId = encodeURIComponent(entityName);
-    const observationsList = document.getElementById(`obs-${safeId}`);
-    const toggleIcon = event.currentTarget.querySelector('.toggle-icon');
-
-    if (observationsList.style.display === 'none') {
-        observationsList.style.display = 'block';
-        toggleIcon.textContent = '▲';
-    } else {
-        observationsList.style.display = 'none';
-        toggleIcon.textContent = '▼';
-    }
-
-    // Prevent click from bubbling to parent search-result
-    event.stopPropagation();
-}
-
 function closeDetail() {
     document.getElementById('detailPanel').style.display = 'none';
     clearHighlight();
