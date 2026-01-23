@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-01-19
+
 ### Fixed
 
+- **CRITICAL - Issue #29:** Fixed `search_nodes` to use OR logic instead of implicit AND, making multi-word searches actually work. Previously, "agent coordination memory design architecture" returned 0 results because it required ALL terms to match. Now uses any-term-matches with BM25 ranking.
+- **CRITICAL - Issue #29:** Entity names are now properly indexed and searched with highest priority weight (2x). Previously only observations were effectively searched, causing exact entity name searches to fail.
+- Search results now ranked by relevance using BM25 scoring - more matching terms = higher rank.
+- Entity name matches weighted 2x higher than observation matches for better precision.
 - **Issue #43:** Search results now consolidated and easier to navigate with large result sets
   - Entities deduplicated (one entry per entity with all observations grouped)
   - Case-insensitive sorting by entity name (after relevance ranking)
@@ -27,15 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced inline onclick handlers with proper event delegation
   - Uses data attributes instead of string escaping for entity names
   - Prevents injection attacks through malicious entity names
-
-## [0.1.21] - 2026-01-19
-
-### Fixed
-
-- **CRITICAL - Issue #29:** Fixed `search_nodes` to use OR logic instead of implicit AND, making multi-word searches actually work. Previously, "agent coordination memory design architecture" returned 0 results because it required ALL terms to match. Now uses any-term-matches with BM25 ranking.
-- **CRITICAL - Issue #29:** Entity names are now properly indexed and searched with highest priority weight (2x). Previously only observations were effectively searched, causing exact entity name searches to fail.
-- Search results now ranked by relevance using BM25 scoring - more matching terms = higher rank.
-- Entity name matches weighted 2x higher than observation matches for better precision.
 
 ### Notes
 
