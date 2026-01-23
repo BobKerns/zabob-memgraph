@@ -207,16 +207,19 @@ def get_embedding_provider() -> EmbeddingProvider:
     return _provider
 
 
-def set_embedding_provider(provider: EmbeddingProvider) -> None:
+def set_embedding_provider(provider: EmbeddingProvider | None) -> None:
     """
     Set the global embedding provider.
 
     Args:
-        provider: Configured embedding provider instance
+        provider: Configured embedding provider instance (or None to clear)
     """
     global _provider
     _provider = provider
-    logger.info(f"Set embedding provider: {provider.model_name}")
+    if provider is not None:
+        logger.info(f"Set embedding provider: {provider.model_name}")
+    else:
+        logger.info("Cleared embedding provider")
 
 
 def configure_from_dict(config: dict[str, str | None]) -> None:

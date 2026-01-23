@@ -166,10 +166,14 @@ def test_end_to_end_semantic_search():
 
 def test_provider_configuration():
     """Test provider configuration system."""
-    config = {
-        "provider_type": "sentence-transformers",
-        "model_name": "all-MiniLM-L6-v2",
+    config: dict[str, str | None] = {
+        "provider": "sentence-transformers",
+        "model": "all-MiniLM-L6-v2",
     }
 
     configure_from_dict(config)
     provider = get_embedding_provider()
+
+    assert provider is not None
+    assert provider.model_name == "all-MiniLM-L6-v2"
+    assert provider.dimensions == 384
