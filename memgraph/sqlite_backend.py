@@ -355,18 +355,18 @@ class SQLiteKnowledgeGraphDB:
                             entity_name = row["name"]
 
                             # Get all observations with match info in a single query
-                            # Use LEFT JOIN to mark which observations match the search
+                            # Use subquery to identify matching observations
                             obs_cursor = conn.execute(
                                 """
                                 SELECT 
                                     o.content,
                                     o.created_at,
-                                    CASE WHEN fts.rowid IS NOT NULL THEN 1 ELSE 0 END as is_match,
-                                    COALESCE(bm25(fts), 999999) as match_score
+                                    CASE WHEN o.id IN (
+                                        SELECT rowid FROM observations_fts WHERE observations_fts MATCH ?
+                                    ) THEN 1 ELSE 0 END as is_match
                                 FROM observations o
-                                LEFT JOIN observations_fts fts ON o.id = fts.rowid AND fts MATCH ?
                                 WHERE o.entity_id = ?
-                                ORDER BY is_match DESC, match_score ASC, o.created_at ASC
+                                ORDER BY is_match DESC, o.created_at ASC
                                 """,
                                 (or_query, entity_id),
                             )
