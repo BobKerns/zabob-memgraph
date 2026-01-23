@@ -515,8 +515,10 @@ def setup_mcp(config: Config) -> FastMCP:
         logger.info(f"Hybrid search: {query} (semantic_weight={semantic_weight})")
 
         # Get both keyword and semantic results
-        keyword_results = await search_nodes(query)
-        semantic_results = await search_entities_semantic(query, k=k * 2, threshold=threshold)
+        keyword_results: dict[str, Any] = await search_nodes(query)  # type: ignore[operator]
+        semantic_results: dict[str, Any] = await search_entities_semantic(  # type: ignore[operator]
+            query, k=k * 2, threshold=threshold
+        )
 
         # Handle errors
         if "error" in semantic_results:
