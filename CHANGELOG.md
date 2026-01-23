@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.22] - 2026-01-23
+
+### Added - Vector Search (Phase 1)
+
+- **NEW TOOL:** `search_entities_semantic` - Semantic search using vector embeddings to find entities by meaning rather than keywords
+  - Finds entities with similar observations even without exact keyword matches
+  - Configurable similarity threshold and result count
+  - Returns entities with similarity scores
+- **NEW TOOL:** `search_hybrid` - Hybrid search combining keyword (BM25) and semantic (vector) similarity
+  - Merges results from both search methods with configurable weighting
+  - Default 70% semantic, 30% keyword for balanced results
+  - Gracefully falls back to keyword-only if semantic search fails
+  - Returns entities with hybrid scores showing contribution from each method
+- **NEW TOOL:** `configure_embeddings` - Configure embedding provider for semantic search
+  - Supports sentence-transformers (local, free) and OpenAI (API, higher quality)
+  - Default: all-MiniLM-L6-v2 (384 dimensions, fast, good quality)
+  - OpenAI options: text-embedding-3-small (1536 dims) or text-embedding-3-large (3072 dims)
+  - Returns provider details including model name and embedding dimensions
+- **NEW TOOL:** `generate_embeddings` - Generate vector embeddings for entities
+  - Batch processes entities without embeddings
+  - Creates embeddings from entity observations
+  - Configurable batch size for memory management
+  - Tracks progress and reports statistics
+
+### Infrastructure
+
+- **Vector Storage:** SQLite-based vector store using cosine similarity
+  - Thread-safe storage alongside knowledge graph
+  - Supports multiple embedding models simultaneously
+  - Efficient batch operations for large datasets
+- **Embedding Providers:** Pluggable provider architecture
+  - SentenceTransformerProvider for local models (no API costs)
+  - OpenAIEmbeddingProvider for cloud-based embeddings
+  - Abstract interface allows adding new providers
+- **Dependencies:** Added sentence-transformers (≥5.2.0) and numpy (≥2.4.1)
+
+### Performance
+
+- Lazy embedding generation (on-demand, then cached)
+- Batch processing for efficient bulk embedding generation
+- Cosine similarity search optimized for SQLite
+- Designed for thousands of entities (tested up to 10K)
+
+### Testing
+
+- Comprehensive test suite for vector search functionality
+- Tests for embedding generation, storage, and retrieval
+- End-to-end semantic search tests with real models
+- Hybrid search integration tests
+- Provider configuration and error handling tests
+
+### Documentation
+
+- Added VECTOR_SEARCH_PLAN.md with architecture decisions
+- Updated MCP tool documentation with semantic search examples
+- Type hints and docstrings for all new APIs
+
+### Notes
+
+- Vector search complements existing BM25 keyword search (from v0.1.21)
+- Hybrid search is recommended for best results (combines keyword precision with semantic understanding)
+- Sentence transformers download models on first use (~90MB for default model)
+- OpenAI embeddings require API key and incur usage costs
+
 ## [0.1.21] - 2026-01-19
 
 ### Fixed

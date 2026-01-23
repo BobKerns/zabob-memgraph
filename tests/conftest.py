@@ -56,46 +56,135 @@ def client_log(test_output_dir: Path) -> Path:
     return test_output_dir / 'client.log'
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def test_dir() -> Path:
     """Directory containing the test files"""
     return Path(__file__).parent
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def project_dir(test_dir: Path) -> Path:
     """Root project directory"""
     return test_dir.parent
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def package_dir(project_dir: Path) -> Path:
     """Package directory (memgraph)"""
     return project_dir / 'memgraph'
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def web_service_py(package_dir: Path) -> Path:
     """Path to web_service.py module within package"""
     return package_dir / 'web_service.py'
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def http_service_py(package_dir: Path) -> Path:
     """Path to MCP via streaming HTTP http_service.py module within package"""
     return package_dir / 'web_service.py'
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def stdio_service_py(package_dir: Path) -> Path:
     """Path to MCP via stdio stdio_service.py module within package"""
     return package_dir / 'stdio_service.py'
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def service_py(package_dir: Path) -> Path:
     """Path to unified service.py module within package"""
     return package_dir / 'service.py'
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_web_bundle_built(project_dir: Path) -> None:
+    """Ensure the web UI bundle is built before running UI tests
+
+    This fixture automatically builds the web bundle if:
+    - The bundle doesn't exist
+    - The bundle is older than any source file
+
+    Fails fast with a clear error if the build fails.
+    """
+    bundle_path = project_dir / 'memgraph' / 'web' / 'graph.bundle.js'
+    source_dir = project_dir / 'memgraph' / 'web-src'
+
+    # Check if bundle exists
+    if not bundle_path.exists():
+        print(f"\nWeb bundle not found at {bundle_path}")
+        print("Building web UI bundle...")
+        _build_web_bundle(project_dir)
+        return
+
+    # Check if bundle is up-to-date by comparing timestamps
+    bundle_mtime = bundle_path.stat().st_mtime
+    source_files = list(source_dir.glob('*.js')) + list(source_dir.glob('*.html'))
+
+    if source_files:
+        newest_source = max(f.stat().st_mtime for f in source_files)
+        if newest_source > bundle_mtime:
+            print(f"\nWeb bundle is out of date (source files modified)")
+            print("Rebuilding web UI bundle...")
+            _build_web_bundle(project_dir)
+
+
+def _build_web_bundle(project_dir: Path) -> None:
+    """Build the web UI bundle using pnpm"""
+    try:
+        # Check if pnpm is installed
+        result = subprocess.run(
+            ['pnpm', '--version'],
+            capture_output=True,
+            text=True,
+            cwd=project_dir
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                "pnpm is not installed. Install it with: npm install -g pnpm\n"
+                "Or install dependencies manually: npm install"
+            )
+
+        # Install dependencies if needed
+        node_modules = project_dir / 'node_modules'
+        if not node_modules.exists():
+            print("Installing node dependencies...")
+            result = subprocess.run(
+                ['pnpm', 'install'],
+                capture_output=True,
+                text=True,
+                cwd=project_dir
+            )
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to install node dependencies:\n"
+                    f"STDOUT: {result.stdout}\n"
+                    f"STDERR: {result.stderr}"
+                )
+
+        # Build the bundle
+        result = subprocess.run(
+            ['pnpm', 'run', 'build:web'],
+            capture_output=True,
+            text=True,
+            cwd=project_dir
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to build web bundle:\n"
+                f"STDOUT: {result.stdout}\n"
+                f"STDERR: {result.stderr}"
+            )
+
+        print("✓ Web bundle built successfully")
+
+    except FileNotFoundError:
+        raise RuntimeError(
+            "pnpm command not found. Install it with: npm install -g pnpm\n"
+            "Or build manually: cd project_dir && npm install && npm run build:web"
+        )
 
 
 @pytest.fixture(scope="session")
@@ -361,7 +450,7 @@ class TestClient(Protocol):
 _node_js_path: Path | None = None
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def node_js() -> Path:
     """Locate Node.js executable"""
     global _node_js_path
@@ -413,7 +502,7 @@ def open_service(request,
                  client_js: Path,
                  service_log) -> ServiceOpener:
     """
-    Start the a service as a subprocess and ensure cleanup
+    Start the service as a subprocess and ensure cleanup
 
     Once a service is started, yield a client function to interact with it.
     """
@@ -501,8 +590,7 @@ def open_service(request,
                     "--static-dir", str(web_content),
                     "--port", str(port),
                     "--log-file", str(service_log)
-                ],
-                                            text=True,)
+                ], text=True)
 
                 log.info(f"Started service process PID: {proc.pid}")
 
@@ -538,8 +626,7 @@ def open_service(request,
                     "--static-dir", str(web_content),
                     "--port", str(port),
                     "--log-file", str(service_log)
-                ],
-                                            text=True,)
+                ], text=True)
 
                 log.info(f"Started service process PID: {proc.pid}")
 
@@ -575,8 +662,7 @@ def open_service(request,
                     "--static-dir", str(web_content),
                     "--port", str(port),
                     "--log-file", str(service_log)
-                ],
-                                            text=True,)
+                ], text=True)
 
                 log.info(f"Started service process PID: {proc.pid}")
 

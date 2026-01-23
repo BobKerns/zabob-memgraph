@@ -1,9 +1,11 @@
 addopts
 aiofiles
+allclose
 anyio
 aquasecurity
 ASGI
 asyncio
+autouse
 bobkerns
 Buildx
 checkpointing
@@ -49,6 +51,7 @@ mypy
 nethistory
 networkidle
 nullspace
+numpy
 onexc
 Pferd's
 pipx
@@ -93,5 +96,6 @@ uvx
 watchfiles
 workerid
 workerinput
+xdist
 Xfrozen
 zabob
