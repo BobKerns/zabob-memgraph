@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zabob-memgraph"
-version = "0.1.10"
+version = "0.1.21"
 description = "Zabob Memgraph - Knowledge graph visualization and MCP server"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -27,6 +27,7 @@ dependencies = [
 
 [project.scripts]
 zabob-memgraph = "memgraph.__main__:cli"
+zabob-memgraph-stdio = "memgraph.stdio_service:main"
 
 [project.optional-dependencies]
 # CI group: Testing and linting (no compiled deps like watchfiles)
@@ -161,6 +162,8 @@ addopts = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+    "ui_basic: marks basic UI tests (page load, health, layout)",
+    "ui_interactive: marks interactive UI tests (clicks, search, details)",
 ]
 # Playwright configuration
 asyncio_mode = "auto"

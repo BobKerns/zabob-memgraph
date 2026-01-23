@@ -21,6 +21,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.zip
 
 # Virtual environments
 .env
@@ -86,3 +87,6 @@ memgraph/web/vendor/
 memory.json
 tests/out
 
+*-convo.md
+
+*.bak

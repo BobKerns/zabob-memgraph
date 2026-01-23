@@ -1,5 +1,6 @@
 # Build stage
 FROM python:3.14-slim AS builder
+#FROM python:3.12-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && \
@@ -25,6 +26,7 @@ RUN pnpm install && pnpm run build:web
 
 # Runtime stage
 FROM python:3.14-slim
+# FROM python:3.12-bookworm
 
 WORKDIR /app
 
@@ -53,3 +55,8 @@ EXPOSE 6789
 
 # Use startup script as entrypoint
 CMD []
+
+LABEL org.opencontainers.image.source=https://github.com/BobKerns/zabob-memgraph
+LABEL org.opencontainers.image.title="Zabob Memgraph"
+LABEL org.opencontainers.image.description="Zabob Memgraph MCP memory service with web interface\nZabob remembers the future so you don't have to."
+LABEL org.opencontainers.image.licenses=MIT

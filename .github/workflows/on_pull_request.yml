@@ -1,0 +1,48 @@
+name: build
+
+on:
+    pull_request:
+
+permissions:
+    contents: read
+    packages: write
+
+jobs:
+  python_build_and_test:
+    uses: ./.github/workflows/ci.yml
+  build_docker:
+    needs: python_build_and_test
+    uses: ./.github/workflows/docker-build.yml
+    secrets: inherit
+  label-success:
+    needs:
+        - python_build_and_test
+        - build_docker
+    if: |
+            (github.event.action == 'synchronize' ||
+            github.event.action == 'opened') &&
+
+            needs.python_build_and_test.result == 'success' &&
+            needs.build_docker.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+        - name: Label Success
+          run: |
+            echo "TODO: Label ${{ github.event.pull_request.number }} as BUILD_SUCCESSFUL"
+
+  label-failure:
+    needs:
+        - python_build_and_test
+        - build_docker
+    if: |
+            (github.event.action == 'synchronize' ||
+            github.event.action == 'opened') &&
+            (needs.python_build_and_test.result != 'success' ||
+             needs.build_docker.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+        - name: Label Failure
+          run: |
+            echo "TODO: Label ${{ github.event.pull_request.number }} as BUILD_FAILED"
+
+

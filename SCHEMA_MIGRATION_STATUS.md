@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+
 # Schema Migration Summary
 
 ## ✅ Completed
@@ -66,12 +68,14 @@ zabob-memgraph start
 ## What Changed in Code
 
 ### Before (v1)
+
 ```python
 # Observations as JSON array
 entities.observations TEXT  # JSON: ["obs1", "obs2"]
 ```
 
 ### After (v2)
+
 ```python
 # Normalized observations
 observations (

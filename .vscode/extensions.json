@@ -19,6 +19,9 @@
     "streetsidesoftware.code-spell-checker",
 
     // MCP development (optional)
-    "modelcontextprotocol.mcp-vscode"
+    "modelcontextprotocol.mcp-vscode",
+
+    // Playwrite MCP server (optional)
+    "playwright.playwright-mcp"
   ]
 }

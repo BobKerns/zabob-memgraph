@@ -14,16 +14,17 @@ from playwright.sync_api import Page, expect
 
 @pytest.fixture(scope="session")
 def base_url(test_server):
-    """Base URL for the test application"""
-    return test_server["base_url"]
+    """Base URL for the test application with testMode enabled"""
+    return f"{test_server['base_url']}?testMode=true"
 
 
 @pytest.fixture(scope="session")
 def populated_base_url(populated_test_server):
-    """Base URL for tests that need sample data"""
-    return populated_test_server["base_url"]
+    """Base URL for tests that need sample data with testMode enabled"""
+    return f"{populated_test_server['base_url']}?testMode=true"
 
 
+@pytest.mark.ui_basic
 def test_page_loads(page: Page, base_url: str):
     """Test that the main page loads successfully"""
     # Use domcontentloaded instead of networkidle since the graph animation
@@ -38,6 +39,7 @@ def test_page_loads(page: Page, base_url: str):
     expect(page.locator(".stats")).to_be_visible(timeout=5000)
 
 
+@pytest.mark.ui_basic
 def test_graph_loads_data(page: Page, populated_base_url: str):
     """Test that the graph loads and displays data"""
     page.goto(populated_base_url)
@@ -55,6 +57,7 @@ def test_graph_loads_data(page: Page, populated_base_url: str):
     assert node_count != "Entities: 0"
 
 
+@pytest.mark.ui_interactive
 def test_fit_all_button(page: Page, populated_base_url: str):
     """Test the Fit All button functionality"""
     page.goto(populated_base_url)
@@ -71,6 +74,7 @@ def test_fit_all_button(page: Page, populated_base_url: str):
     assert transform is not None, "Transform should be applied after fit to screen"
 
 
+@pytest.mark.ui_interactive
 def test_context_menu_on_node(page: Page, populated_base_url: str):
     """Test that right-clicking a node shows context menu"""
     page.goto(populated_base_url)
@@ -95,6 +99,7 @@ def test_context_menu_on_node(page: Page, populated_base_url: str):
     assert details_item.is_visible(), "Show Details menu item should be visible"
 
 
+@pytest.mark.ui_interactive
 def test_zoom_to_node_from_context_menu(page: Page, populated_base_url: str):
     """Test the Zoom to Node context menu action"""
     page.goto(populated_base_url)
@@ -122,6 +127,7 @@ def test_zoom_to_node_from_context_menu(page: Page, populated_base_url: str):
     assert not context_menu.is_visible(), "Context menu should be hidden after action"
 
 
+@pytest.mark.ui_interactive
 def test_center_button(page: Page, populated_base_url: str):
     """Test the Center button functionality"""
     page.goto(populated_base_url)
@@ -146,6 +152,7 @@ def test_center_button(page: Page, populated_base_url: str):
     assert "translate(" in transform, "Should have translation after centering"
 
 
+@pytest.mark.ui_interactive
 def test_pause_resume_button(page: Page, populated_base_url: str):
     """Test the Pause/Resume simulation button"""
     page.goto(populated_base_url)
@@ -173,6 +180,7 @@ def test_pause_resume_button(page: Page, populated_base_url: str):
     assert initial_text in ["Pause", "Resume"], f"Expected 'Pause' or 'Resume', got '{initial_text}'"
 
 
+@pytest.mark.ui_interactive
 def test_search_toggle(page: Page, populated_base_url: str):
     """Test the Search panel toggle"""
     page.goto(populated_base_url)
@@ -201,6 +209,7 @@ def test_search_toggle(page: Page, populated_base_url: str):
     expect(search_btn).to_have_text("Search")
 
 
+@pytest.mark.ui_interactive
 def test_search_functionality(page: Page, populated_base_url: str):
     """Test the search functionality"""
     page.goto(populated_base_url)
@@ -224,9 +233,10 @@ def test_search_functionality(page: Page, populated_base_url: str):
     # Verify result structure
     first_result = page.locator("#searchResults .search-result").first
     expect(first_result.locator(".result-title")).to_be_visible()
-    expect(first_result.locator(".result-type")).to_be_visible()
+    expect(first_result.locator(".result-type-inline")).to_be_visible()
 
 
+@pytest.mark.ui_interactive
 def test_clear_search(page: Page, populated_base_url: str):
     """Test clearing search results"""
     page.goto(populated_base_url)
@@ -254,6 +264,7 @@ def test_clear_search(page: Page, populated_base_url: str):
     assert results_after == 0
 
 
+@pytest.mark.ui_interactive
 def test_node_click_shows_details(page: Page, populated_base_url: str):
     """Test clicking a node shows entity details"""
     page.goto(populated_base_url)
@@ -277,6 +288,7 @@ def test_node_click_shows_details(page: Page, populated_base_url: str):
     expect(detail_panel.locator(".detail-content")).to_be_visible()
 
 
+@pytest.mark.ui_interactive
 def test_close_detail_panel(page: Page, populated_base_url: str):
     """Test closing the detail panel"""
     page.goto(populated_base_url)
@@ -297,6 +309,7 @@ def test_close_detail_panel(page: Page, populated_base_url: str):
     expect(detail_panel).to_be_hidden()
 
 
+@pytest.mark.ui_interactive
 def test_zoom_to_node_button_in_details(page: Page, populated_base_url: str):
     """Test the Zoom to Node button in the detail panel"""
     page.goto(populated_base_url)
@@ -324,6 +337,7 @@ def test_zoom_to_node_button_in_details(page: Page, populated_base_url: str):
     # Note: The exact scale value depends on the node position and viewport, so we just check it exists
 
 
+@pytest.mark.ui_basic
 def test_refresh_button(page: Page, base_url: str):
     """Test the Refresh button reloads data"""
     page.goto(base_url)
@@ -346,6 +360,7 @@ def test_refresh_button(page: Page, base_url: str):
     assert "Entities:" in final_count
 
 
+@pytest.mark.ui_basic
 def test_responsive_layout(page: Page, base_url: str):
     """Test that the layout works on different screen sizes"""
     page.goto(base_url)
@@ -367,9 +382,12 @@ def test_responsive_layout(page: Page, base_url: str):
     expect(page.locator("#graph")).to_be_visible()
 
 
+@pytest.mark.ui_basic
 def test_health_endpoint(page: Page, base_url: str):
     """Test that the health endpoint is accessible"""
-    response = page.goto(f"{base_url}/health")
+    # Strip query parameters from base_url for API endpoint
+    api_url = base_url.split('?')[0]
+    response = page.goto(f"{api_url}/health")
     assert response is not None, "Response should not be None"
     assert response.status == 200
 

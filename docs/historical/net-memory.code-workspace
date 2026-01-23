@@ -1,0 +1,55 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"markdownlint.config": {
+			"MD041": false,
+			"MD013": false,
+			"MD026": false,
+			"MD036": false,
+			"MD034": false
+		},
+		"cSpell.words": [],
+		"makefile.configureOnOpen": false,
+		"cSpell.ignorePaths": [
+			"node_modules",
+			"vscode-extension",
+			".git/{info,lfs,logs,refs,objects}/**",
+			".git/{index,*refs,*HEAD}",
+			".vscode",
+			".vscode-insiders",
+			".venv"
+		],
+		"cSpell.dictionaryDefinitions": [
+
+			{
+				"name": "net-history",
+				"path": "./.net-history.dic",
+				"scope": "workspace",
+				"description": "Net History custom dictionary",
+				"addWords": true
+			}
+		],
+		"files.exclude": {
+            "**/__pycache__": true,
+            "**/.*_cache": true,
+            "**/*.egg-info": true,
+            "dist/": true,
+            "node_modules": true
+        },
+		"explorer.fileNesting.enabled": true,
+		"explorer.fileNesting.expand": true,
+		"explorer.fileNesting.patterns": {
+            "LICENSE.md": "LICENSE",
+        },
+        "cSpell.mergeCSpellSettingsFields": {
+            "loadDefaultConfiguration": false
+        },
+        "cSpell.dictionaries": [
+            "net-history"
+        ],
+		}
+}

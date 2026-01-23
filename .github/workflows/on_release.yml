@@ -12,16 +12,17 @@ permissions:
     id-token: write
 
 jobs:
-  build_and_test:
+  build_python_package:
     uses: ./.github/workflows/ci.yml
 
   build_docker:
-    needs: build_and_test
+    needs: build_python_package
     uses: ./.github/workflows/docker-build.yml
+    secrets: inherit
 
   publish_pypi_test:
     needs:
-      - build_and_test
+      - build_python_package
       - build_docker
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/test-v')
@@ -49,7 +50,7 @@ jobs:
 
   publish_pypi_prod:
     needs:
-      - build_and_test
+      - build_python_package
       - build_docker
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/test-v')
@@ -89,7 +90,8 @@ jobs:
     if: |
       always() &&
       needs.publish_dockerhub.result == 'success' &&
-      (needs.publish_pypi_test.result == 'success' || needs.publish_pypi_prod.result == 'success' || needs.publish_pypi_test.result == 'skipped' || needs.publish_pypi_prod.result == 'skipped')
+      ((needs.publish_pypi_test.result == 'success' && needs.publish_pypi_prod.result == 'skipped')||
+       (needs.publish_pypi_test.result == 'skipped' && needs.publish_pypi_prod.result == 'success'))
     runs-on: ubuntu-latest
 
     permissions:

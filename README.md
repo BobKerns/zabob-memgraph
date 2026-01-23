@@ -6,9 +6,9 @@ A Model Context Protocol (MCP) server for persistent knowledge graph storage wit
 
 **📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment options**
 
-**📖 See [USAGE_PATTERNS.md](USAGE_PATTERNS.md) for usage examples**
+**📖 See [USAGE_PATTERNS.md](docs/USAGE_PATTERNS.md) for usage examples**
 
-Imagine a future where your AI assistant not only can talk to you, but can remember important things, and can show you everything it remembers.
+Imagine a future where each AI assistant not only can talk to you, but can remember important things, and can show you everything it remembers, even share it with the other agents on the team—instantly!
 
 ![zabob](docs/images/zabob-faviicon.png) Zabob remembers this future! Give him your plans and dreams, and he will remember not just the dream, but the journey to get there, even through the darkest nullspace.
 
@@ -16,8 +16,26 @@ Imagine a future where your AI assistant not only can talk to you, but can remem
 
 ## Features
 
+Zabob Memgraph is designed from the ground up for sharing knowledge between simultaneous sessions/agents, and even across multiple physical systems.
+
+Key features include:
+
+- **Shared knowledge bases/Multiple knowledge bases**
+- **Built-in visualization tool, to monitor the agent's saved knowledge**
+- **Full Text Search (by agent or by user via the visualization)**
+- **Semantic search is coming soon**
+- **Hybrid contextual search coming soon after**
+- **Simple setup and usage**
+  - Multi-agent support requires no additional configuration
+  - Separate knowledge bases is as simple as specifying a different location for the database.
+
+Hybrid contextual search is designed to leverage the combined power of the knowledge graph and semantic search, to allow task-focused results in large knowledge graph spaces.
+
+More details:
+
+- **Zero-install options via `uvx` or `docker`
 - **MCP Protocol** - Standard Model Context Protocol for AI assistant integration
-- **Multiple Transports** - HTTP/SSE for server mode, stdio for Claude Desktop
+- **Multiple Transports** - HTTP/SSE for server mode, stdio for Claude Desktop or VSCode
 - **Thread-safe SQLite backend** - WAL mode for concurrent access without locking
 - **Interactive D3.js visualization** - Real-time graph exploration via web UI
 - **Docker deployment** - Multiple deployment patterns (HTTP server, stdio, local)
@@ -27,7 +45,24 @@ Imagine a future where your AI assistant not only can talk to you, but can remem
 
 ## Quick Start
 
-### Docker Compose (Recommended)
+### Prebuilt docker image
+
+To run it as a background process clients connect to:
+
+```bash
+docker pull bobkerns/zabob-memgraph:latest
+uvx zabob-memgraph start --docker
+```
+
+### Prebuilt without docker
+
+This works the same as above, but without the isolation of a docker container.
+
+```bash
+uvx zabob-memgraph start
+```
+
+### DIY: Docker Compose
 
 ```bash
 # Clone repository
@@ -39,6 +74,20 @@ docker-compose up -d
 
 # Access web UI at http://localhost:6789
 # MCP endpoint at http://localhost:6789/mcp
+```
+
+### DIY: development mode
+
+```bash
+
+# Clone repository
+git clone https://github.com/BobKerns/zabob-memgraph.git
+cd zabob-memgraph
+
+uv sync
+source .venv/bin/activate
+
+zabob-memgraph start
 ```
 
 ### Claude Desktop Integration
@@ -75,6 +124,12 @@ docker run -d --name zabob-memgraph \
 ```
 
 Then configure Claude Desktop to connect to `http://localhost:6789/mcp`
+
+### Visual Studio Code
+
+Visual Studio Code is a hostile environment. If you have a lot of tools, it will randomly decide to stop presenting some to the agent. To combat this, include a reference to #zabob-memgraph in every message where it is of use. A /prompt may simplify this.
+
+Visual Studio Code will also close your server if it's HTTP, so a running as a stdio is essential. Use the `run` subcommand, and it will automatically start in stdio mode if appropriate.
 
 **📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment options**
 
@@ -190,7 +245,7 @@ Configuration and data are stored in `~/.zabob/memgraph/`:
 
 ### Configuration File
 
-The `config.json` file supports these options:
+The `config.json` file supports these options (and more)
 
 ```json
 {
@@ -199,9 +254,14 @@ The `config.json` file supports these options:
   "log_level": "INFO",
   "backup_on_start": true,
   "max_backups": 5,
-  "data_dir": "~/.zabob/memgraph/data"
+  "data_dir": "~/.zabob/memgraph/data",
+  "database_file": "~/.zabob/memgraph/data/knowledge_base.db"
 }
 ```
+
+You can see its effective contents with:
+
+zabob-memgraph config
 
 ### Environment Variables
 
@@ -229,7 +289,7 @@ Zabob Memgraph provides these MCP tools for AI assistants:
 
 ### HTTP Endpoints
 
-When running in HTTP server mode:
+The embedded HTTP server provides:
 
 - `GET /` - Web visualization interface
 - `POST /mcp` - MCP protocol endpoint (SSE transport)
@@ -243,7 +303,7 @@ MCP tools are called through the protocol. Example using the web UI:
 2. View entities and relations in the interactive graph
 3. Search, zoom, and explore your knowledge graph
 
-For Claude Desktop integration, tools are automatically available after configuration.
+For Claude Desktop, VSCode, or other MCP client integration, tools are automatically available after configuration.
 
 ## Architecture
 

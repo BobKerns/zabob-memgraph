@@ -28,15 +28,13 @@ class ServiceLogger:
         if self.log_file:
             logging.basicConfig(
                 level=logging.INFO,
-                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                 filename=self.log_file,
-                filemode='a'  # Append to existing log
+                filemode="a",  # Append to existing log
             )
         else:
             logging.basicConfig(
-                level=logging.INFO,
-                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                stream=sys.stderr
+                level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", stream=sys.stderr
             )
 
         return logging.getLogger(self.service_name)
@@ -98,7 +96,7 @@ async def service_async_context(
     def signal_handler(signum: int, frame: Any) -> None:
         service_logger.logger.info(f"Received signal {signum}, initiating graceful shutdown")
         service_logger.log_shutdown("signal")
-        exit(128 + signum)
+        sys.exit(128 + signum)
 
     def exit_handler() -> None:
         service_logger.log_shutdown("exit")
