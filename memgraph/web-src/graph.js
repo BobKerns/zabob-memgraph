@@ -501,7 +501,7 @@ async function showSearchResults(query) {
         const safeId = entity.name.replace(/[^a-zA-Z0-9]/g, '_');
         const observationsHtml = entity.observations && entity.observations.length > 0 ? `
             <div class="observations-toggle" data-entity-name="${entity.name}">
-                <span class="toggle-icon">▼</span>
+                <span class="toggle-icon">▶</span>
                 <span>${entity.observations.length} observation${entity.observations.length > 1 ? 's' : ''}</span>
             </div>
             <div class="observations-list" id="obs-${safeId}" style="display: none;">
@@ -549,10 +549,10 @@ async function showSearchResults(query) {
 
             if (observationsList.style.display === 'none') {
                 observationsList.style.display = 'block';
-                toggleIcon.textContent = '▲';
+                toggleIcon.textContent = '▼';
             } else {
                 observationsList.style.display = 'none';
-                toggleIcon.textContent = '▼';
+                toggleIcon.textContent = '▶';
             }
         });
     });
