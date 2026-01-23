@@ -509,7 +509,8 @@ async function showSearchResults(query) {
     // Display consolidated results with collapsible observations
     // Use data attributes with HTML escaping to prevent XSS and attribute breakage
     container.innerHTML = results.map(entity => {
-        const safeId = entity.name.replace(/[^a-zA-Z0-9]/g, '_');
+        // Use URL encoding for collision-free IDs (e.g., 'entity-1' vs 'entity_1')
+        const safeId = encodeURIComponent(entity.name);
         const escapedName = escapeHtml(entity.name);
         const observationsHtml = entity.observations && entity.observations.length > 0 ? `
             <div class="observations-toggle" data-entity-name="${escapedName}">
@@ -557,7 +558,7 @@ async function showSearchResults(query) {
         toggle.addEventListener('click', (e) => {
             e.stopPropagation();
             const entityName = toggle.dataset.entityName;
-            const safeId = entityName.replace(/[^a-zA-Z0-9]/g, '_');
+            const safeId = encodeURIComponent(entityName);
             const observationsList = document.getElementById(`obs-${safeId}`);
             const toggleIcon = toggle.querySelector('.toggle-icon');
 
@@ -703,7 +704,7 @@ function clearSearch() {
 }
 
 function toggleObservations(entityName) {
-    const safeId = entityName.replace(/[^a-zA-Z0-9]/g, '_');
+    const safeId = encodeURIComponent(entityName);
     const observationsList = document.getElementById(`obs-${safeId}`);
     const toggleIcon = event.currentTarget.querySelector('.toggle-icon');
 
