@@ -477,6 +477,17 @@ function highlightText(text, query) {
     return highlighted;
 }
 
+/**
+ * Escape HTML special characters to prevent XSS and attribute breakage
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text safe for HTML attributes and content
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 async function showSearchResults(query) {
     const container = document.getElementById('searchResults');
 
@@ -496,11 +507,12 @@ async function showSearchResults(query) {
     }
 
     // Display consolidated results with collapsible observations
-    // Use data attributes instead of inline onclick to avoid XSS and string escaping issues
+    // Use data attributes with HTML escaping to prevent XSS and attribute breakage
     container.innerHTML = results.map(entity => {
         const safeId = entity.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const escapedName = escapeHtml(entity.name);
         const observationsHtml = entity.observations && entity.observations.length > 0 ? `
-            <div class="observations-toggle" data-entity-name="${entity.name}">
+            <div class="observations-toggle" data-entity-name="${escapedName}">
                 <span class="toggle-icon">▶</span>
                 <span>${entity.observations.length} observation${entity.observations.length > 1 ? 's' : ''}${
                     entity.observationMatches > 0 ? ` (${entity.observationMatches} match${entity.observationMatches > 1 ? 'es' : ''})` : ''
@@ -510,7 +522,7 @@ async function showSearchResults(query) {
                 ${entity.observations.map((obs, index) => {
                     const snippet = obs.length > 120 ? obs.substring(0, 120) + '...' : obs;
                     return `
-                        <div class="observation-item" data-entity-name="${entity.name}" data-obs-index="${index}">
+                        <div class="observation-item" data-entity-name="${escapedName}" data-obs-index="${index}">
                             ${highlightText(snippet, query)}
                         </div>
                     `;
@@ -519,10 +531,10 @@ async function showSearchResults(query) {
         ` : '';
 
         return `
-            <div class="search-result" data-entity-name="${entity.name}">
+            <div class="search-result" data-entity-name="${escapedName}">
                 <div class="result-title">
                     ${highlightText(entity.name, query)}
-                    <span class="result-type-inline">(${entity.entityType})</span>
+                    <span class="result-type-inline">(${escapeHtml(entity.entityType)})</span>
                 </div>
                 ${observationsHtml}
             </div>
