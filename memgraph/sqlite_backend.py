@@ -354,12 +354,33 @@ class SQLiteKnowledgeGraphDB:
                             entity_id = row["id"]
                             entity_name = row["name"]
 
-                            # Get observations
-                            obs_cursor = conn.execute(
+                            # Get observations, with matching ones first
+                            # First get matching observations
+                            matching_obs_cursor = conn.execute(
+                                """
+                                SELECT o.content
+                                FROM observations o
+                                JOIN observations_fts ON o.id = observations_fts.rowid
+                                WHERE o.entity_id = ? AND observations_fts MATCH ?
+                                ORDER BY bm25(observations_fts)
+                                """,
+                                (entity_id, or_query),
+                            )
+                            matching_obs = [obs_row["content"] for obs_row in matching_obs_cursor]
+                            matching_obs_set = set(matching_obs)
+                            
+                            # Then get non-matching observations
+                            all_obs_cursor = conn.execute(
                                 "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
                                 (entity_id,),
                             )
-                            observations = [obs_row["content"] for obs_row in obs_cursor]
+                            non_matching_obs = [
+                                obs_row["content"] for obs_row in all_obs_cursor
+                                if obs_row["content"] not in matching_obs_set
+                            ]
+                            
+                            # Combine: matching first, then non-matching
+                            observations = matching_obs + non_matching_obs
 
                             entity_data[entity_id] = {
                                 "name": entity_name,
