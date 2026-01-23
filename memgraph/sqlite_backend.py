@@ -368,7 +368,7 @@ class SQLiteKnowledgeGraphDB:
                             )
                             matching_obs = [obs_row["content"] for obs_row in matching_obs_cursor]
                             matching_obs_set = set(matching_obs)
-                            
+
                             # Then get non-matching observations
                             all_obs_cursor = conn.execute(
                                 "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
@@ -378,7 +378,7 @@ class SQLiteKnowledgeGraphDB:
                                 obs_row["content"] for obs_row in all_obs_cursor
                                 if obs_row["content"] not in matching_obs_set
                             ]
-                            
+
                             # Combine: matching first, then non-matching
                             observations = matching_obs + non_matching_obs
 
