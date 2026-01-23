@@ -354,39 +354,35 @@ class SQLiteKnowledgeGraphDB:
                             entity_id = row["id"]
                             entity_name = row["name"]
 
-                            # Get observations, with matching ones first
-                            # First get matching observations
-                            matching_obs_cursor = conn.execute(
+                            # Get all observations with match info in a single query
+                            # Use LEFT JOIN to mark which observations match the search
+                            obs_cursor = conn.execute(
                                 """
-                                SELECT o.content
+                                SELECT 
+                                    o.content,
+                                    o.created_at,
+                                    CASE WHEN fts.rowid IS NOT NULL THEN 1 ELSE 0 END as is_match,
+                                    COALESCE(bm25(fts), 999999) as match_score
                                 FROM observations o
-                                JOIN observations_fts ON o.id = observations_fts.rowid
-                                WHERE o.entity_id = ? AND observations_fts MATCH ?
-                                ORDER BY bm25(observations_fts)
+                                LEFT JOIN observations_fts fts ON o.id = fts.rowid AND fts MATCH ?
+                                WHERE o.entity_id = ?
+                                ORDER BY is_match DESC, match_score ASC, o.created_at ASC
                                 """,
-                                (entity_id, or_query),
+                                (or_query, entity_id),
                             )
-                            matching_obs = [obs_row["content"] for obs_row in matching_obs_cursor]
-                            matching_obs_set = set(matching_obs)
-
-                            # Then get non-matching observations
-                            all_obs_cursor = conn.execute(
-                                "SELECT content FROM observations WHERE entity_id = ? ORDER BY created_at",
-                                (entity_id,),
-                            )
-                            non_matching_obs = [
-                                obs_row["content"] for obs_row in all_obs_cursor
-                                if obs_row["content"] not in matching_obs_set
-                            ]
-
-                            # Combine: matching first, then non-matching
-                            observations = matching_obs + non_matching_obs
+                            
+                            observations = []
+                            matching_count = 0
+                            for obs_row in obs_cursor:
+                                observations.append(obs_row["content"])
+                                if obs_row["is_match"]:
+                                    matching_count += 1
 
                             entity_data[entity_id] = {
                                 "name": entity_name,
                                 "entityType": row["entity_type"],
                                 "observations": observations,
-                                "observationMatches": len(matching_obs),  # Count of matching observations
+                                "observationMatches": matching_count,
                                 "score": entity_scores[entity_id],  # Store score for sorting
                             }
                             entity_names.add(entity_name)

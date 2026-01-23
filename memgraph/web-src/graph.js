@@ -516,7 +516,7 @@ async function showSearchResults(query) {
             <div class="observations-toggle" data-entity-name="${escapedName}">
                 <span class="toggle-icon">▶</span>
                 <span>${entity.observations.length} observation${entity.observations.length > 1 ? 's' : ''}${
-                    entity.observationMatches > 0 ? ` (${entity.observationMatches} match${entity.observationMatches > 1 ? 'es' : ''})` : ''
+                    (entity.observationMatches !== undefined && entity.observationMatches > 0) ? ` (${entity.observationMatches} match${entity.observationMatches > 1 ? 'es' : ''})` : ''
                 }</span>
             </div>
             <div class="observations-list" id="obs-${safeId}" style="display: none;">
