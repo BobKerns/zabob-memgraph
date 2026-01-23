@@ -40,6 +40,10 @@ def test_matching_observations_sorted_first(db):
         entity = entities[0]
         assert entity["name"] == "TestEntity"
 
+        # Should report 2 matching observations
+        assert entity["observationMatches"] == 2, \
+            f"Expected 2 matching observations, got {entity['observationMatches']}"
+
         observations = entity["observations"]
         
         # All observations should be present
@@ -90,6 +94,10 @@ def test_observation_sorting_with_many_observations(db):
 
         assert len(entities) == 1
         entity = entities[0]
+        
+        # Should report 5 matching observations
+        assert entity["observationMatches"] == 5, \
+            f"Expected 5 matching observations, got {entity['observationMatches']}"
         
         returned_observations = entity["observations"]
         assert len(returned_observations) == 50

@@ -386,6 +386,7 @@ class SQLiteKnowledgeGraphDB:
                                 "name": entity_name,
                                 "entityType": row["entity_type"],
                                 "observations": observations,
+                                "observationMatches": len(matching_obs),  # Count of matching observations
                                 "score": entity_scores[entity_id],  # Store score for sorting
                             }
                             entity_names.add(entity_name)
@@ -402,6 +403,7 @@ class SQLiteKnowledgeGraphDB:
                                 "name": entity["name"],
                                 "entityType": entity["entityType"],
                                 "observations": entity["observations"],
+                                "observationMatches": entity["observationMatches"],
                             }
                             for entity in sorted_entities
                         ]
