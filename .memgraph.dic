@@ -33,6 +33,7 @@ getpid
 hardwires
 healthcheck
 HNSW
+hostedtoolcache
 htmlcov
 httpx
 imageid

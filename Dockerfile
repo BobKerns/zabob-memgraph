@@ -25,7 +25,12 @@ FROM base-deps AS python-node-deps
 COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
 
 # Install Python dependencies (non-editable)
+# Force CPU-only PyTorch to avoid large CUDA dependencies (5GB+)
+ENV PIP_INDEX_URL=https://download.pytorch.org/whl/cpu
+ENV PIP_EXTRA_INDEX_URL=https://pypi.org/simple
 RUN uv sync --frozen --no-editable
+ENV PIP_INDEX_URL=
+ENV PIP_EXTRA_INDEX_URL=
 
 # Install Node dependencies (don't build yet)
 RUN pnpm install
