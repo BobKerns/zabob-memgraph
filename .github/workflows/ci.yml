@@ -53,7 +53,17 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: docker-context
-        path: .
+        path: |
+          pyproject.toml
+          uv.lock
+          package.json
+          pnpm-lock.yaml
+          index.js
+          memgraph/
+          !memgraph/**/__pycache__
+          !**/*.pyc
+          !**/*.pyo
+          !**/.DS_Store
         retention-days: 7
 
     - name: Build web bundle

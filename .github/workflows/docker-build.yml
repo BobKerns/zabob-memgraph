@@ -113,8 +113,22 @@ jobs:
           name: docker-metadata-${{ steps.set-platform-pair.outputs.platform-pair }}
           path: ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json
 
+      - name: Debug build context
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Directory size ==="
+          du -sh . 2>/dev/null || echo "du failed"
+          echo "=== File count ==="
+          find . -type f 2>/dev/null | wc -l
+          echo "=== Top level contents ==="
+          ls -lah
+          echo "=== Disk space ==="
+          df -h
+
       - name: Build and push by digest
         id: build
+        timeout-minutes: 30
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
@@ -124,6 +138,7 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+          provenance: false
 
       - name: Save Build Info
         run: |
