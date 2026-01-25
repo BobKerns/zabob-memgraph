@@ -42,6 +42,30 @@ COPY memgraph/ ./memgraph/
 RUN pnpm run build:web
 
 
+# Stage 3.5: Test environment (optional, used in CI and local testing)
+# Includes dev dependencies for running quality checks and tests
+FROM builder AS test
+
+# Install dev dependencies (ruff, mypy, pytest, playwright)
+RUN uv sync --extra dev
+
+# Install Playwright browsers for UI tests
+RUN uv run playwright install --with-deps chromium
+
+# Copy test files and configuration
+COPY tests/ ./tests/
+COPY conftest.py pyproject.toml pytest.ini ./
+COPY check_types.py dev_utils.py ./
+
+# Set up environment for test execution
+ENV PYTHONPATH=/app
+WORKDIR /app
+
+# Default command runs all tests
+# Override with: docker run --rm test-image uv run pytest -k test_name
+CMD ["uv", "run", "pytest", "-v"]
+
+
 # Stage 4: Final runtime image
 # Based on deps stage, copies only runtime artifacts from builder
 FROM python-node-deps AS runtime

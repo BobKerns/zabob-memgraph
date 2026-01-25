@@ -4,17 +4,49 @@ This document explains how the optimized Docker build integrates with GitHub Act
 
 ## Overview
 
-The build uses a 4-stage Dockerfile with architecture-specific caching to minimize build times in CI/CD:
+The build uses a 4.5-stage Dockerfile with architecture-specific caching and integrated testing:
 
 1. **Stage 1 (base-deps)**: System packages - rarely changes
 2. **Stage 2 (python-node-deps)**: Dependencies - changes occasionally
 3. **Stage 3 (builder)**: Source code + web bundle - always rebuilt
-4. **Stage 4 (runtime)**: Final image - minimal runtime
+4. **Stage 3.5 (test)**: Test environment with dev tools - used in CI and locally
+5. **Stage 4 (runtime)**: Final image - minimal runtime
 
-## Architecture-Specific Caching
+## Test Environment Integration
 
-To prevent collisions between amd64 and arm64 builds running in parallel, cache tags include architecture:
+### Why Test in Docker?
 
+**Consistency**: Same environment locally and in CI - no "works on my machine" issues
+
+**Simplicity**: No need to install Node.js, Python, Playwright, etc. separately in CI
+
+**Speed**: Cached Docker layers mean faster test runs after first build
+
+**Isolation**: Tests run in clean environment every time
+
+### Test Stage Contents
+
+The `test` stage includes:
+- All source code and built web bundle (from `builder`)
+- Dev dependencies: `ruff`, `mypy`, `pytest`, `pytest-playwright`
+- Playwright browsers (chromium)
+- Test files and configuration
+- Dev utilities (`dev_utils.py`, `check_types.py`)
+
+### Local Testing with Docker
+
+```bash
+# Run all tests
+./docker-test.sh
+
+# Run specific test suites
+TEST_TARGET=lint ./docker-test.sh       # Just linting
+TEST_TARGET=typecheck ./docker-test.sh  # Just type checking
+TEST_TARGET=unit ./docker-test.sh       # Unit tests only
+TEST_TARGET=ui ./docker-test.sh         # UI tests only
+
+# Run custom command
+TEST_TARGET="uv run pytest tests/test_specific.py::test_name -v" ./docker-test.sh
 ```
 base-{dockerfile-hash}-amd64
 base-{dockerfile-hash}-arm64
@@ -24,9 +56,36 @@ deps-{lockfiles-hash}-arm64
 
 ## Workflow Integration
 
-### docker-build.yml
+### ci.yml - Test Workflow
 
-The main build workflow (``.github/workflows/docker-build.yml`) uses matrix builds:
+The `ci.yml` workflow now uses Docker for all testing, greatly simplifying the configuration:
+
+```yaml
+- name: Build test image with caching
+  uses: docker/build-push-action@v6
+  with:
+    target: test
+    cache-from: type=gha
+    cache-to: type=gha,mode=max
+    load: true
+
+- name: Run linting
+  run: docker run --rm zabob-memgraph-test:latest uv run ruff check memgraph/
+
+- name: Run tests
+  run: docker run --rm zabob-memgraph-test:latest uv run pytest -v
+```
+
+**Benefits**:
+- No separate installation of uv, Python, Node.js, pnpm
+- No separate dependency installation steps
+- No web bundle build step
+- No Playwright browser installation
+- Everything cached in Docker layers
+
+### docker-build.yml - Build Workflow
+
+The main build workflow (`.github/workflows/docker-build.yml`) uses matrix builds:
 
 ```yaml
 strategy:

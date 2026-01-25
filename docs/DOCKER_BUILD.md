@@ -26,6 +26,13 @@ This directory contains an optimized multi-stage Docker build that minimizes reb
 - **Purpose**: Build artifacts without caching source
 - **Cleanup**: Automatically removed after build
 
+### Stage 3.5: Test Environment (optional)
+- **Content**: Builder + dev dependencies (ruff, mypy, pytest, playwright)
+- **Target Name**: `test`
+- **Purpose**: Run quality checks and tests in consistent environment
+- **Usage**: CI/CD and local testing
+- **Benefits**: Same environment locally and in CI
+
 ### Stage 4: Final Runtime Image
 - **Content**: Dependencies from Stage 2 + built artifacts from Stage 3
 - **Tag Pattern**: `latest`, `v{version}`, custom tags
@@ -44,6 +51,28 @@ This builds the image as `bobkerns/zabob-memgraph:latest`, automatically:
 - Checking for cached base and dependency layers
 - Building only what changed
 - Cleaning up transitory images
+
+### Running Tests in Docker
+
+```bash
+# Run all tests (lint, typecheck, unit, UI)
+./docker-test.sh
+
+# Run specific test suite
+TEST_TARGET=lint ./docker-test.sh
+TEST_TARGET=typecheck ./docker-test.sh
+TEST_TARGET=unit ./docker-test.sh
+TEST_TARGET=ui ./docker-test.sh
+
+# Run custom command
+TEST_TARGET="uv run pytest tests/test_specific.py" ./docker-test.sh
+```
+
+**Benefits of Docker Testing**:
+- Same environment locally and in CI
+- No need to install Node.js, Python, Playwright separately
+- Cached dependencies speed up repeated test runs
+- Isolated from system packages
 
 ### Build with Version Tag
 
