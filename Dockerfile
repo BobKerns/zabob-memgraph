@@ -65,6 +65,35 @@ COPY memgraph/ ./memgraph/
 RUN pnpm run build:web
 
 
+# Stage 3.25: Playwright browsers (separate for caching)
+# Tagged with: playwright-{playwright version}-{arch}
+# Only rebuilds when Playwright version changes
+FROM python-node-deps AS playwright-browsers
+
+# Install Playwright Python package (already in base, but sync to be sure)
+RUN uv pip install playwright
+
+# Install Playwright browsers with system dependencies
+# Aggressive cleanup to reduce layer size (Playwright can add 4GB+)
+RUN uv run playwright install --with-deps chromium && \
+    # Clean up apt cache
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Clean up tmp files
+    rm -rf /tmp/* && \
+    # Remove Playwright installer artifacts
+    find /data/.cache/ms-playwright -name '*.zip' -delete 2>/dev/null || true && \
+    # Remove unnecessary browser variants (keep only chromium)
+    rm -rf /data/.cache/ms-playwright/firefox* 2>/dev/null || true && \
+    rm -rf /data/.cache/ms-playwright/webkit* 2>/dev/null || true && \
+    # Clean up apt archives that may remain
+    rm -rf /var/cache/apt/archives/*.deb && \
+    # Remove documentation and man pages from system deps
+    rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* && \
+    # Remove locale files except en_US
+    find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' -exec rm -rf {} + 2>/dev/null || true
+
+
 # Stage 3.5: Test environment (optional, used in CI and local testing)
 # Includes dev dependencies for running quality checks and tests
 FROM builder AS test
@@ -72,13 +101,8 @@ FROM builder AS test
 # Install dev dependencies (ruff, mypy, pytest, playwright)
 RUN uv sync --extra dev
 
-# Install Playwright browsers for UI tests
-# Clean up after install to reduce image size
-RUN uv run playwright install --with-deps chromium && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /tmp/* && \
-    find /data/.cache/ms-playwright -name '*.zip' -delete 2>/dev/null || true
+# Copy Playwright browsers from dedicated stage
+COPY --from=playwright-browsers /data/.cache/ms-playwright /data/.cache/ms-playwright
 
 # Copy test files and configuration
 COPY tests/ ./tests/
