@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
+
 # CI/CD Docker Build Integration
 
 This document explains how the optimized Docker build integrates with GitHub Actions CI/CD.
@@ -27,6 +29,7 @@ The build uses a 4.5-stage Dockerfile with architecture-specific caching and int
 ### Test Stage Contents
 
 The `test` stage includes:
+
 - All source code and built web bundle (from `builder`)
 - Dev dependencies: `ruff`, `mypy`, `pytest`, `pytest-playwright`
 - Playwright browsers (chromium)
@@ -48,10 +51,13 @@ TEST_TARGET=ui ./docker-test.sh         # UI tests only
 # Run custom command
 TEST_TARGET="uv run pytest tests/test_specific.py::test_name -v" ./docker-test.sh
 ```
+
+```text
 base-{dockerfile-hash}-amd64
 base-{dockerfile-hash}-arm64
 deps-{lockfiles-hash}-amd64
 deps-{lockfiles-hash}-arm64
+
 ```
 
 ## Workflow Integration
@@ -74,6 +80,7 @@ The `ci.yml` workflow now uses Docker for all testing. The test execution logic 
 ```
 
 **Benefits**:
+
 - Test execution logic lives in the Docker image (`/app/run-all-tests.sh`)
 - Single command execution (fastest possible)
 - Same test sequence locally (`./docker-test.sh`) and in CI
@@ -83,6 +90,7 @@ The `ci.yml` workflow now uses Docker for all testing. The test execution logic 
 - Consistent between all environments
 
 **Test Script** (`run-all-tests.sh`):
+
 ```bash
 #!/bin/bash
 set -e  # Exit on first failure
@@ -234,11 +242,13 @@ Or via GitHub UI: Packages → zabob-memgraph → Versions → Delete old `-cach
 **Symptom**: Builds not using cache
 
 **Cause**:
+
 - Cache tags changed (hash mismatch)
 - Cache expired or deleted
 - Cache pull failed (network/permissions)
 
 **Solution**:
+
 - Check if lock files changed (new deps hash)
 - Verify GHCR permissions
 - Check GitHub Actions logs for cache status

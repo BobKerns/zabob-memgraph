@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
+
 # Your Migration Checklist
 
 Run these commands in order. Each step is safe and reversible.

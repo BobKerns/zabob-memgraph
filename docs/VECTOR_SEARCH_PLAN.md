@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
+
 # Vector Search Implementation Plan
 
 ## Overview
@@ -16,30 +18,35 @@ Add semantic/vector search capabilities to zabob-memgraph, enabling similarity-b
 
 ### Embedding Storage
 
-**Option A: SQLite with vector extension**
+#### Option A: SQLite with vector extension
+
 - Use [sqlite-vec](https://github.com/asg017/sqlite-vec) or [sqlite-vss](https://github.com/asg017/sqlite-vss)
 - Pros: Single database, simple deployment, thread-safe
 - Cons: Limited to exact k-NN (no ANN), performance degrades after ~10k vectors
 
-**Option B: Separate vector database (Chroma/FAISS)**
+#### Option B: Separate vector database (Chroma/FAISS)
+
 - External vector store (Chroma, FAISS, Qdrant)
 - Pros: Better performance, approximate nearest neighbors (ANN), scales to millions
 - Cons: Additional dependency, more complex deployment
 
-**Recommendation: Start with sqlite-vec, plan for migration**
+#### Recommendation: Start with sqlite-vec, plan for migration
+
 - sqlite-vec for initial implementation (simple, matches existing architecture)
 - Design abstraction layer to allow swapping in Chroma/FAISS later
 - Monitor performance and migrate if needed
 
 ### Embedding Generation
 
-**Options:**
+#### Options:
+
 1. **On-demand** - Generate embeddings when entity is searched
 2. **Lazy** - Generate on first search, cache in database
 3. **Eager** - Generate when entity/observation is created
 4. **Background** - Queue for async generation
 
-**Recommendation: Lazy with background refresh**
+#### Recommendation: Lazy with background refresh
+
 - Generate on first search (lazy initialization)
 - Cache in database for reuse
 - Background job to pre-generate for new entities
@@ -47,17 +54,20 @@ Add semantic/vector search capabilities to zabob-memgraph, enabling similarity-b
 
 ### Embedding Models
 
-**Initial: Sentence Transformers (all-MiniLM-L6-v2)**
+#### Initial: Sentence Transformers (all-MiniLM-L6-v2)
+
 - 384 dimensions, good balance of size/quality
 - Runs locally, no API costs
 - ~80MB model download
 
-**Future: Support multiple models**
+#### Future: Support multiple models
+
 - OpenAI embeddings (1536 dims) - higher quality, API cost
 - Larger sentence transformers - better accuracy, slower
 - Domain-specific models - specialized for code, research, etc.
 
 **API Design:**
+
 ```python
 # Configure embedding provider
 set_embedding_provider(
@@ -79,13 +89,16 @@ set_embedding_provider(
 ### Phase 1: Core Infrastructure (Week 1)
 
 **Files to create/modify:**
+
 - `memgraph/embeddings.py` - Embedding generation and caching
 - `memgraph/vector_store.py` - Abstract vector storage interface
 - `memgraph/vector_sqlite.py` - SQLite vector implementation
 - `memgraph/sqlite_backend.py` - Add embeddings table
 
 **Tasks:**
+
 1. Add embeddings table to schema:
+
    ```sql
    CREATE TABLE embeddings (
        entity_id TEXT PRIMARY KEY,
@@ -99,6 +112,7 @@ set_embedding_provider(
    ```
 
 2. Implement `EmbeddingProvider` abstract class:
+
    ```python
    class EmbeddingProvider(ABC):
        @abstractmethod
@@ -121,6 +135,7 @@ set_embedding_provider(
    ```
 
 3. Implement `SentenceTransformerProvider`:
+
    ```python
    class SentenceTransformerProvider(EmbeddingProvider):
        def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
@@ -133,6 +148,7 @@ set_embedding_provider(
    ```
 
 4. Implement `VectorStore` abstract interface:
+
    ```python
    class VectorStore(ABC):
        @abstractmethod
@@ -156,6 +172,7 @@ set_embedding_provider(
 5. Implement `SQLiteVectorStore` using sqlite-vec
 
 **Dependencies to add:**
+
 ```toml
 [project]
 dependencies = [
@@ -170,6 +187,7 @@ dependencies = [
 **New MCP tools:**
 
 1. **`search_entities_semantic`**
+
    ```python
    @mcp.tool()
    def search_entities_semantic(
@@ -186,6 +204,7 @@ dependencies = [
    ```
 
 2. **`search_hybrid`**
+
    ```python
    @mcp.tool()
    def search_hybrid(
@@ -204,6 +223,7 @@ dependencies = [
    ```
 
 3. **`generate_embeddings`**
+
    ```python
    @mcp.tool()
    def generate_embeddings(
@@ -219,6 +239,7 @@ dependencies = [
    ```
 
 **Integration with knowledge_live.py:**
+
 - Modify `create_entities()` to optionally generate embeddings
 - Add embedding generation to background tasks
 - Track embedding generation status
@@ -228,6 +249,7 @@ dependencies = [
 **Modify `context_search.py` to use vector search:**
 
 1. Add `VectorContextSearch` class:
+
    ```python
    class VectorContextSearch(ContextSearch):
        def __init__(
@@ -251,6 +273,7 @@ dependencies = [
    ```
 
 2. Implement hybrid scoring:
+
    ```python
    def hybrid_relevance(
        vector_score: float,
@@ -270,18 +293,21 @@ dependencies = [
 ### Phase 4: Performance & Testing (Week 4)
 
 **Performance optimizations:**
+
 1. Batch embedding generation for bulk operations
 2. Cache query embeddings for repeated searches
 3. Index warm-up on server start
 4. Monitor embedding generation time
 
 **Testing:**
+
 1. Unit tests for embedding generation
 2. Integration tests for vector search
 3. Performance benchmarks (search time vs. dataset size)
 4. Accuracy tests (semantic search quality)
 
 **Test scenarios:**
+
 ```python
 def test_semantic_search():
     # Create entities about programming
@@ -334,6 +360,7 @@ ALTER TABLE entities ADD COLUMN embedding_status TEXT DEFAULT 'pending';
 ## Configuration
 
 Add to config.json:
+
 ```json
 {
   "embeddings": {
@@ -351,6 +378,7 @@ Add to config.json:
 ```
 
 Environment variables:
+
 ```bash
 MEMGRAPH_EMBEDDING_PROVIDER=sentence-transformers
 MEMGRAPH_EMBEDDING_MODEL=all-MiniLM-L6-v2
@@ -360,6 +388,7 @@ OPENAI_API_KEY=sk-...  # If using OpenAI embeddings
 ## Migration Strategy
 
 For existing databases:
+
 1. Add embeddings table via migration script
 2. Run background task to generate embeddings for existing entities
 3. Show progress in logs
@@ -382,16 +411,19 @@ def migrate_add_embeddings():
 ## Deployment Considerations
 
 **Docker image size:**
+
 - sentence-transformers adds ~200MB to image
 - Model files ~80MB (downloaded on first run)
 - Consider multi-stage build to minimize impact
 
 **Resource usage:**
+
 - Embedding generation is CPU-intensive
 - Consider worker pool for parallel generation
 - Memory usage: ~500MB for model + embeddings
 
 **Fallback behavior:**
+
 - If embeddings fail to generate, fall back to text search
 - Log errors but don't fail requests
 - Allow disabling embeddings via config
@@ -399,6 +431,7 @@ def migrate_add_embeddings():
 ## Future Enhancements
 
 **Phase 5+:**
+
 1. Multiple embedding models per entity (multi-modal)
 2. Observation-level embeddings (currently entity-level only)
 3. Temporal embeddings (track how entities evolve)

@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
+
 # Docker-Based Testing
 
 This project uses Docker for all quality checks and tests, ensuring consistency between local development and CI/CD.
@@ -77,7 +79,7 @@ docker run --rm zabob-memgraph-test uv run pytest -v
 ## Available Test Targets
 
 | Target | Command | Description |
-|--------|---------|-------------|
+| -------- | --------- | ------------- |
 | `all` | `./docker-test.sh` or `docker run --rm zabob-memgraph-test` | Runs lint, typecheck, unit, and UI tests via `run-all-tests.sh` |
 | `lint` | `TEST_TARGET=lint ./docker-test.sh` | Runs ruff linter |
 | `typecheck` | `TEST_TARGET=typecheck ./docker-test.sh` | Runs mypy type checker |
@@ -98,6 +100,7 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) uses the same Docker te
 ```
 
 This means:
+
 - CI tests run in the exact same environment as local tests
 - No drift between local and CI environments
 - Faster CI (Docker layer caching)

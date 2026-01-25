@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
+
 # Optimized Docker Build Strategy
 
 This directory contains an optimized multi-stage Docker build that minimizes rebuild times by caching layers independently.
@@ -5,6 +7,7 @@ This directory contains an optimized multi-stage Docker build that minimizes reb
 ## Build Stages
 
 ### Stage 1: Base System Dependencies (`base-deps`)
+
 - **Content**: System packages (curl, build-essential, Node.js, pnpm, uv)
 - **Cache Key**: SHA256 of the stage's Dockerfile content (first 12 chars)
 - **Tag Pattern**: `base-{hash}`
@@ -12,6 +15,7 @@ This directory contains an optimized multi-stage Docker build that minimizes reb
 - **Typical Frequency**: Rarely (weeks/months)
 
 ### Stage 2: Python & Node Dependencies (`python-node-deps`)
+
 - **Content**: Python packages (.venv) and Node modules (node_modules)
 - **Cache Key**: SHA256 of `pyproject.toml + uv.lock + package.json + pnpm-lock.yaml`
 - **Tag Pattern**: `deps-{hash}`
@@ -19,6 +23,7 @@ This directory contains an optimized multi-stage Docker build that minimizes reb
 - **Typical Frequency**: Occasionally (days/weeks)
 
 ### Stage 3: Builder (transitory)
+
 - **Content**: Source code + built web bundle
 - **Cache Key**: Timestamp (always rebuilt)
 - **Tag Pattern**: `builder-{timestamp}`
@@ -27,6 +32,7 @@ This directory contains an optimized multi-stage Docker build that minimizes reb
 - **Cleanup**: Automatically removed after build
 
 ### Stage 3.5: Test Environment (optional)
+
 - **Content**: Builder + dev dependencies (ruff, mypy, pytest, playwright)
 - **Target Name**: `test`
 - **Purpose**: Run quality checks and tests in consistent environment
@@ -34,6 +40,7 @@ This directory contains an optimized multi-stage Docker build that minimizes reb
 - **Benefits**: Same environment locally and in CI
 
 ### Stage 4: Final Runtime Image
+
 - **Content**: Dependencies from Stage 2 + built artifacts from Stage 3
 - **Tag Pattern**: `latest`, `v{version}`, custom tags
 - **Size**: Minimal - only runtime requirements
@@ -48,6 +55,7 @@ This directory contains an optimized multi-stage Docker build that minimizes reb
 ```
 
 This builds the image as `bobkerns/zabob-memgraph:latest`, automatically:
+
 - Checking for cached base and dependency layers
 - Building only what changed
 - Cleaning up transitory images
@@ -69,6 +77,7 @@ TEST_TARGET="uv run pytest tests/test_specific.py" ./docker-test.sh
 ```
 
 **Benefits of Docker Testing**:
+
 - Same environment locally and in CI
 - No need to install Node.js, Python, Playwright separately
 - Cached dependencies speed up repeated test runs
@@ -87,6 +96,7 @@ PUSH_CACHE=true ./docker-build.sh
 ```
 
 This pushes the `base-{hash}` and `deps-{hash}` images to the registry, allowing:
+
 - CI/CD systems to reuse cached layers
 - Team members to share build caches
 - Faster builds across different machines
@@ -126,6 +136,7 @@ docker build --target python-node-deps \
 ```
 
 This allows Docker to:
+
 - Skip unchanged layers
 - Reuse intermediate build artifacts
 - Pull cached layers from registry if available
@@ -157,6 +168,7 @@ The optimized build is integrated into our CI/CD pipeline with architecture-spec
 ### Cache Strategy in CI/CD
 
 **Stage 1 & 2 Caching**: Architecture-specific cache tags prevent collision:
+
 - `base-{hash}-amd64` - AMD64 base dependencies
 - `base-{hash}-arm64` - ARM64 base dependencies
 - `deps-{hash}-amd64` - AMD64 Python/Node dependencies
@@ -198,6 +210,7 @@ docker build --no-cache --target runtime -t bobkerns/zabob-memgraph:latest .
 ### "Cannot connect to Docker daemon"
 
 Ensure Docker is running:
+
 ```bash
 docker info
 ```
@@ -205,6 +218,7 @@ docker info
 ### Cache Not Working
 
 Check if BuildKit is enabled:
+
 ```bash
 export DOCKER_BUILDKIT=1
 ./docker-build.sh
@@ -226,6 +240,7 @@ If pulling cache images fails, the build will continue building from scratch. Th
 ### Layer Ordering
 
 Docker builds layers sequentially. By putting:
+
 - Slowest/rarest changes first (system packages)
 - Medium changes second (dependencies)
 - Fastest/frequent changes last (source code)

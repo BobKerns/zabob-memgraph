@@ -84,10 +84,14 @@
 		"explorer.fileNesting.enabled": true,
 		"explorer.fileNesting.expand": true,
 		"explorer.fileNesting.patterns": {
-            "TODO.md": "SCHEMA_MIGRATION_STATUS.md,NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json",
+            "TODO.md": "NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json,*_STATUS.md,restore_relations.py",
             "LICENSE.md": "LICENSE",
             "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,.memgraph.dic,.flake8,playwright.config.py",
-            "install.sh": "install-uv.sh"
+            "install.sh": "install-uv.sh",
+            "README.md": "DEPLOYMENT.md,CONTRIBUTING.md",
+            "dev_utils.py": "check_*.py",
+            "Dockerfile": "Dockerfile.*,docker-compose*.yml,docker-*.sh",
+            "run-all-tests.sh": "run_ui_tests.*"
         },
         "explorer.enableUndo": false,
         "chat.useAgentSkills": true,
