@@ -13,6 +13,31 @@ RUN apt-get update && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
     apt-get install -y nodejs && \
+    # Install Playwright system dependencies (used in test stage)
+    apt-get install -y \
+        libglib2.0-0 \
+        libnss3 \
+        libnspr4 \
+        libdbus-1-3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libdrm2 \
+        libxkbcommon0 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxrandr2 \
+        libgbm1 \
+        libasound2 \
+        libpango-1.0-0 \
+        libcairo2 \
+        fonts-liberation \
+        fonts-noto-color-emoji \
+        libx11-6 \
+        libx11-xcb1 \
+        libxcb1 \
+        libxext6 && \
     npm install -g pnpm && \
     pip install uv && \
     apt-get clean && \
@@ -73,9 +98,9 @@ FROM python-node-deps AS playwright-browsers
 # Install Playwright Python package (already in base, but sync to be sure)
 RUN uv pip install playwright
 
-# Install Playwright browsers with system dependencies
-# Aggressive cleanup to reduce layer size (Playwright can add 4GB+)
-RUN uv run playwright install --with-deps chromium && \
+# Install Playwright browsers (system deps already in base-deps stage)
+# Aggressive cleanup to reduce layer size
+RUN uv run playwright install chromium && \
     # Clean up apt cache
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
