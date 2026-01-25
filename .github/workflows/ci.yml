@@ -49,34 +49,6 @@ jobs:
         docker run --rm zabob-memgraph-test:latest \
           uv run python dev_utils.py --help
 
-    - name: Build and push runtime image (amd64)
-      id: build-runtime
-      uses: docker/build-push-action@v6.18.0
-      with:
-        context: .
-        target: runtime
-        tags: zabob-memgraph:latest
-        push: true
-        platforms: linux/amd64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
-
-    - name: Export amd64 digest
-      id: amd64-digest
-      run: |
-        mkdir -p /tmp/digests
-        digest="${{ steps.build-runtime.outputs.digest }}"
-        touch "/tmp/digests/${digest#sha256:}"
-        echo "digest=$digest" >> $GITHUB_OUTPUT
-
-    - name: Upload amd64 digest
-      uses: actions/upload-artifact@v4
-      with:
-        name: digests-linux-amd64
-        path: /tmp/digests/*
-        retention-days: 1
-
     - name: Build final runtime image
       uses: docker/build-push-action@v6.18.0
       with:

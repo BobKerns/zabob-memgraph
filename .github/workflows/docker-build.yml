@@ -26,6 +26,7 @@ jobs:
   build:
     needs:
         - setup
+    # Don't wait for CI - build in parallel
     permissions:
       contents: read
       packages: write
@@ -33,9 +34,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        # amd64 is built and tested in ci.yml, only build arm64 here
+        - platform: linux/amd64
+          runner: ubuntu-latest
+          run-tests: true
         - platform: linux/arm64
           runner: ubuntu-24.04-arm
+          run-tests: false
     runs-on: ${{ matrix.runner }}
     outputs:
       image-tag: ${{ steps.test-tag.outputs.tag }}
@@ -53,15 +57,8 @@ jobs:
             echo "Platform matrix entry: ${{ matrix.platform }}"
             echo "Platform-pair: ${{ steps.set-platform-pair.outputs.platform-pair }}"
 
-      - name: Download Dockerfile
-        uses: actions/download-artifact@v7
-        with:
-            name: dockerfile
-
-      - name: Download Context
-        uses: actions/download-artifact@v7
-        with:
-            name: docker-context
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Docker
         uses: docker/setup-docker-action@v4
@@ -119,6 +116,24 @@ jobs:
           name: docker-metadata-${{ steps.set-platform-pair.outputs.platform-pair }}
           path: ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json
 
+      # Build test image first (validates code)
+      - name: Build test image
+        id: build-test
+        if: matrix.run-tests
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          target: test
+          load: true
+          tags: zabob-memgraph-test:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Run tests only on amd64
+      - name: Run all quality checks and tests
+        if: matrix.run-tests
+        run: docker run --rm zabob-memgraph-test:latest
+
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6.18.0
@@ -136,7 +151,7 @@ jobs:
             type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
             type=gha,mode=max
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 

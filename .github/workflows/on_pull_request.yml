@@ -8,21 +8,16 @@ permissions:
     packages: write
 
 jobs:
-  python_build_and_test:
-    uses: ./.github/workflows/ci.yml
   build_docker:
-    needs: python_build_and_test
+    # Build both architectures in parallel, test on amd64
     uses: ./.github/workflows/docker-build.yml
     secrets: inherit
   label-success:
     needs:
-        - python_build_and_test
         - build_docker
     if: |
             (github.event.action == 'synchronize' ||
             github.event.action == 'opened') &&
-
-            needs.python_build_and_test.result == 'success' &&
             needs.build_docker.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -32,13 +27,11 @@ jobs:
 
   label-failure:
     needs:
-        - python_build_and_test
         - build_docker
     if: |
             (github.event.action == 'synchronize' ||
             github.event.action == 'opened') &&
-            (needs.python_build_and_test.result != 'success' ||
-             needs.build_docker.result != 'success')
+            needs.build_docker.result != 'success'
     runs-on: ubuntu-latest
     steps:
         - name: Label Failure
