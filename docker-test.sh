@@ -56,7 +56,7 @@ case "${TEST_TARGET}" in
 
     *)
         echo -e "${YELLOW}Running custom test command: ${TEST_TARGET}${NC}"
-        docker run --rm "${IMAGE_NAME}:latest" ${TEST_TARGET}
+        docker run --rm "${IMAGE_NAME}:latest" "${TEST_TARGET}"
         ;;
 esac
 

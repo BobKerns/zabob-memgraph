@@ -14,6 +14,8 @@ checkpointing
 clippy
 conftest
 convo
+CUDA
+dearmor
 dockerhub
 docstrings
 domcontentloaded
@@ -41,6 +43,7 @@ imagetools
 IMDB
 isexe
 isort
+keyrings
 lastrowid
 levelname
 lockfiles
@@ -58,6 +61,8 @@ myregistry
 ndarray
 nethistory
 networkidle
+nodesource
+nodistro
 nullspace
 numpy
 onexc
