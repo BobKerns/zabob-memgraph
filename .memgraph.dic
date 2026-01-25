@@ -7,6 +7,7 @@ ASGI
 asyncio
 autouse
 bobkerns
+BUILDKIT
 Buildx
 checkpointing
 clippy

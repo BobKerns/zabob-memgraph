@@ -88,6 +88,13 @@ jobs:
           driver: docker-container
           platforms: linux/amd64,linux/arm64
 
+      # Note: Our Dockerfile uses a 4-stage build with layer caching:
+      # Stage 1 (base-deps): System packages - cached by Dockerfile hash + arch
+      # Stage 2 (python-node-deps): Dependencies - cached by lock files hash + arch
+      # Stage 3 (builder): Source + web bundle - always rebuilt
+      # Stage 4 (runtime): Final image - combines stage 2 + built artifacts
+      # Architecture-specific cache tags prevent collision between amd64/arm64 builds
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5.10.0
@@ -120,10 +127,19 @@ jobs:
           context: .
           push: true
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Use registry cache for our multi-stage builds with arch-specific tags
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:base-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
+            type=gha
+          cache-to: |
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:base-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
+            type=gha,mode=max
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
 
       - name: Save Build Info
         run: |

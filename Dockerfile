@@ -1,8 +1,9 @@
-# Build stage
-FROM python:3.14-slim AS builder
-#FROM python:3.12-bookworm AS builder
+# Stage 1: Base system dependencies
+# Tagged with: base-{SHA256 of this stage}
+# Rarely changes - system packages only
+FROM python:3.14-slim AS base-deps
 
-# Install build dependencies
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y curl libffi-dev build-essential && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
@@ -14,34 +15,49 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Copy project files
-COPY pyproject.toml uv.lock package.json pnpm-lock.yaml index.js ./
-COPY memgraph/ ./memgraph/
+
+# Stage 2: Python and Node dependencies
+# Tagged with: deps-{hash of pyproject.toml + uv.lock + package.json + pnpm-lock.yaml}
+# Changes when dependencies change
+FROM base-deps AS python-node-deps
+
+# Copy only dependency files
+COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
 
 # Install Python dependencies (non-editable)
 RUN uv sync --frozen --no-editable
 
+# Install Node dependencies (don't build yet)
+RUN pnpm install
+
+
+# Stage 3: Build stage (transitory)
+# Adds source code and builds web bundle
+FROM python-node-deps AS builder
+
+# Copy source code
+COPY memgraph/ ./memgraph/
+
 # Build web bundle
-RUN pnpm install && pnpm run build:web
+RUN pnpm run build:web
 
-# Runtime stage
-FROM python:3.14-slim
-# FROM python:3.12-bookworm
 
-WORKDIR /app
+# Stage 4: Final runtime image
+# Based on deps stage, copies only runtime artifacts from builder
+FROM python-node-deps AS runtime
 
-# Copy only the virtual environment and built web assets
-COPY --from=builder /app/.venv /app/.venv
+# Copy only the built web assets from builder
 COPY --from=builder /app/memgraph/web /app/memgraph/web
-COPY --from=builder /app/pyproject.toml /app/pyproject.toml
+
+# Copy pyproject.toml for metadata (already present but being explicit)
+COPY pyproject.toml ./
 
 # Create data directory for database
 RUN mkdir -p /data/.zabob/memgraph/data
 
-# Set environment variables for virtual environment and define our entrypoint
+# Set environment variables for virtual environment
 ENV PATH=/app/.venv/bin:$PATH
 ENV VIRTUAL_ENV=/app/.venv
-ENTRYPOINT ["/app/.venv/bin/zabob-memgraph"]
 
 # Set environment variables to indicate Docker container
 ENV DOCKER_CONTAINER=1
@@ -53,9 +69,11 @@ ENV HOME=/data
 # Expose default port
 EXPOSE 6789
 
-# Use startup script as entrypoint
+# Set entrypoint and default command
+ENTRYPOINT ["/app/.venv/bin/zabob-memgraph"]
 CMD []
 
+# Metadata labels
 LABEL org.opencontainers.image.source=https://github.com/BobKerns/zabob-memgraph
 LABEL org.opencontainers.image.title="Zabob Memgraph"
 LABEL org.opencontainers.image.description="Zabob Memgraph MCP memory service with web interface\nZabob remembers the future so you don't have to."
