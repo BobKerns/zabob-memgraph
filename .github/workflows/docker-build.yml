@@ -33,8 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - platform: linux/amd64
-          runner: ubuntu-latest
+        # amd64 is built and tested in ci.yml, only build arm64 here
         - platform: linux/arm64
           runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
