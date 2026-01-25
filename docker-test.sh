@@ -51,30 +51,7 @@ case "${TEST_TARGET}" in
 
     all)
         echo -e "${YELLOW}Running all quality checks and tests...${NC}"
-
-        # Lint
-        echo -e "\n${YELLOW}1/4: Linting${NC}"
-        docker run --rm "${IMAGE_NAME}:latest" \
-            uv run ruff check memgraph/
-        echo -e "${GREEN}✓ Linting passed${NC}"
-
-        # Type check
-        echo -e "\n${YELLOW}2/4: Type checking${NC}"
-        docker run --rm "${IMAGE_NAME}:latest" \
-            uv run mypy memgraph/
-        echo -e "${GREEN}✓ Type checking passed${NC}"
-
-        # Unit tests
-        echo -e "\n${YELLOW}3/4: Unit and integration tests${NC}"
-        docker run --rm "${IMAGE_NAME}:latest" \
-            uv run pytest -m "not (ui_basic or ui_interactive)" -n auto -v
-        echo -e "${GREEN}✓ Unit tests passed${NC}"
-
-        # UI tests
-        echo -e "\n${YELLOW}4/4: UI tests${NC}"
-        docker run --rm "${IMAGE_NAME}:latest" \
-            uv run pytest -m "ui_basic or ui_interactive" -n 2 -v
-        echo -e "${GREEN}✓ UI tests passed${NC}"
+        docker run --rm "${IMAGE_NAME}:latest"
         ;;
 
     *)

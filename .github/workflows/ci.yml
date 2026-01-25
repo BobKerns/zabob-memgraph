@@ -25,25 +25,8 @@ jobs:
         cache-to: type=gha,mode=max
         load: true
 
-    - name: Run linting
-      run: |
-        docker run --rm zabob-memgraph-test:latest \
-          uv run ruff check memgraph/
-
-    - name: Run type checking
-      run: |
-        docker run --rm zabob-memgraph-test:latest \
-          uv run mypy memgraph/
-
-    - name: Run unit and integration tests
-      run: |
-        docker run --rm zabob-memgraph-test:latest \
-          uv run pytest -m "not (ui_basic or ui_interactive)" -n auto -v
-
-    - name: Run UI tests
-      run: |
-        docker run --rm zabob-memgraph-test:latest \
-          uv run pytest -m "ui_basic or ui_interactive" -n 2 -v
+    - name: Run all quality checks and tests
+      run: docker run --rm zabob-memgraph-test:latest
 
     - name: Test dev utilities
       run: |

@@ -30,6 +30,19 @@ RUN uv sync --frozen --no-editable
 # Install Node dependencies (don't build yet)
 RUN pnpm install
 
+# Create data directory for database
+RUN mkdir -p /data/.zabob/memgraph/data
+
+# Set environment variables for virtual environment
+ENV PATH=/app/.venv/bin:$PATH
+ENV VIRTUAL_ENV=/app/.venv
+
+# Set environment variables to indicate Docker container
+ENV DOCKER_CONTAINER=1
+ENV MEMGRAPH_HOST=0.0.0.0
+ENV MEMGRAPH_PORT=6789
+ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
+ENV HOME=/data
 
 # Stage 3: Build stage (transitory)
 # Adds source code and builds web bundle
@@ -54,16 +67,20 @@ RUN uv run playwright install --with-deps chromium
 
 # Copy test files and configuration
 COPY tests/ ./tests/
-COPY conftest.py pyproject.toml pytest.ini ./
+COPY pyproject.toml ./
 COPY check_types.py dev_utils.py ./
+
+# Copy test runner script
+COPY run-all-tests.sh /app/run-all-tests.sh
+RUN chmod +x /app/run-all-tests.sh
 
 # Set up environment for test execution
 ENV PYTHONPATH=/app
 WORKDIR /app
 
-# Default command runs all tests
+# Default command runs all quality checks and tests
 # Override with: docker run --rm test-image uv run pytest -k test_name
-CMD ["uv", "run", "pytest", "-v"]
+CMD ["/app/run-all-tests.sh"]
 
 
 # Stage 4: Final runtime image
@@ -75,20 +92,6 @@ COPY --from=builder /app/memgraph/web /app/memgraph/web
 
 # Copy pyproject.toml for metadata (already present but being explicit)
 COPY pyproject.toml ./
-
-# Create data directory for database
-RUN mkdir -p /data/.zabob/memgraph/data
-
-# Set environment variables for virtual environment
-ENV PATH=/app/.venv/bin:$PATH
-ENV VIRTUAL_ENV=/app/.venv
-
-# Set environment variables to indicate Docker container
-ENV DOCKER_CONTAINER=1
-ENV MEMGRAPH_HOST=0.0.0.0
-ENV MEMGRAPH_PORT=6789
-ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
-ENV HOME=/data
 
 # Expose default port
 EXPOSE 6789

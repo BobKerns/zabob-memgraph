@@ -58,7 +58,7 @@ deps-{lockfiles-hash}-arm64
 
 ### ci.yml - Test Workflow
 
-The `ci.yml` workflow now uses Docker for all testing, greatly simplifying the configuration:
+The `ci.yml` workflow now uses Docker for all testing. The test execution logic lives in `run-all-tests.sh`, which is built into the Docker test stage:
 
 ```yaml
 - name: Build test image with caching
@@ -69,19 +69,38 @@ The `ci.yml` workflow now uses Docker for all testing, greatly simplifying the c
     cache-to: type=gha,mode=max
     load: true
 
-- name: Run linting
-  run: docker run --rm zabob-memgraph-test:latest uv run ruff check memgraph/
-
-- name: Run tests
-  run: docker run --rm zabob-memgraph-test:latest uv run pytest -v
+- name: Run all quality checks and tests
+  run: docker run --rm zabob-memgraph-test:latest
 ```
 
 **Benefits**:
-- No separate installation of uv, Python, Node.js, pnpm
-- No separate dependency installation steps
-- No web bundle build step
-- No Playwright browser installation
-- Everything cached in Docker layers
+- Test execution logic lives in the Docker image (`/app/run-all-tests.sh`)
+- Single command execution (fastest possible)
+- Same test sequence locally (`./docker-test.sh`) and in CI
+- Fails fast on first error (`set -e` in script)
+- Clear progress output with section headers
+- No CI-specific test orchestration logic
+- Consistent between all environments
+
+**Test Script** (`run-all-tests.sh`):
+```bash
+#!/bin/bash
+set -e  # Exit on first failure
+
+echo "=== 1/4: Linting with ruff ==="
+uv run ruff check memgraph/
+
+echo "=== 2/4: Type checking with mypy ==="
+uv run mypy memgraph/
+
+echo "=== 3/4: Unit tests (parallel) ==="
+uv run pytest -m 'not (ui_basic or ui_interactive)' -n auto -v
+
+echo "=== 4/4: UI tests (playwright) ==="
+uv run pytest -m 'ui_basic or ui_interactive' -n 2 -v
+
+echo "=== ✅ All tests passed! ==="
+```
 
 ### docker-build.yml - Build Workflow
 

@@ -8,6 +8,9 @@ This project uses Docker for all quality checks and tests, ensuring consistency 
 # Run all tests (lint, typecheck, unit, UI)
 ./docker-test.sh
 
+# Or run the Docker image directly
+docker run --rm zabob-memgraph-test:latest
+
 # Run specific test suite
 TEST_TARGET=lint ./docker-test.sh
 TEST_TARGET=unit ./docker-test.sh
@@ -19,6 +22,30 @@ TEST_TARGET=unit ./docker-test.sh
 ✅ **No manual setup** - No need to install Python, Node.js, Playwright
 ✅ **Fast iteration** - Docker layer caching speeds up repeated runs
 ✅ **Isolated** - Clean environment every time
+✅ **Single source of truth** - Test logic lives in `run-all-tests.sh` inside the image
+
+## Test Execution Script
+
+The Docker test stage includes `run-all-tests.sh`, which defines the canonical test sequence:
+
+```bash
+#!/bin/bash
+set -e  # Exit on first failure
+
+echo "=== 1/4: Linting with ruff ==="
+uv run ruff check memgraph/
+
+echo "=== 2/4: Type checking with mypy ==="
+uv run mypy memgraph/
+
+echo "=== 3/4: Unit tests (parallel) ==="
+uv run pytest -m 'not (ui_basic or ui_interactive)' -n auto -v
+
+echo "=== 4/4: UI tests (playwright) ==="
+uv run pytest -m 'ui_basic or ui_interactive' -n 2 -v
+```
+
+This script is the default CMD for the test stage, so running the container without arguments executes all tests.
 
 ## Test Stages
 
@@ -30,6 +57,7 @@ The `test` stage in the Dockerfile includes:
 - Dev dependencies (ruff, mypy, pytest, playwright)
 - Test files and configuration
 - Playwright browsers (chromium)
+- **Test execution script** (`/app/run-all-tests.sh`)
 
 Build it once, run tests many times:
 
@@ -37,7 +65,10 @@ Build it once, run tests many times:
 # Build test image
 docker build --target test -t zabob-memgraph-test .
 
-# Run different test suites
+# Run all tests (default command)
+docker run --rm zabob-memgraph-test
+
+# Run specific test suites
 docker run --rm zabob-memgraph-test uv run ruff check memgraph/
 docker run --rm zabob-memgraph-test uv run mypy memgraph/
 docker run --rm zabob-memgraph-test uv run pytest -v
@@ -47,7 +78,7 @@ docker run --rm zabob-memgraph-test uv run pytest -v
 
 | Target | Command | Description |
 |--------|---------|-------------|
-| `all` | `./docker-test.sh` | Runs lint, typecheck, unit, and UI tests |
+| `all` | `./docker-test.sh` or `docker run --rm zabob-memgraph-test` | Runs lint, typecheck, unit, and UI tests via `run-all-tests.sh` |
 | `lint` | `TEST_TARGET=lint ./docker-test.sh` | Runs ruff linter |
 | `typecheck` | `TEST_TARGET=typecheck ./docker-test.sh` | Runs mypy type checker |
 | `unit` | `TEST_TARGET=unit ./docker-test.sh` | Runs unit and integration tests |
