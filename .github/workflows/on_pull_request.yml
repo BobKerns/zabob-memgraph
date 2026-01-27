@@ -20,10 +20,33 @@ jobs:
             github.event.action == 'opened') &&
             needs.build_docker.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
         - name: Label Success
-          run: |
-            echo "TODO: Label ${{ github.event.pull_request.number }} as BUILD_SUCCESSFUL"
+          uses: actions/github-script@v7
+          with:
+            script: |
+              // Remove failure label if present
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  name: 'build-failed'
+                });
+              } catch (error) {
+                // Label might not exist, that's fine
+              }
+
+              // Add success label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['build-successful']
+              });
 
   label-failure:
     needs:
@@ -33,9 +56,32 @@ jobs:
             github.event.action == 'opened') &&
             needs.build_docker.result != 'success'
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
         - name: Label Failure
-          run: |
-            echo "TODO: Label ${{ github.event.pull_request.number }} as BUILD_FAILED"
+          uses: actions/github-script@v7
+          with:
+            script: |
+              // Remove success label if present
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  name: 'build-successful'
+                });
+              } catch (error) {
+                // Label might not exist, that's fine
+              }
+
+              // Add failure label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['build-failed']
+              });
 
 
