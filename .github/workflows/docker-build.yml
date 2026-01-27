@@ -120,6 +120,7 @@ jobs:
       - name: Build test image
         id: build-test
         if: matrix.run-tests
+        timeout-minutes: 30
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
@@ -134,11 +135,30 @@ jobs:
         if: matrix.run-tests
         run: docker run --rm zabob-memgraph-test:latest
 
+      - name: Debug build environment
+        run: |
+          echo "=== System Information ==="
+          uname -a
+          echo "=== Disk Space ==="
+          df -h
+          echo "=== Memory ==="
+          free -h || vm_stat || echo "Memory info not available"
+          echo "=== Docker Info ==="
+          docker info
+          echo "=== Docker Version ==="
+          docker version
+          echo "=== Buildx Version ==="
+          docker buildx version
+          echo "=== Available Space in Temp ==="
+          df -h ${{ runner.temp }}
+
       - name: Build and push by digest
         id: build
+        timeout-minutes: 45
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
+          target: runtime
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           # Use registry cache for our multi-stage builds with arch-specific tags
@@ -154,6 +174,7 @@ jobs:
           outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+          provenance: false
 
       - name: Save Build Info
         run: |
