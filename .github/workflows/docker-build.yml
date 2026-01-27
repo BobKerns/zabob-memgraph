@@ -152,13 +152,6 @@ jobs:
           echo "=== Available Space in Temp ==="
           df -h ${{ runner.temp }}
 
-      - name: Pre-warm build cache
-        continue-on-error: true
-        run: |
-          # Try to pull existing cache images (non-fatal if they don't exist)
-          docker pull ghcr.io/${{ needs.setup.outputs.image-name }}:base-cache-${{ steps.set-platform-pair.outputs.platform-pair }} || true
-          docker pull ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }} || true
-
       - name: Build and push by digest
         id: build
         timeout-minutes: 45
