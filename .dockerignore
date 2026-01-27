@@ -39,6 +39,7 @@ pnpm-debug.log*
 *.swo
 *~
 .DS_Store
+*.code-workspace
 
 # Test artifacts
 tests/out/
@@ -75,6 +76,10 @@ temp/
 *.lock
 !uv.lock
 !pnpm-lock.yaml
+
+# Scripts
+*.sh
+!run-all-tests.sh
 
 # Other
 .env
