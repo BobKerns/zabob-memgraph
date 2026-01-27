@@ -157,6 +157,10 @@ COPY --from=builder /app/memgraph /app/memgraph
 # Copy pyproject.toml for metadata (already present but being explicit)
 COPY pyproject.toml ./
 
+# Install the zabob-memgraph package itself (now that source is present)
+# This creates the entry points and makes the module importable
+RUN uv pip install --no-deps -e .
+
 # Expose default port
 EXPOSE 6789
 
