@@ -151,6 +151,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Free up disk space
+        run: |
+          echo "Initial disk space:"
+          df -h
+          # Remove large packages we don't need
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "Disk space after package removal:"
+          df -h
+          # Clean up Docker images
+          sudo docker image prune --all --force
+          echo "Disk space after Docker image prune:"
+          df -h
+
       - name: Extract image name
         id: image
         run: |
@@ -159,7 +175,7 @@ jobs:
 
       - name: Create Dockerfile for base-playwright
         run: |
-          cat > Dockerfile.base-playwright << 'EOF'
+          cat > Dockerfile.base-playwright << EOF
           FROM ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:${{ inputs.version }}
 
           WORKDIR /app
@@ -208,6 +224,7 @@ jobs:
             ${{ inputs.push_latest && format('{0}/{1}/base-playwright:latest', env.REGISTRY_GHCR, steps.image.outputs.name) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache
           cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache,mode=max
+          EOF
 
   build-base-test:
     name: Build base-test (amd64)
@@ -236,6 +253,22 @@ jobs:
           image_name=${{ env.IMAGE_NAME }}
           echo "name=${image_name,,}" >> $GITHUB_OUTPUT
 
+      - name: Free up disk space
+        run: |
+          echo "Initial disk space:"
+          df -h
+          # Remove large packages we don't need
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "Disk space after package removal:"
+          df -h
+          # Clean up Docker images
+          sudo docker image prune --all --force
+          echo "Disk space after Docker image prune:"
+          df -h
+
       - name: Wait for base-playwright image to be available
         run: |
           IMAGE="${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}"
@@ -253,7 +286,7 @@ jobs:
 
       - name: Create Dockerfile for base-test
         run: |
-          cat > Dockerfile.base-test << 'EOF'
+          cat > Dockerfile.base-test << EOF
           FROM ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}
 
           WORKDIR /app
