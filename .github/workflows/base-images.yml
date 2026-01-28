@@ -1,0 +1,281 @@
+name: Build Base Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Base image version tag (e.g., v1, v2)'
+        required: true
+        default: 'v2'
+      push_latest:
+        description: 'Also tag as latest'
+        type: boolean
+        default: false
+
+env:
+  REGISTRY_GHCR: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-base-deps:
+    name: Build base-deps (multi-arch)
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image name
+        id: image
+        run: |
+          image_name=${{ env.IMAGE_NAME }}
+          echo "name=${image_name,,}" >> $GITHUB_OUTPUT
+
+      - name: Prepare platform pair
+        id: platform
+        run: |
+          platform=${{ matrix.platform }}
+          echo "pair=${platform//\//-}" >> $GITHUB_OUTPUT
+
+      - name: Build and push base-deps by digest
+        id: build
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: Dockerfile.base-deps
+          platforms: ${{ matrix.platform }}
+          push: true
+          outputs: type=image,name=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps,push-by-digest=true,name-canonical=true
+          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:cache-${{ steps.platform.outputs.pair }}
+          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:cache-${{ steps.platform.outputs.pair }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests-base-deps
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests-base-deps/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-base-deps-${{ steps.platform.outputs.pair }}
+          path: /tmp/digests-base-deps/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-base-deps:
+    name: Merge base-deps manifest
+    needs: build-base-deps
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests-base-deps
+          pattern: digests-base-deps-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image name
+        id: image
+        run: |
+          image_name=${{ env.IMAGE_NAME }}
+          echo "name=${image_name,,}" >> $GITHUB_OUTPUT
+
+      - name: Create manifest and push
+        working-directory: /tmp/digests-base-deps
+        run: |
+          TAGS="-t ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:${{ inputs.version }}"
+          if [ "${{ inputs.push_latest }}" = "true" ]; then
+            TAGS="$TAGS -t ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:latest"
+          fi
+
+          SOURCE_DIGESTS=$(printf '${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps@sha256:%s ' *)
+
+          docker buildx imagetools create $TAGS $SOURCE_DIGESTS
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:${{ inputs.version }}
+
+  build-base-playwright:
+    name: Build base-playwright (amd64)
+    needs: merge-base-deps
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image name
+        id: image
+        run: |
+          image_name=${{ env.IMAGE_NAME }}
+          echo "name=${image_name,,}" >> $GITHUB_OUTPUT
+
+      - name: Build and push base-playwright
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: Dockerfile.base-playwright
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ steps.image.outputs.name }}
+            BASE_IMAGE_VERSION=${{ inputs.version }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}
+            ${{ inputs.push_latest && format('{0}/{1}/base-playwright:latest', env.REGISTRY_GHCR, steps.image.outputs.name) || '' }}
+          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache
+          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache,mode=max
+
+  build-base-test:
+    name: Build base-test (amd64)
+    needs: build-base-playwright
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image name
+        id: image
+        run: |
+          image_name=${{ env.IMAGE_NAME }}
+          echo "name=${image_name,,}" >> $GITHUB_OUTPUT
+
+      - name: Free up disk space
+        run: |
+          echo "Initial disk space:"
+          df -h
+          # Remove large packages we don't need
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "Disk space after package removal:"
+          df -h
+          # Clean up Docker images
+          sudo docker image prune --all --force
+          echo "Disk space after Docker image prune:"
+          df -h
+
+      - name: Wait for base-playwright image to be available
+        run: |
+          IMAGE="${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}"
+          echo "Waiting for ${IMAGE} to be available..."
+          for i in {1..30}; do
+            if docker pull "${IMAGE}" 2>/dev/null; then
+              echo "✓ Image is available"
+              exit 0
+            fi
+            echo "  Attempt $i/30: Image not yet available, waiting 10 seconds..."
+            sleep 10
+          done
+          echo "✗ Image still not available after 5 minutes"
+          exit 1
+
+      - name: Build and push base-test
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: Dockerfile.base-test
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ steps.image.outputs.name }}
+            BASE_IMAGE_VERSION=${{ inputs.version }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:${{ inputs.version }}
+            ${{ inputs.push_latest && format('{0}/{1}/base-test:latest', env.REGISTRY_GHCR, steps.image.outputs.name) || '' }}
+          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:cache
+          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:cache,mode=max
+
+  summary:
+    name: Build Summary
+    needs: [merge-base-deps, build-base-playwright, build-base-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract image name
+        id: image
+        run: |
+          image_name=${{ env.IMAGE_NAME }}
+          echo "name=${image_name,,}" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "## Base Images Built Successfully ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Version: **${{ inputs.version }}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Images Published to GHCR:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:${{ inputs.version }}\` (multi-arch)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}\` (amd64)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:${{ inputs.version }}\` (amd64)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Usage:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Update the BASE_IMAGE_VERSION variable in docker-build.yml to use these images:" >> $GITHUB_STEP_SUMMARY
+          echo '```yaml' >> $GITHUB_STEP_SUMMARY
+          echo "env:" >> $GITHUB_STEP_SUMMARY
+          echo "  BASE_IMAGE_VERSION: ${{ inputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

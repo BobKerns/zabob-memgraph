@@ -10,6 +10,7 @@ on:
 env:
   REGISTRY_GHCR: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  BASE_IMAGE_VERSION: v2  # Update this when base images are rebuilt
 
 jobs:
   setup:
@@ -80,12 +81,12 @@ jobs:
 
           platforms: linux/amd64,linux/arm64
 
-      # Note: Our Dockerfile uses a 4-stage build with layer caching:
-      # Stage 1 (base-deps): System packages - cached by Dockerfile hash + arch
-      # Stage 2 (python-node-deps): Dependencies - cached by lock files hash + arch
-      # Stage 3 (builder): Source + web bundle - always rebuilt
-      # Stage 4 (runtime): Final image - combines stage 2 + built artifacts
-      # Architecture-specific cache tags prevent collision between amd64/arm64 builds
+      # Note: This workflow uses pre-built base images to avoid rebuilding heavy dependencies:
+      # - base-deps (multi-arch): System packages, built via base-images.yml workflow
+      # - base-playwright (amd64): base-deps + Playwright browsers (~500MB)
+      # - base-test (amd64): base-playwright + dev dependencies (mypy, ruff, pytest)
+      # Update BASE_IMAGE_VERSION when base images are rebuilt
+      # This dramatically reduces build time and disk space usage during normal PR/release builds
 
       - name: Extract metadata
         id: meta
@@ -113,18 +114,26 @@ jobs:
           path: ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json
 
       # Build test image first (validates code)
+      # Uses pre-built base-test image with Playwright and dev dependencies already installed
+      # No caching needed - just adds source code to pre-built base (~2-3 min)
       - name: Build test image
         id: build-test
         if: matrix.run-tests
-        timeout-minutes: 30
+        timeout-minutes: 15
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          target: test
-          load: true
+          file: Dockerfile.test
+          outputs: type=docker,dest=/tmp/test-image.tar
           tags: zabob-memgraph-test:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
+            BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
+
+      - name: Load test image
+        if: matrix.run-tests
+        run: docker load -i /tmp/test-image.tar
 
       # Run tests only on amd64
       - name: Run all quality checks and tests
@@ -161,26 +170,26 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        timeout-minutes: 45
+        timeout-minutes: 30
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          target: runtime
+          file: Dockerfile.runtime
           push: true
           labels: ${{ steps.meta.outputs.labels }}
-          # Use registry cache for our multi-stage builds with arch-specific tags
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
+            BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
+          # Simplified caching - only need runtime-specific layers
           cache-from: |
-            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:base-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
-            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:runtime-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
             type=gha
           cache-to: |
-            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:base-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
-            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:runtime-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
             type=gha,mode=max
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
           provenance: false
 
       - name: Save Build Info
