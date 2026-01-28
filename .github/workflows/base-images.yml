@@ -64,6 +64,7 @@ jobs:
           context: .
           target: base-deps
           platforms: ${{ matrix.platform }}
+          push: true
           outputs: type=image,name=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps,push-by-digest=true,name-canonical=true
           cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:cache-${{ steps.platform.outputs.pair }}
           cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:cache-${{ steps.platform.outputs.pair }},mode=max

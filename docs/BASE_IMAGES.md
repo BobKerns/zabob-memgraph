@@ -5,12 +5,14 @@ This document explains the base images system used to optimize Docker builds.
 ## Problem
 
 The original multi-stage Dockerfile built everything from scratch on every PR:
+
 - System packages and Node.js installation (~2 minutes)
 - Playwright browser installation (~500MB, ~3-5 minutes)
 - Python and Node dependencies (~2-3 minutes)
 - Dev dependencies for testing (mypy, ruff, pytest)
 
 This caused:
+
 - Long build times (15-20 minutes per architecture)
 - Disk space pressure on GitHub Actions runners
 - Frequent timeout and out-of-disk failures
@@ -25,6 +27,7 @@ Split Docker builds into two workflows:
 **Trigger**: Manual (workflow_dispatch) when base dependencies change
 
 **Builds and publishes**:
+
 - `base-deps:vN` - Multi-arch (amd64/arm64) system packages
   - Python 3.14-slim
   - Node.js 20.x with pinned GPG keys
@@ -42,6 +45,7 @@ Split Docker builds into two workflows:
   - Dev dependencies (mypy, ruff, pytest, etc.)
 
 **Usage**:
+
 ```bash
 # Trigger manually from GitHub Actions UI
 # Set version (e.g., v1, v2, v3)
@@ -55,10 +59,12 @@ All images are pushed to GHCR: `ghcr.io/bobkerns/zabob-memgraph/base-*:vN`
 **Trigger**: On every PR and release
 
 **Uses pre-built base images**:
+
 - Test image (amd64): `base-test:vN` + source code + web bundle
 - Runtime images (multi-arch): `base-deps:vN` + dependencies + source + web bundle
 
 **Benefits**:
+
 - ✅ Builds complete in ~5-8 minutes (was 15-20 minutes)
 - ✅ No Playwright installation during normal builds
 - ✅ Minimal disk space usage (~2-3GB vs 8-10GB)
@@ -68,6 +74,7 @@ All images are pushed to GHCR: `ghcr.io/bobkerns/zabob-memgraph/base-*:vN`
 ## When to Rebuild Base Images
 
 Rebuild base images when:
+
 - System dependencies change (packages in Stage 1 of original Dockerfile)
 - Python or Node dependencies change (pyproject.toml, uv.lock, package.json, pnpm-lock.yaml)
 - Playwright version changes
@@ -82,17 +89,19 @@ After rebuilding base images with a new version:
 
 1. Edit `.github/workflows/docker-build.yml`
 2. Update the `BASE_IMAGE_VERSION` variable:
+
    ```yaml
    env:
      BASE_IMAGE_VERSION: v2  # Increment this
    ```
+
 3. Commit and push
 
 All subsequent builds will use the new base images.
 
 ## File Structure
 
-```
+```text
 .github/workflows/
   base-images.yml           # Manual workflow to build base images
   docker-build.yml          # PR/release workflow using base images
@@ -105,12 +114,14 @@ Dockerfile.runtime          # Simplified runtime image using base-deps
 ## Trade-offs
 
 **Pros**:
+
 - Much faster PR builds
 - More reliable (no resource limits)
 - Clear separation of rarely-changing vs frequently-changing layers
 - Smaller builds mean lower CI costs
 
 **Cons**:
+
 - Web bundle is built twice (once for test, once for runtime)
   - This is fast (~30 seconds) and worth the simplicity
 - Must manually trigger base image rebuild when dependencies change
@@ -119,7 +130,7 @@ Dockerfile.runtime          # Simplified runtime image using base-deps
 
 ## Implementation Details
 
-### Base Images Workflow
+### Base Images Workflow Implementation
 
 1. **build-base-deps** (multi-arch)
    - Builds from original Dockerfile Stage 1
@@ -144,6 +155,7 @@ Dockerfile.runtime          # Simplified runtime image using base-deps
 ### Main Build Workflow
 
 **Test Build (amd64)**:
+
 ```dockerfile
 FROM ghcr.io/bobkerns/zabob-memgraph/base-test:v1
 COPY memgraph/ ./memgraph/
@@ -153,6 +165,7 @@ COPY tests/ ./tests/
 ```
 
 **Runtime Build (multi-arch)**:
+
 ```dockerfile
 FROM ghcr.io/bobkerns/zabob-memgraph/base-deps:v1
 # Install Python/Node deps (lightweight)
