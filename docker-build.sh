@@ -5,7 +5,7 @@
 set -e
 
 # Color output
-RED='\033[0;31m'
+# RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
@@ -77,6 +77,7 @@ else
     echo "Building dependencies image (no cache available)..."
     # Only use base cache if it exists
     CACHE_ARGS="${BASE_CACHE_ARGS}"
+    # shellcheck disable=SC2086
     docker build --target python-node-deps \
         --tag "${DEPS_TAG}" \
         ${CACHE_ARGS} \
@@ -102,6 +103,7 @@ echo "Tag: ${BUILDER_TAG}"
 echo "Building builder image with source code..."
 # Use all available cache layers
 BUILDER_CACHE_ARGS="${BASE_CACHE_ARGS} ${DEPS_CACHE_ARGS}"
+# shellcheck disable=SC2086
 docker build --target builder \
     --tag "${BUILDER_TAG}" \
     ${BUILDER_CACHE_ARGS} \
@@ -120,6 +122,7 @@ echo "Tag: ${FINAL_TAG}"
 echo "Building final runtime image..."
 # Use all available cache layers
 RUNTIME_CACHE_ARGS="${BASE_CACHE_ARGS} ${DEPS_CACHE_ARGS} --cache-from ${BUILDER_TAG}"
+# shellcheck disable=SC2086
 docker build --target runtime \
     --tag "${FINAL_TAG}" \
     ${RUNTIME_CACHE_ARGS} \
