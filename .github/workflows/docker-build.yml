@@ -26,6 +26,8 @@ jobs:
   build:
     needs:
         - setup
+    timeout-minutes: 45
+    # Don't wait for CI - build in parallel
     permissions:
       contents: read
       packages: write
@@ -35,8 +37,10 @@ jobs:
         include:
         - platform: linux/amd64
           runner: ubuntu-latest
+          run-tests: true
         - platform: linux/arm64
           runner: ubuntu-24.04-arm
+          run-tests: false
     runs-on: ${{ matrix.runner }}
     outputs:
       image-tag: ${{ steps.test-tag.outputs.tag }}
@@ -54,26 +58,11 @@ jobs:
             echo "Platform matrix entry: ${{ matrix.platform }}"
             echo "Platform-pair: ${{ steps.set-platform-pair.outputs.platform-pair }}"
 
-      - name: Download Dockerfile
-        uses: actions/download-artifact@v7
-        with:
-            name: dockerfile
-
-      - name: Download Context
-        uses: actions/download-artifact@v7
-        with:
-            name: docker-context
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Docker
         uses: docker/setup-docker-action@v4
-        with:
-          daemon-config: |
-            {
-              "debug": true,
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3.6.0
@@ -85,8 +74,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.11.1
         with:
-          driver: docker-container
+          driver-opts: |
+            network=host
+            image=moby/buildkit:latest
+
           platforms: linux/amd64,linux/arm64
+
+      # Note: Our Dockerfile uses a 4-stage build with layer caching:
+      # Stage 1 (base-deps): System packages - cached by Dockerfile hash + arch
+      # Stage 2 (python-node-deps): Dependencies - cached by lock files hash + arch
+      # Stage 3 (builder): Source + web bundle - always rebuilt
+      # Stage 4 (runtime): Final image - combines stage 2 + built artifacts
+      # Architecture-specific cache tags prevent collision between amd64/arm64 builds
 
       - name: Extract metadata
         id: meta
@@ -113,17 +112,76 @@ jobs:
           name: docker-metadata-${{ steps.set-platform-pair.outputs.platform-pair }}
           path: ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json
 
-      - name: Build and push by digest
-        id: build
+      # Build test image first (validates code)
+      - name: Build test image
+        id: build-test
+        if: matrix.run-tests
+        timeout-minutes: 30
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          push: true
-          labels: ${{ steps.meta.outputs.labels }}
+          target: test
+          load: true
+          tags: zabob-memgraph-test:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Run tests only on amd64
+      - name: Run all quality checks and tests
+        if: matrix.run-tests
+        run: docker run --rm zabob-memgraph-test:latest
+
+      - name: Debug build environment
+        run: |
+          echo "=== System Information ==="
+          uname -a
+          echo "=== Disk Space ==="
+          df -h
+          echo "=== Local Disk Usage ==="
+          du -sh $(find . -type d -maxdepth 1 -print)
+          echo "=== Memory ==="
+          free -h || vm_stat || echo "Memory info not available"
+          echo "=== Docker Info ==="
+          docker info
+          echo "=== Docker Version ==="
+          docker version
+          echo "=== Buildx Version ==="
+          docker buildx version
+          echo "=== Available Space ==="
+          df -h
+          echo "=== Memory ==="
+          free -h
+          echo "=== Docker Info ==="
+          docker info
+
+      - name: Prune unneeded Docker images
+        run: |
+          docker image prune -af || echo "Docker image prune failed, continuing anyway"
+          docker image ls
+
+      - name: Build and push by digest
+        id: build
+        timeout-minutes: 45
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          target: runtime
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          # Use registry cache for our multi-stage builds with arch-specific tags
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:base-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
+            type=gha
+          cache-to: |
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:base-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
+            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:deps-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
+            type=gha,mode=max
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+          provenance: false
 
       - name: Save Build Info
         run: |
@@ -154,6 +212,8 @@ jobs:
 
       - name: Determine test tag
         id: test-tag
+        env:
+          DOCKER_METADATA_OUTPUT_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           # Extract first tag from multi-line output
           FIRST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
@@ -217,6 +277,7 @@ jobs:
       - setup
       - merge
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10  # ADD THIS - prevents infinite hanging
     strategy:
       matrix:
         include:
@@ -227,6 +288,14 @@ jobs:
             runner: ubuntu-24.04-arm
             arch: arm64
     steps:
+      # ADD THIS STEP - authenticate before pulling
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Determine image tag
         id: image-tag
         run: |
@@ -244,12 +313,24 @@ jobs:
           echo "Using tag: $TAG"
 
       - name: Pull and inspect image
+        timeout-minutes: 5  # ADD THIS - timeout for this specific step
         run: |
           IMAGE="ghcr.io/${{ needs.setup.outputs.image-name }}:${{ steps.image-tag.outputs.tag }}"
           echo "Pulling: $IMAGE"
 
-          # Pull from GHCR
-          docker pull "$IMAGE"
+          # Pull from GHCR with retries
+          for i in {1..3}; do
+            if docker pull "$IMAGE"; then
+              echo "Successfully pulled image"
+              break
+            fi
+            if [ $i -eq 3 ]; then
+              echo "Failed to pull image after 3 attempts"
+              exit 1
+            fi
+            echo "Pull attempt $i failed, retrying..."
+            sleep 5
+          done
 
           # Verify architecture
           ACTUAL_ARCH=$(docker inspect "$IMAGE" --format '{{.Architecture}}')

@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](images/zabob-banner.jpg)
+
 # UI Controls Documentation
 
 ## Graph Navigation
