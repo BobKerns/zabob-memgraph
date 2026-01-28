@@ -236,6 +236,21 @@ jobs:
           image_name=${{ env.IMAGE_NAME }}
           echo "name=${image_name,,}" >> $GITHUB_OUTPUT
 
+      - name: Wait for base-playwright image to be available
+        run: |
+          IMAGE="${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}"
+          echo "Waiting for ${IMAGE} to be available..."
+          for i in {1..30}; do
+            if docker pull "${IMAGE}" 2>/dev/null; then
+              echo "✓ Image is available"
+              exit 0
+            fi
+            echo "  Attempt $i/30: Image not yet available, waiting 10 seconds..."
+            sleep 10
+          done
+          echo "✗ Image still not available after 5 minutes"
+          exit 1
+
       - name: Create Dockerfile for base-test
         run: |
           cat > Dockerfile.base-test << 'EOF'
