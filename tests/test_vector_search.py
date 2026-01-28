@@ -38,8 +38,9 @@ def test_sentence_transformer_provider():
     similar_embeddings = provider.batch_generate(similar_texts)
 
     # cat and kitten should be more similar than cat and dog
-    cat_kitten_sim = np.dot(similar_embeddings[0], similar_embeddings[1])
-    cat_dog_sim = np.dot(similar_embeddings[0], similar_embeddings[2])
+    from memgraph.vector_store import cosine_similarity
+    cat_kitten_sim = cosine_similarity(similar_embeddings[0], similar_embeddings[1])
+    cat_dog_sim = cosine_similarity(similar_embeddings[0], similar_embeddings[2])
 
     assert cat_kitten_sim > cat_dog_sim
 

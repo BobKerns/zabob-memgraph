@@ -132,7 +132,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
         b: Second vector
 
     Returns:
-        Similarity score between 0 and 1 (1 = identical direction)
+        Similarity score between -1 and 1 (1 = identical direction, 0 = orthogonal, -1 = opposite)
     """
     dot_product = np.dot(a, b)
     norm_a = np.linalg.norm(a)

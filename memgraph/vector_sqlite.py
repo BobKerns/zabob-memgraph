@@ -40,6 +40,11 @@ class VectorSQLiteStore(VectorStore):
             self._conn = sqlite3.connect(str(self.db_path))
             self._conn.row_factory = sqlite3.Row
 
+            # Enable WAL mode for better concurrency
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            # Set busy timeout to handle concurrent access
+            self._conn.execute("PRAGMA busy_timeout=5000")
+
             # Try to load sqlite-vec extension
             try:
                 self._conn.enable_load_extension(True)
@@ -55,15 +60,16 @@ class VectorSQLiteStore(VectorStore):
         """Initialize database schema."""
         conn = self._get_connection()
 
-        # Create embeddings table
+        # Create embeddings table with composite primary key
         conn.execute("""
             CREATE TABLE IF NOT EXISTS embeddings (
-                entity_id TEXT PRIMARY KEY,
+                entity_id TEXT NOT NULL,
                 embedding BLOB NOT NULL,
                 model_name TEXT NOT NULL,
                 dimensions INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (entity_id, model_name)
             )
         """)
 
@@ -168,15 +174,24 @@ class VectorSQLiteStore(VectorStore):
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:k]
 
-    def get(self, entity_id: str) -> tuple[np.ndarray, str] | None:
+    def get(self, entity_id: str, model_name: str | None = None) -> tuple[np.ndarray, str] | None:
         """Retrieve embedding for an entity."""
         conn = self._get_connection()
 
-        cursor = conn.execute("""
-            SELECT embedding, model_name, dimensions
-            FROM embeddings
-            WHERE entity_id = ?
-        """, (entity_id,))
+        if model_name:
+            cursor = conn.execute("""
+                SELECT embedding, model_name, dimensions
+                FROM embeddings
+                WHERE entity_id = ? AND model_name = ?
+            """, (entity_id, model_name))
+        else:
+            # Get any embedding for this entity (for backward compatibility)
+            cursor = conn.execute("""
+                SELECT embedding, model_name, dimensions
+                FROM embeddings
+                WHERE entity_id = ?
+                LIMIT 1
+            """, (entity_id,))
 
         row = cursor.fetchone()
         if row is None:
@@ -185,19 +200,31 @@ class VectorSQLiteStore(VectorStore):
         embedding = np.frombuffer(row["embedding"], dtype=np.float32)
         return (embedding, row["model_name"])
 
-    def delete(self, entity_id: str) -> None:
+    def delete(self, entity_id: str, model_name: str | None = None) -> None:
         """Remove an embedding."""
         conn = self._get_connection()
-        conn.execute("DELETE FROM embeddings WHERE entity_id = ?", (entity_id,))
+        if model_name:
+            conn.execute(
+                "DELETE FROM embeddings WHERE entity_id = ? AND model_name = ?",
+                (entity_id, model_name)
+            )
+        else:
+            # Delete all embeddings for this entity
+            conn.execute("DELETE FROM embeddings WHERE entity_id = ?", (entity_id,))
         conn.commit()
 
-    def exists(self, entity_id: str) -> bool:
+    def exists(self, entity_id: str, model_name: str | None = None) -> bool:
         """Check if embedding exists for entity."""
         conn = self._get_connection()
 
-        cursor = conn.execute("""
-            SELECT 1 FROM embeddings WHERE entity_id = ? LIMIT 1
-        """, (entity_id,))
+        if model_name:
+            cursor = conn.execute("""
+                SELECT 1 FROM embeddings WHERE entity_id = ? AND model_name = ? LIMIT 1
+            """, (entity_id, model_name))
+        else:
+            cursor = conn.execute("""
+                SELECT 1 FROM embeddings WHERE entity_id = ? LIMIT 1
+            """, (entity_id,))
 
         return cursor.fetchone() is not None
 

@@ -453,42 +453,47 @@ def setup_mcp(config: Config) -> FastMCP:
                 "hint": "Call configure_embeddings first or set environment variables"
             }
 
-        # Initialize vector store
-        vector_store = VectorSQLiteStore(db_path=db_path)
-
         try:
-            # Generate query embedding
-            query_embedding = provider.generate(query)
+            # Use context manager for vector store
+            with VectorSQLiteStore(db_path=db_path) as vector_store:
+                # Generate query embedding
+                query_embedding = provider.generate(query)
 
-            # Search vector store
-            results = vector_store.search(
-                query_embedding=query_embedding,
-                k=k,
-                threshold=threshold,
-                model_name=model_name,
-            )
+                # Search vector store
+                results = vector_store.search(
+                    query_embedding=query_embedding,
+                    k=k,
+                    threshold=threshold,
+                    model_name=model_name,
+                )
 
-            # Fetch entity data for results
-            entities = []
-            for entity_id, score in results:
-                # Use existing search to get entity data
-                entity_data = await DB.search_nodes(entity_id)
-                if entity_data.get("entities"):
-                    entity_info = entity_data["entities"][0]
+                # Fetch entity data for results
+                entities = []
+                for entity_id, score in results:
+                    # Use existing search to get entity data
+                    entity_data = await DB.search_nodes(entity_id)
+                    entities_list = entity_data.get("entities") or []
+                    if not entities_list:
+                        continue
+
+                    # Prefer an exact name match to the entity_id; fall back to first
+                    exact_match = next(
+                        (e for e in entities_list if e.get("name") == entity_id),
+                        None,
+                    )
+                    entity_info = dict(exact_match or entities_list[0])
                     entity_info["similarity_score"] = score
                     entities.append(entity_info)
 
-            return {
-                "query": query,
-                "count": len(entities),
-                "results": entities,
-            }
+                return {
+                    "query": query,
+                    "count": len(entities),
+                    "results": entities,
+                }
 
         except Exception as e:
             logger.error(f"Semantic search failed: {e}")
             return {"error": str(e)}
-        finally:
-            vector_store.close()
 
     @mcp.tool
     async def search_hybrid(
@@ -620,11 +625,11 @@ def setup_mcp(config: Config) -> FastMCP:
             existing_count = vector_store.count(model_name=provider.model_name)
             logger.info(f"Found {len(entities)} total entities, {existing_count} already have embeddings")
 
-            # Get entities without embeddings
+            # Get entities without embeddings for this model
             entities_to_process = []
             for entity in entities:
                 entity_id = entity.get("name", "")
-                if vector_store.get(entity_id) is None:
+                if not vector_store.exists(entity_id, model_name=provider.model_name):
                     entities_to_process.append(entity)
 
             if not entities_to_process:

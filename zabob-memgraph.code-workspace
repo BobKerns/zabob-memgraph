@@ -139,6 +139,14 @@
             "/^\\.venv/bin/python -m pytest tests/test_ui_playwright\\.py::test_graph_loads_data -v --tb=short$/": {
                 "approve": true,
                 "matchCommandLine": true
+            },
+            "/^uv run mypy memgraph/vector_store\\.py memgraph/vector_sqlite\\.py memgraph/mcp_service\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_vector_search\\.py -v$/": {
+                "approve": true,
+                "matchCommandLine": true
             }
         }
 	},
