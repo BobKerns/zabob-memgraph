@@ -124,12 +124,16 @@ jobs:
         with:
           context: .
           file: Dockerfile.test
-          load: true
+          outputs: type=docker,dest=/tmp/test-image.tar
           tags: zabob-memgraph-test:latest
           build-args: |
             BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
             BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
             BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
+
+      - name: Load test image
+        if: matrix.run-tests
+        run: docker load -i /tmp/test-image.tar
 
       # Run tests only on amd64
       - name: Run all quality checks and tests
