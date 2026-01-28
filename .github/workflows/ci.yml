@@ -53,17 +53,10 @@ jobs:
       uses: docker/build-push-action@v6.18.0
       with:
         context: .
-        target: runtime
+        file: Dockerfile.runtime
         tags: zabob-memgraph:latest
         cache-from: type=gha
         load: true
-
-    - name: Upload dockerfile artifact
-      uses: actions/upload-artifact@v6
-      with:
-        name: dockerfile
-        path: Dockerfile
-        retention-days: 7
 
     - name: Upload docker context artifact
       uses: actions/upload-artifact@v6

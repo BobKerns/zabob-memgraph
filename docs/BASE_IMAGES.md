@@ -71,15 +71,28 @@ All images are pushed to GHCR: `ghcr.io/bobkerns/zabob-memgraph/base-*:vN`
 - ✅ Reliable - no more timeout failures
 - ✅ Dependencies only rebuilt when they actually change
 
+## File Structure
+
+Base images are built from dedicated Dockerfiles:
+
+- `Dockerfile.base-deps` - System packages (Python, Node.js, uv, pnpm, Playwright system libs)
+- `Dockerfile.base-playwright` - Adds Python/Node deps + Playwright browsers
+- `Dockerfile.base-test` - Adds dev dependencies (mypy, ruff, pytest)
+
+Main application Dockerfiles:
+
+- `Dockerfile.test` - Test image using base-test
+- `Dockerfile.runtime` - Final runtime image using base-deps
+
 ## When to Rebuild Base Images
 
 Rebuild base images when:
 
-- System dependencies change (packages in Stage 1 of original Dockerfile)
+- System dependencies change (Dockerfile.base-deps)
 - Python or Node dependencies change (pyproject.toml, uv.lock, package.json, pnpm-lock.yaml)
-- Playwright version changes
-- Dev dependencies change (mypy, ruff, pytest versions)
-- Node.js version changes
+- Playwright version changes (Dockerfile.base-playwright)
+- Dev dependencies change (mypy, ruff, pytest versions in Dockerfile.base-test)
+- Node.js version changes (Dockerfile.base-deps)
 
 **Increment the version number** each time you rebuild.
 
@@ -106,9 +119,11 @@ All subsequent builds will use the new base images.
   base-images.yml           # Manual workflow to build base images
   docker-build.yml          # PR/release workflow using base images
 
-Dockerfile                   # Original multi-stage Dockerfile (kept for reference)
-Dockerfile.test             # Simplified test image using base-test
-Dockerfile.runtime          # Simplified runtime image using base-deps
+Dockerfile.base-deps        # System packages (Python, Node.js, uv, pnpm)
+Dockerfile.base-playwright  # Adds Python/Node deps + Playwright browsers
+Dockerfile.base-test        # Adds dev dependencies (mypy, ruff, pytest)
+Dockerfile.test             # Test image using base-test
+Dockerfile.runtime          # Final runtime image using base-deps
 ```
 
 ## Trade-offs
@@ -126,14 +141,13 @@ Dockerfile.runtime          # Simplified runtime image using base-deps
   - This is fast (~30 seconds) and worth the simplicity
 - Must manually trigger base image rebuild when dependencies change
   - Could automate this with dependency file hash checking
-- Slight duplication between Dockerfile stages
 
 ## Implementation Details
 
 ### Base Images Workflow Implementation
 
 1. **build-base-deps** (multi-arch)
-   - Builds from original Dockerfile Stage 1
+   - Builds from Dockerfile.base-deps
    - Builds amd64 and arm64 in parallel
    - Pushes by digest for manifest merging
 

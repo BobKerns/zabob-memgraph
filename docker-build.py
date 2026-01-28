@@ -234,7 +234,7 @@ def base(
     base_deps_tag = f"{registry}/{image_name}/base-deps:{version}"
     cmd = [
         "docker", "build",
-        "--target", "base-deps",
+        "-f", "Dockerfile.base-deps",
         "--platform", platform,
         "-t", base_deps_tag,
         ".",

@@ -62,7 +62,7 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          target: base-deps
+          file: Dockerfile.base-deps
           platforms: ${{ matrix.platform }}
           push: true
           outputs: type=image,name=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps,push-by-digest=true,name-canonical=true

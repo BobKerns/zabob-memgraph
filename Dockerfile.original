@@ -1,3 +1,13 @@
+# DEPRECATED: This Dockerfile has been replaced by:
+#   - Dockerfile.base-deps (system packages)
+#   - Dockerfile.base-playwright (+ Playwright)
+#   - Dockerfile.base-test (+ dev deps)
+#   - Dockerfile.test (test image using base-test)
+#   - Dockerfile.runtime (runtime image using base-deps)
+#
+# See docs/BASE_IMAGES.md for the new architecture.
+# This file is kept for reference only.
+
 # Stage 1: Base system dependencies
 # Tagged with: base-{SHA256 of this stage}
 # Rarely changes - system packages only
