@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+
 # Vector Search Phase 1 - Status Report
 
 **Date**: 2025-01-29
@@ -11,6 +13,7 @@
 **Purpose**: Provider abstraction for generating text embeddings
 
 **Components**:
+
 - `EmbeddingProvider` abstract base class
 - `SentenceTransformerProvider` - Local, free embedding generation (384 dims)
   - Model: `all-MiniLM-L6-v2`
@@ -26,6 +29,7 @@
   - `configure_from_dict()` - Configure from config dict
 
 **Design Decisions**:
+
 - Abstract interface allows easy swapping between providers
 - Lazy initialization - only loads model when first used
 - Default to SentenceTransformers (free, local, good quality)
@@ -36,6 +40,7 @@
 **Purpose**: Database-agnostic interface for vector storage and similarity search
 
 **Components**:
+
 - `VectorStore` abstract base class
 - Methods:
   - `add()` - Store single embedding
@@ -48,6 +53,7 @@
 - `cosine_similarity()` - Pure Python cosine similarity implementation
 
 **Design Decisions**:
+
 - Abstract interface allows migration to Chroma/FAISS later
 - Cosine similarity for semantic search (standard for embeddings)
 - Model filtering - can search within specific model's embeddings
@@ -58,6 +64,7 @@
 **Purpose**: Concrete vector storage using SQLite
 
 **Components**:
+
 - `VectorSQLiteStore` - SQLite-backed vector storage
 - Database schema:
   - `embeddings` table: entity_id (PK), embedding (BLOB), model_name, dimensions, timestamps
@@ -66,12 +73,14 @@
 - Context manager support for resource management
 
 **Implementation Details**:
+
 - Embeddings stored as numpy float32 byte arrays (BLOBs)
 - Pure Python cosine similarity (fallback if sqlite-vec unavailable)
 - Proper connection management with lazy initialization
 - Atomic operations with transaction support
 
 **Design Decisions**:
+
 - Start with SQLite (matches project architecture)
 - sqlite-vec extension optional - fallback to pure Python
 - Easy to migrate to Chroma/FAISS if performance needs increase
@@ -93,6 +102,7 @@
 ### 5. Dependencies
 
 **Added to pyproject.toml**:
+
 - `sentence-transformers==5.2.0` - Local embedding generation
 - `numpy==2.3.5` - Numerical operations
 - Plus 20 transitive dependencies (torch, transformers, etc.)
@@ -138,7 +148,7 @@
 
 ## Files Changed
 
-```
+```text
 memgraph/
 ├── embeddings.py          # New - 198 lines
 ├── vector_store.py        # New - 137 lines
@@ -157,16 +167,19 @@ uv.lock                    # Modified - 128 packages
 ## Risk Assessment
 
 **Low Risk**:
+
 - All new code, no modifications to existing functionality
 - Comprehensive test coverage (6 tests, all passing)
 - Abstract interfaces allow easy changes without breaking API
 
 **Medium Risk**:
+
 - Large dependency tree (torch, transformers) adds ~500MB
 - First embedding generation takes ~29s (model download/load)
 - Similarity search is O(n) - may need optimization at scale
 
 **Mitigation**:
+
 - Dependencies optional - feature can be disabled
 - Model loading is one-time cost, cached after
 - Can add vector indices or migrate to specialized DB later
@@ -174,11 +187,13 @@ uv.lock                    # Modified - 128 packages
 ## Integration Strategy
 
 Phase 1 is **independent and non-breaking**:
+
 - Can merge to main without affecting existing functionality
 - Vector search is opt-in via new MCP tools (Phase 2)
 - Existing code paths unchanged
 
 **Recommended Merge Strategy**:
+
 1. Complete Phase 2 (MCP tools)
 2. Test in isolation with feature flag
 3. Merge as complete semantic search feature in v0.2.0

@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Infrastructure
+
+- **Docker Build Optimization:** Multi-stage Dockerfile with intelligent layer caching
+  - 4.5-stage build: base-deps, python-node-deps, builder, test, runtime
+  - Architecture-specific cache tags prevent amd64/arm64 collisions in GHCR
+  - Content-based cache keys: base (Dockerfile hash), deps (lockfiles hash)
+  - Build times reduced from 12-20 minutes to 2-3 minutes for source-only changes
+  - Stage 2 includes environment setup for consistent test/runtime environments
+- **Node.js Security:** Pinned to version 20.x with GPG key verification
+  - Replaced insecure `curl | bash` with signed APT repository
+  - Reproducible builds with explicit version control
+- **CI/CD Improvements:**
+  - Unified test execution via `run-all-tests.sh` built into Docker image
+  - Single source of truth for test sequence (local, CI, manual Docker runs)
+  - GitHub Actions disk cleanup frees 16GB before builds
+  - CPU-only PyTorch installation avoids 5GB+ CUDA libraries
+  - All testing via Docker for environment consistency
+- **Test Stage Optimization:**
+  - Aggressive cleanup after Playwright install reduces layer size by 1-2GB
+  - Removes documentation, man pages, non-English locales, unused browser variants
+  - Test logic versioned with code, not embedded in CI workflows
+
 ## [0.1.22] - 2026-01-23
 
 ### Added - Vector Search (Phase 1)
