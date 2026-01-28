@@ -157,59 +157,15 @@ jobs:
           image_name=${{ env.IMAGE_NAME }}
           echo "name=${image_name,,}" >> $GITHUB_OUTPUT
 
-      - name: Create Dockerfile for base-playwright
-        run: |
-          cat > Dockerfile.base-playwright << EOF
-          FROM ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:${{ inputs.version }}
-
-          WORKDIR /app
-
-          # Set HOME early so Playwright installs to correct location
-          ENV HOME=/data
-
-          # Copy dependency files
-          COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
-
-          # Install Python dependencies
-          ENV PIP_INDEX_URL=https://download.pytorch.org/whl/cpu
-          ENV PIP_EXTRA_INDEX_URL=https://pypi.org/simple
-          RUN uv sync --frozen --no-editable
-          ENV PIP_INDEX_URL=
-          ENV PIP_EXTRA_INDEX_URL=
-
-          # Install Node dependencies
-          RUN pnpm install
-
-          # Create data directory first
-          RUN mkdir -p /data/.zabob/memgraph/data
-
-          # Install Playwright and browsers (will use HOME=/data)
-          RUN uv pip install playwright && \
-              uv run playwright install chromium && \
-              apt-get clean && \
-              rm -rf /var/lib/apt/lists/* /tmp/* && \
-              find $HOME/.cache/ms-playwright -name '*.zip' -delete 2>/dev/null || true && \
-              rm -rf $HOME/.cache/ms-playwright/firefox* $HOME/.cache/ms-playwright/webkit* 2>/dev/null || true && \
-              rm -rf /var/cache/apt/archives/*.deb && \
-              rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* && \
-              find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' -exec rm -rf {} + 2>/dev/null || true
-
-          # Set environment variables
-          ENV PATH=/app/.venv/bin:$PATH
-          ENV VIRTUAL_ENV=/app/.venv
-          ENV DOCKER_CONTAINER=1
-          ENV MEMGRAPH_HOST=0.0.0.0
-          ENV MEMGRAPH_PORT=6789
-          ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
-          ENV PYTHON_PATH=/app
-          EOF
-
-
       - name: Build and push base-playwright
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
           file: Dockerfile.base-playwright
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ steps.image.outputs.name }}
+            BASE_IMAGE_VERSION=${{ inputs.version }}
           platforms: linux/amd64
           push: true
           tags: |
@@ -276,23 +232,15 @@ jobs:
           echo "✗ Image still not available after 5 minutes"
           exit 1
 
-      - name: Create Dockerfile for base-test
-        run: |
-          cat > Dockerfile.base-test << EOF
-          FROM ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}
-
-          WORKDIR /app
-
-          # Install dev dependencies (mypy, ruff, pytest, etc.)
-          RUN uv sync --extra dev
-
-          EOF
-
       - name: Build and push base-test
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
           file: Dockerfile.base-test
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ steps.image.outputs.name }}
+            BASE_IMAGE_VERSION=${{ inputs.version }}
           platforms: linux/amd64
           push: true
           tags: |

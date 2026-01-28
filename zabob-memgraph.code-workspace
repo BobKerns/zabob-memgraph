@@ -90,7 +90,7 @@
             "install.sh": "install-uv.sh",
             "README.md": "DEPLOYMENT.md,CONTRIBUTING.md",
             "dev_utils.py": "check_*.py",
-            "Dockerfile": "Dockerfile.*,docker-compose*.yml,docker-*.sh",
+            "Dockerfile": "Dockerfile.*,docker-compose*.yml,docker-*.sh,Dockerfile.*",
             "run-all-tests.sh": "run_ui_tests.*"
         },
         "explorer.enableUndo": false,
