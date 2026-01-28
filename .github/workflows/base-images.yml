@@ -6,7 +6,7 @@ on:
       version:
         description: 'Base image version tag (e.g., v1, v2)'
         required: true
-        default: 'v1'
+        default: 'v2'
       push_latest:
         description: 'Also tag as latest'
         type: boolean
@@ -244,6 +244,22 @@ jobs:
         run: |
           image_name=${{ env.IMAGE_NAME }}
           echo "name=${image_name,,}" >> $GITHUB_OUTPUT
+
+      - name: Free up disk space
+        run: |
+          echo "Initial disk space:"
+          df -h
+          # Remove large packages we don't need
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "Disk space after package removal:"
+          df -h
+          # Clean up Docker images
+          sudo docker image prune --all --force
+          echo "Disk space after Docker image prune:"
+          df -h
 
       - name: Wait for base-playwright image to be available
         run: |
