@@ -164,6 +164,9 @@ jobs:
 
           WORKDIR /app
 
+          # Set HOME early so Playwright installs to correct location
+          ENV HOME=/data
+
           # Copy dependency files
           COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
 
@@ -177,13 +180,16 @@ jobs:
           # Install Node dependencies
           RUN pnpm install
 
-          # Install Playwright and browsers
+          # Create data directory first
+          RUN mkdir -p /data/.zabob/memgraph/data
+
+          # Install Playwright and browsers (will use HOME=/data)
           RUN uv pip install playwright && \
               uv run playwright install chromium && \
               apt-get clean && \
               rm -rf /var/lib/apt/lists/* /tmp/* && \
-              find /data/.cache/ms-playwright -name '*.zip' -delete 2>/dev/null || true && \
-              rm -rf /data/.cache/ms-playwright/firefox* /data/.cache/ms-playwright/webkit* 2>/dev/null || true && \
+              find $HOME/.cache/ms-playwright -name '*.zip' -delete 2>/dev/null || true && \
+              rm -rf $HOME/.cache/ms-playwright/firefox* $HOME/.cache/ms-playwright/webkit* 2>/dev/null || true && \
               rm -rf /var/cache/apt/archives/*.deb && \
               rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* && \
               find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' -exec rm -rf {} + 2>/dev/null || true
@@ -195,17 +201,6 @@ jobs:
           ENV MEMGRAPH_HOST=0.0.0.0
           ENV MEMGRAPH_PORT=6789
           ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
-          ENV HOME=/data
-
-          # Create data directory
-          RUN mkdir -p /data/.zabob/memgraph/data
-          EOF
-
-      - name: Build and push base-playwright
-        uses: docker/build-push-action@v6.18.0
-        with:
-          context: .
-          file: Dockerfile.base-playwright
           platforms: linux/amd64
           push: true
           tags: |

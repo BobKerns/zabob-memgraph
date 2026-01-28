@@ -115,6 +115,7 @@ jobs:
 
       # Build test image first (validates code)
       # Uses pre-built base-test image with Playwright and dev dependencies already installed
+      # No caching needed - just adds source code to pre-built base (~2-3 min)
       - name: Build test image
         id: build-test
         if: matrix.run-tests
@@ -129,8 +130,6 @@ jobs:
             BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
             BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
             BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       # Run tests only on amd64
       - name: Run all quality checks and tests

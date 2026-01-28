@@ -1,7 +1,7 @@
 # Simplified runtime Dockerfile - uses pre-built base-deps image
-ARG BASE_IMAGE_REGISTRY
-ARG BASE_IMAGE_NAME
-ARG BASE_IMAGE_VERSION
+ARG BASE_IMAGE_REGISTRY=ghcr.io
+ARG BASE_IMAGE_NAME=bobkerns/zabob-memgraph
+ARG BASE_IMAGE_VERSION=v1
 
 FROM ${BASE_IMAGE_REGISTRY}/${BASE_IMAGE_NAME}/base-deps:${BASE_IMAGE_VERSION}
 
