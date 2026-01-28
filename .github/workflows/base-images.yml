@@ -151,22 +151,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Free up disk space
-        run: |
-          echo "Initial disk space:"
-          df -h
-          # Remove large packages we don't need
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          echo "Disk space after package removal:"
-          df -h
-          # Clean up Docker images
-          sudo docker image prune --all --force
-          echo "Disk space after Docker image prune:"
-          df -h
-
       - name: Extract image name
         id: image
         run: |
@@ -221,18 +205,18 @@ jobs:
           EOF
 
 
-      - name: Build and push base-test
+      - name: Build and push base-playwright
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          file: Dockerfile.base-test
+          file: Dockerfile.base-playwright
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:${{ inputs.version }}
-            ${{ inputs.push_latest && format('{0}/{1}/base-test:latest', env.REGISTRY_GHCR, steps.image.outputs.name) || '' }}
-          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:cache
-          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:cache,mode=max
+            ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}
+            ${{ inputs.push_latest && format('{0}/{1}/base-playwright:latest', env.REGISTRY_GHCR, steps.image.outputs.name) || '' }}
+          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache
+          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache,mode=max
 
   build-base-test:
     name: Build base-test (amd64)
@@ -260,22 +244,6 @@ jobs:
         run: |
           image_name=${{ env.IMAGE_NAME }}
           echo "name=${image_name,,}" >> $GITHUB_OUTPUT
-
-      - name: Free up disk space
-        run: |
-          echo "Initial disk space:"
-          df -h
-          # Remove large packages we don't need
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          echo "Disk space after package removal:"
-          df -h
-          # Clean up Docker images
-          sudo docker image prune --all --force
-          echo "Disk space after Docker image prune:"
-          df -h
 
       - name: Wait for base-playwright image to be available
         run: |
