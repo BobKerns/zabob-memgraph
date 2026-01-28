@@ -137,6 +137,8 @@ jobs:
           uname -a
           echo "=== Disk Space ==="
           df -h
+          echo "=== Local Disk Usage ==="
+          du -sh $(find . -type d -maxdepth 1 -print)
           echo "=== Memory ==="
           free -h || vm_stat || echo "Memory info not available"
           echo "=== Docker Info ==="
@@ -151,6 +153,11 @@ jobs:
           free -h
           echo "=== Docker Info ==="
           docker info
+
+      - name: Prune unneeded Docker images
+        run: |
+          docker image prune -af || echo "Docker image prune failed, continuing anyway"
+          docker image ls
 
       - name: Build and push by digest
         id: build
