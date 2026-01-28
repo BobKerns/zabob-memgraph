@@ -205,6 +205,8 @@ jobs:
 
       - name: Determine test tag
         id: test-tag
+        env:
+          DOCKER_METADATA_OUTPUT_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           # Extract first tag from multi-line output
           FIRST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
