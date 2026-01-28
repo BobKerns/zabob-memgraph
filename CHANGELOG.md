@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.23]
 
 ### Infrastructure
 
@@ -364,6 +364,5 @@ Rebuild
 - Multi-line Docker metadata handling in workflows
 - PyPI trusted publishing compatibility with GitHub Actions
 
-[Unreleased]: https://github.com/BobKerns/zabob-memgraph/compare/v0.1.8...HEAD
 [0.1.8]: https://github.com/BobKerns/zabob-memgraph/compare/v0.1.0...v0.1.8
 [0.1.0]: https://github.com/BobKerns/zabob-memgraph/releases/tag/v0.1.0
