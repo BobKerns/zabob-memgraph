@@ -14,7 +14,6 @@ are already baked into base images.
 
 import subprocess
 import sys
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -51,7 +50,7 @@ def cli():
 )
 @click.option(
     "--base-version",
-    default="v1",
+    default="v2",
     help="Base image version to use",
     show_default=True,
 )
@@ -121,7 +120,7 @@ def test(
 )
 @click.option(
     "--base-version",
-    default="v1",
+    default="v2",
     help="Base image version to use",
     show_default=True,
 )
@@ -202,7 +201,7 @@ def runtime(
 )
 @click.option(
     "--version",
-    default="v1",
+    default="v2",
     help="Version tag for base images",
     show_default=True,
 )
@@ -252,98 +251,57 @@ def base(
         click.echo("⚠ Skipping base-playwright and base-test (amd64 only)", err=True)
         return
 
-    # Build base-playwright
+    # Build base-playwright using Dockerfile.base-playwright
     click.echo("\n📦 Building base-playwright...", err=True)
     base_playwright_tag = f"{registry}/{image_name}/base-playwright:{version}"
 
-    # Create temporary Dockerfile
-    dockerfile_content = f"""FROM {base_deps_tag}
+    build_args = [
+        f"BASE_IMAGE_REGISTRY={registry}",
+        f"BASE_IMAGE_NAME={image_name}",
+        f"BASE_IMAGE_VERSION={version}",
+    ]
 
-WORKDIR /app
+    cmd = [
+        "docker", "build",
+        "-f", "Dockerfile.base-playwright",
+        "--platform", platform,
+        "-t", base_playwright_tag,
+    ]
 
-COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
+    for arg in build_args:
+        cmd.extend(["--build-arg", arg])
 
-ENV PIP_INDEX_URL=https://download.pytorch.org/whl/cpu
-ENV PIP_EXTRA_INDEX_URL=https://pypi.org/simple
-RUN uv sync --frozen --no-editable
-ENV PIP_INDEX_URL=
-ENV PIP_EXTRA_INDEX_URL=
+    cmd.append(".")
 
-RUN pnpm install
+    run_command(cmd)
+    click.echo(f"✓ Built {base_playwright_tag}", err=True)
 
-RUN uv pip install playwright && \\
-    uv run playwright install chromium && \\
-    apt-get clean && \\
-    rm -rf /var/lib/apt/lists/* /tmp/* && \\
-    find /data/.cache/ms-playwright -name '*.zip' -delete 2>/dev/null || true && \\
-    rm -rf /data/.cache/ms-playwright/firefox* /data/.cache/ms-playwright/webkit* 2>/dev/null || true && \\
-    rm -rf /var/cache/apt/archives/*.deb && \\
-    rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* && \\
-    find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' -exec rm -rf {{}} + 2>/dev/null || true
+    if push:
+        run_command(["docker", "push", base_playwright_tag])
+        click.echo(f"✓ Pushed {base_playwright_tag}", err=True)
 
-ENV PATH=/app/.venv/bin:$PATH
-ENV VIRTUAL_ENV=/app/.venv
-ENV DOCKER_CONTAINER=1
-ENV MEMGRAPH_HOST=0.0.0.0
-ENV MEMGRAPH_PORT=6789
-ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
-ENV HOME=/data
-
-RUN mkdir -p /data/.zabob/memgraph/data
-"""
-
-    dockerfile_path = Path("Dockerfile.base-playwright.tmp")
-    dockerfile_path.write_text(dockerfile_content)
-
-    try:
-        cmd = [
-            "docker", "build",
-            "-f", str(dockerfile_path),
-            "--platform", platform,
-            "-t", base_playwright_tag,
-            ".",
-        ]
-        run_command(cmd)
-        click.echo(f"✓ Built {base_playwright_tag}", err=True)
-
-        if push:
-            run_command(["docker", "push", base_playwright_tag])
-            click.echo(f"✓ Pushed {base_playwright_tag}", err=True)
-    finally:
-        dockerfile_path.unlink(missing_ok=True)
-
-    # Build base-test
+    # Build base-test using Dockerfile.base-test
     click.echo("\n📦 Building base-test...", err=True)
     base_test_tag = f"{registry}/{image_name}/base-test:{version}"
 
-    dockerfile_content = f"""FROM {base_playwright_tag}
+    cmd = [
+        "docker", "build",
+        "-f", "Dockerfile.base-test",
+        "--platform", platform,
+        "-t", base_test_tag,
+    ]
 
-WORKDIR /app
+    for arg in build_args:
+        cmd.extend(["--build-arg", arg])
 
-RUN uv sync --extra dev
+    cmd.append(".")
 
-ENV PYTHONPATH=/app
-"""
+    run_command(cmd)
+    click.echo(f"✓ Built {base_test_tag}", err=True)
 
-    dockerfile_path = Path("Dockerfile.base-test.tmp")
-    dockerfile_path.write_text(dockerfile_content)
-
-    try:
-        cmd = [
-            "docker", "build",
-            "-f", str(dockerfile_path),
-            "--platform", platform,
-            "-t", base_test_tag,
-            ".",
-        ]
-        run_command(cmd)
-        click.echo(f"✓ Built {base_test_tag}", err=True)
-
-        if push:
-            run_command(["docker", "push", base_test_tag])
-            click.echo(f"✓ Pushed {base_test_tag}", err=True)
-    finally:
-        dockerfile_path.unlink(missing_ok=True)
+    if push:
+        run_command(["docker", "push", base_test_tag])
+        click.echo(f"✓ Pushed {base_test_tag}", err=True)
 
     click.echo("\n✅ All base images built successfully!", err=True)
 
