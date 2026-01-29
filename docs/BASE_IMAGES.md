@@ -105,7 +105,7 @@ After rebuilding base images with a new version:
 
    ```yaml
    env:
-     BASE_IMAGE_VERSION: v2  # Increment this
+     BASE_IMAGE_VERSION: v3  # Increment this
    ```
 
 3. Commit and push
