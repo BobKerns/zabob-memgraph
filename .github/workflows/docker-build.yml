@@ -17,7 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image-name: ${{ steps.set-image-name.outputs.image-name }}
+      tree-sha: ${{ steps.get-tree-sha.outputs.tree-sha }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.1
+
+      - name: Get tree SHA
+        id: get-tree-sha
+        run: |
+          TREE_SHA=$(git rev-parse HEAD^{tree})
+          echo "tree-sha=$TREE_SHA" >> $GITHUB_OUTPUT
+          echo "Tree SHA: $TREE_SHA"
+
       - name: Set downcased image name
         id: set-image-name
         run: |
@@ -181,13 +192,9 @@ jobs:
             BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
             BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
             BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
-          # Simplified caching - only need runtime-specific layers
-          cache-from: |
-            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:runtime-cache-${{ steps.set-platform-pair.outputs.platform-pair }}
-            type=gha
-          cache-to: |
-            type=registry,ref=ghcr.io/${{ needs.setup.outputs.image-name }}:runtime-cache-${{ steps.set-platform-pair.outputs.platform-pair }},mode=max
-            type=gha,mode=max
+          # Tag with tree SHA for stable reference across commits
+          tags: |
+            ghcr.io/${{ needs.setup.outputs.image-name }}:tree-${{ needs.setup.outputs.tree-sha }}-${{ steps.set-platform-pair.outputs.platform-pair }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true
           provenance: false
