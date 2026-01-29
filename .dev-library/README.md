@@ -18,15 +18,15 @@ Use git subtree to integrate into projects:
 ```bash
 # Add to your project (one-time)
 git subtree add --prefix=.dev-library \
-  https://github.com/BobKerns/zabob-dev-library.git main --squash
+  git@github.com:BobKerns/zabob-dev-library.git main --squash
 
 # Pull updates
 git subtree pull --prefix=.dev-library \
-  https://github.com/BobKerns/zabob-dev-library.git main --squash
+  git@github.com:BobKerns/zabob-dev-library.git main --squash
 
 # Push improvements back
 git subtree push --prefix=.dev-library \
-  https://github.com/BobKerns/zabob-dev-library.git main
+  git@github.com:BobKerns/zabob-dev-library.git main
 ```
 
 ## Repository Structure
