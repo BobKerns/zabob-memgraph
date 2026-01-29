@@ -35,6 +35,13 @@
 		],
 		"cSpell.dictionaryDefinitions": [
 			{
+				"name": "zabob-library",
+				"path": ".dev-library/.zabob.dic",
+				"scope": "workspace",
+				"description": "Zabob Library custom dictionary",
+				"addWords": true
+			},
+			{
 				"name": "memgraph",
 				"path": "./.memgraph.dic",
 				"scope": "workspace",
@@ -50,6 +57,7 @@
             }
 		],
         "cSpell.dictionaries": [
+            "zabob-library",
             "memgraph",
             "net-history"
         ],
@@ -81,7 +89,8 @@
             "TODO.md": "SCHEMA_MIGRATION_STATUS.md,NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json",
             "LICENSE.md": "LICENSE",
             "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,.memgraph.dic,.flake8,playwright.config.py",
-            "install.sh": "install-uv.sh"
+            "install.sh": "install-uv.sh",
+            ".gitignore": ".gitattributes,.mailmap",
         },
         "explorer.enableUndo": false,
         "chat.useAgentSkills": true,

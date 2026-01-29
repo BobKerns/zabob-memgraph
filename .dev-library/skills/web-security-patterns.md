@@ -117,12 +117,12 @@ function displayResult(name) {
 function createResultElement(entity) {
     const escaped = escapeHtml(entity.name);
     const escapedType = escapeHtml(entity.type);
-    
+
     // Use URL encoding for collision-free IDs
     const safeId = encodeURIComponent(entity.name);
-    
+
     return `
-        <div class="result" 
+        <div class="result"
              data-entity-name="${escaped}"
              data-entity-type="${escapedType}"
              id="${safeId}">
@@ -174,20 +174,20 @@ app = FastAPI()
 async def add_security_headers(request, call_next):
     """Add security headers to all responses"""
     response = await call_next(request)
-    
+
     # Prevent XSS and other injection attacks
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline';"
     )
-    
+
     # Prevent clickjacking
     response.headers["X-Frame-Options"] = "DENY"
-    
+
     # Prevent MIME sniffing
     response.headers["X-Content-Type-Options"] = "nosniff"
-    
+
     return response
 ```
 
@@ -224,9 +224,9 @@ function showSearchResults(query, results) {
         const escapedName = escapeHtml(entity.name);
         const escapedType = escapeHtml(entity.type);
         const safeId = encodeURIComponent(entity.name);
-        
+
         return `
-            <div class="result" 
+            <div class="result"
                  id="${safeId}"
                  data-entity-name="${escapedName}"
                  data-entity-type="${escapedType}">
@@ -236,7 +236,7 @@ function showSearchResults(query, results) {
             </div>
         `;
     }).join('');
-    
+
     // Attach event listeners safely using delegation
     container.querySelectorAll('.toggle').forEach(toggle => {
         toggle.addEventListener('click', (e) => {
@@ -259,7 +259,7 @@ from pydantic import BaseModel, Field, validator
 class EntityCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     entity_type: str = Field(..., regex=r'^[a-z_]+$')
-    
+
     @validator('entity_type')
     def validate_type(cls, v):
         """Only allow specific entity types"""
@@ -279,11 +279,11 @@ def safe_file_path(user_input: str, base_dir: Path) -> Path:
     """Prevent directory traversal attacks"""
     # Resolve to absolute path
     requested = (base_dir / user_input).resolve()
-    
+
     # Ensure it's within base_dir
     if not requested.is_relative_to(base_dir):
         raise ValueError("Invalid path")
-    
+
     return requested
 
 # Example
@@ -307,23 +307,23 @@ def rate_limit(max_requests: int, window_seconds: int):
         async def wrapper(request: Request, *args, **kwargs):
             client_ip = request.client.host
             now = time.time()
-            
+
             # Clean old requests
             request_counts[client_ip] = [
                 req_time for req_time in request_counts[client_ip]
                 if now - req_time < window_seconds
             ]
-            
+
             # Check limit
             if len(request_counts[client_ip]) >= max_requests:
                 raise HTTPException(
                     status_code=429,
                     detail="Too many requests"
                 )
-            
+
             # Record this request
             request_counts[client_ip].append(now)
-            
+
             return await func(request, *args, **kwargs)
         return wrapper
     return decorator
@@ -341,6 +341,7 @@ async def search(request: Request):
 ### innerHTML with User Data
 
 ❌ **Wrong:**
+
 ```javascript
 // XSS vulnerable
 element.innerHTML = userInput;
@@ -348,6 +349,7 @@ element.innerHTML = `<div>${userInput}</div>`;
 ```
 
 ✅ **Correct:**
+
 ```javascript
 // Safe: Escape first
 element.innerHTML = escapeHtml(userInput);
@@ -359,6 +361,7 @@ element.textContent = userInput;  // Automatically safe
 ### String Concatenation in SQL
 
 ❌ **Wrong:**
+
 ```python
 # SQL injection vulnerable
 query = f"SELECT * FROM users WHERE name = '{name}'"
@@ -366,6 +369,7 @@ cursor.execute(query)
 ```
 
 ✅ **Correct:**
+
 ```python
 # Safe: Parameterized query
 query = "SELECT * FROM users WHERE name = ?"
@@ -375,12 +379,14 @@ cursor.execute(query, (name,))
 ### onclick in HTML Strings
 
 ❌ **Wrong:**
+
 ```javascript
 // Attribute injection vulnerable
 html = `<button onclick="action('${id}')">Click</button>`;
 ```
 
 ✅ **Correct:**
+
 ```javascript
 // Safe: Use event listeners
 html = `<button class="action-btn" data-id="${escapeHtml(id)}">Click</button>`;
@@ -397,6 +403,7 @@ document.querySelectorAll('.action-btn').forEach(btn => {
 ### Trusting Client-Side Validation
 
 ❌ **Wrong:**
+
 ```javascript
 // Client-side only - easily bypassed
 if (input.length < 100) {
@@ -405,6 +412,7 @@ if (input.length < 100) {
 ```
 
 ✅ **Correct:**
+
 ```python
 # Server-side validation (client-side is UX enhancement)
 class FormData(BaseModel):
@@ -432,6 +440,7 @@ async def submit(data: FormData):
 ## Quick Reference
 
 **HTML escaping:**
+
 ```javascript
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -441,17 +450,20 @@ function escapeHtml(text) {
 ```
 
 **SQL parameterization:**
+
 ```python
 cursor.execute("SELECT * FROM table WHERE col = ?", (value,))
 ```
 
 **Data attributes:**
+
 ```javascript
 element.dataset.entityName = userInput;  // Safe
 const name = element.dataset.entityName;  // Safe
 ```
 
 **Event delegation:**
+
 ```javascript
 container.addEventListener('click', (e) => {
     if (e.target.matches('.button')) {
@@ -462,6 +474,7 @@ container.addEventListener('click', (e) => {
 ```
 
 **Security headers:**
+
 ```python
 response.headers["Content-Security-Policy"] = "default-src 'self'"
 response.headers["X-Frame-Options"] = "DENY"

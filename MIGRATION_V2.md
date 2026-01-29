@@ -1,4 +1,4 @@
-![Zabob Memory Holodeck](docs/images/zabob-banner.jpg)
+![Zabob Memory Holodeck](docs/images/zabob-banner-memory.jpg)
 
 # Database Migration: v1 → v2
 

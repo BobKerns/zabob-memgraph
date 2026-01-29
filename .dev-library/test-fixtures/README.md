@@ -1,3 +1,5 @@
+![Zabob Banner](../docs-assets/images/zabob-banner-library.jpg)
+
 # Test Fixtures
 
 Reusable test fixtures and utilities for Zabob projects.
@@ -8,7 +10,7 @@ This directory contains common testing patterns and fixtures that can be importe
 
 ## Structure
 
-```
+```text
 test-fixtures/
 ├── pytest/
 │   ├── async_fixtures.py       # Async test utilities
@@ -106,7 +108,7 @@ from .dev_library.test_fixtures.pytest.database_fixtures import temp_sqlite_db
 def app_with_db(temp_sqlite_db):
     """Application instance with test database"""
     from myapp import create_app
-    
+
     app = create_app(database=temp_sqlite_db)
     yield app
     app.cleanup()
@@ -115,6 +117,7 @@ def app_with_db(temp_sqlite_db):
 ## Contributing
 
 When adding fixtures to this library:
+
 1. Make them generic and reusable
 2. Document scope and cleanup behavior
 3. Include usage examples

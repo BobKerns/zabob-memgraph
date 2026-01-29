@@ -1,5 +1,5 @@
-![Zabob Memory Holodeck](images/zabob-banner.jpg)
-
+![Zabob Banner](../.dev-library/docs-assets/images/zabob-banner-memgraph.jpg)
+<!-- markdownlint-disable-file MD036 -->
 # Index Optimization Analysis
 
 ## Query Pattern Analysis

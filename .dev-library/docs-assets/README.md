@@ -1,14 +1,18 @@
+![Zabob Banner](images/zabob-banner-library.jpg)
+<!-- markdownlint-disable-file MD036 -->
 # Documentation Assets
 
 Shared documentation templates, images, and branding for Zabob projects.
 
 ## Structure
 
-```
+```text
 docs-assets/
 ├── templates/          # Reusable documentation templates
 ├── diagrams/           # Architecture and flow diagrams
-└── branding/           # Logos, icons, and brand assets
+└─+ images/             # Logos, icons, and brand images
+  └── psd/              # photoshop files for brand image assets
+
 ```
 
 ## Templates
@@ -36,7 +40,7 @@ cp .dev-library/docs-assets/templates/README-mcp-server.md README.md
 
 ### Templates Include Placeholders
 
-```markdown
+````markdown
 # [PROJECT_NAME]
 
 [PROJECT_DESCRIPTION]
@@ -48,10 +52,11 @@ cp .dev-library/docs-assets/templates/README-mcp-server.md README.md
 
 ## Installation
 
-\`\`\`bash
+&#0096;
+```bash
 [INSTALLATION_COMMANDS]
-\`\`\`
 ```
+````
 
 ### Branding Assets
 
@@ -65,6 +70,7 @@ Consistent branding across projects:
 ## Contributing
 
 When adding assets:
+
 1. Use generic/reusable content
 2. Include clear placeholders for project-specific content
 3. Document usage examples

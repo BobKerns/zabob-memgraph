@@ -41,6 +41,7 @@ def sync_route():
 ```
 
 **Rule of thumb:**
+
 - Use `async def` if you call any `await` operations
 - Use regular `def` for pure computation
 - Don't mix: async functions must `await` all async calls
@@ -58,13 +59,13 @@ class ThreadSafeDatabase:
         self.db_path = db_path
         # Enable WAL mode for concurrent reads
         self._init_wal_mode()
-    
+
     def _init_wal_mode(self):
         """Enable Write-Ahead Logging for thread safety"""
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.close()
-    
+
     @contextmanager
     def get_connection(self):
         """Get connection with automatic retry on locked database"""
@@ -117,10 +118,10 @@ async def get_entity(
             "SELECT * FROM entities WHERE id = ?",
             (entity_id,)
         ).fetchone()
-    
+
     if not entity:
         raise HTTPException(status_code=404, detail="Not found")
-    
+
     return {"entity": entity}
 ```
 
@@ -143,14 +144,14 @@ async def create_entity(
                 (entity.name, entity.type)
             )
         return {"status": "created"}
-    
+
     except sqlite3.IntegrityError:
         # Duplicate entity
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Entity '{entity.name}' already exists"
         )
-    
+
     except Exception as e:
         # Log error for debugging
         logger.error(f"Failed to create entity: {e}")
@@ -213,15 +214,15 @@ from fastapi import Request
 async def log_requests(request: Request, call_next):
     """Log all requests with timing"""
     start_time = time.time()
-    
+
     response = await call_next(request)
-    
+
     duration = time.time() - start_time
     logger.info(
         f"{request.method} {request.url.path} "
         f"completed in {duration:.3f}s with status {response.status_code}"
     )
-    
+
     return response
 ```
 
@@ -319,7 +320,7 @@ async def test_create_entity():
             "/entities",
             json={"name": "test", "entity_type": "test"}
         )
-    
+
     assert response.status_code == 200
     assert response.json()["name"] == "test"
 
@@ -328,7 +329,7 @@ async def test_get_entity_not_found():
     """Test error handling"""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/entities/nonexistent")
-    
+
     assert response.status_code == 404
 ```
 
@@ -337,6 +338,7 @@ async def test_get_entity_not_found():
 ### Blocking the Event Loop
 
 ❌ **Wrong:**
+
 ```python
 @app.get("/data")
 async def get_data():
@@ -346,6 +348,7 @@ async def get_data():
 ```
 
 ✅ **Correct:**
+
 ```python
 @app.get("/data")
 async def get_data():
@@ -357,12 +360,14 @@ async def get_data():
 ### Not Handling Database Locks
 
 ❌ **Wrong:**
+
 ```python
 # Default 5s timeout too short
 conn = sqlite3.connect("data.db")
 ```
 
 ✅ **Correct:**
+
 ```python
 # Longer timeout + WAL mode
 conn = sqlite3.connect("data.db", timeout=30.0)
@@ -372,6 +377,7 @@ conn.execute("PRAGMA journal_mode=WAL")
 ### Missing Error Handling
 
 ❌ **Wrong:**
+
 ```python
 @app.post("/data")
 async def create_data(item: Item):
@@ -381,6 +387,7 @@ async def create_data(item: Item):
 ```
 
 ✅ **Correct:**
+
 ```python
 @app.post("/data")
 async def create_data(item: Item):
@@ -397,6 +404,7 @@ async def create_data(item: Item):
 ### Incorrect Async/Await Usage
 
 ❌ **Wrong:**
+
 ```python
 async def get_data():
     # Forgot to await!
@@ -405,6 +413,7 @@ async def get_data():
 ```
 
 ✅ **Correct:**
+
 ```python
 async def get_data():
     result = await fetch_from_db()  # Actually waits for data
@@ -414,6 +423,7 @@ async def get_data():
 ## Quick Reference
 
 **Basic FastAPI app:**
+
 ```python
 from fastapi import FastAPI
 
@@ -425,6 +435,7 @@ async def root():
 ```
 
 **With dependency injection:**
+
 ```python
 from fastapi import Depends
 
@@ -437,6 +448,7 @@ async def get_data(db: Database = Depends(get_db)):
 ```
 
 **Error handling:**
+
 ```python
 from fastapi import HTTPException
 
@@ -444,6 +456,7 @@ raise HTTPException(status_code=404, detail="Not found")
 ```
 
 **Request validation:**
+
 ```python
 from pydantic import BaseModel
 
@@ -457,6 +470,7 @@ async def create_item(item: Item):
 ```
 
 **Testing:**
+
 ```python
 from httpx import AsyncClient
 

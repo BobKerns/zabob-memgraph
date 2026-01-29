@@ -33,6 +33,7 @@ pytest tests/test_file.py
 ### 2. Identify Error Type
 
 Common error categories:
+
 - **SQL errors**: Check syntax, especially with virtual tables (FTS5)
 - **Assertion failures**: Logic errors, incorrect expectations
 - **Async errors**: Event loop issues, timing problems
@@ -64,6 +65,7 @@ except sqlite3.Error as e:
 ```
 
 Benefits:
+
 - Faster iteration (no full test suite)
 - Clearer error messages
 - Easier to share and discuss
@@ -103,12 +105,14 @@ pytest -v
 **Context**: Query optimization failing with "no such column: fts"
 
 **Wrong Approach** (assumptions):
-```
+
+```text
 Exit code 130 → Must be terminal interruption
 Skip investigating actual error messages
 ```
 
 **Correct Approach** (evidence-based):
+
 ```bash
 # 1. Run with verbose output
 pytest tests/test_search_nodes.py -v --tb=short
@@ -141,11 +145,13 @@ Result: Issue resolved in 30 minutes instead of hours of trial-and-error.
 ### Assuming Without Evidence
 
 ❌ **Don't:**
+
 - Guess at error causes without reading output
 - Blame tools or environment prematurely
 - Try random fixes hoping something works
 
 ✅ **Do:**
+
 - Read actual error messages carefully
 - Search documentation for specific errors
 - Create minimal test cases to isolate issues
@@ -153,11 +159,13 @@ Result: Issue resolved in 30 minutes instead of hours of trial-and-error.
 ### Skipping Verbose Output
 
 ❌ **Don't:**
+
 ```bash
 pytest  # No visibility into failures
 ```
 
 ✅ **Do:**
+
 ```bash
 pytest -v --tb=short  # See what actually failed
 pytest -v --tb=long   # Need more context
@@ -167,6 +175,7 @@ pytest -vvv           # Maximum verbosity
 ### Fixing Symptoms Instead of Causes
 
 ❌ **Don't:**
+
 ```python
 # Silence errors
 try:
@@ -176,6 +185,7 @@ except:
 ```
 
 ✅ **Do:**
+
 ```python
 # Fix underlying issue
 result = corrected_code()  # Root cause addressed
@@ -184,6 +194,7 @@ result = corrected_code()  # Root cause addressed
 ## Quick Reference
 
 **Debugging Workflow:**
+
 1. ✅ Run with verbose output (`-v --tb=short`)
 2. ✅ Read actual error message
 3. ✅ Identify error type (SQL, assertion, async, etc.)
@@ -193,6 +204,7 @@ result = corrected_code()  # Root cause addressed
 7. ✅ Verify with test suite
 
 **Test Commands:**
+
 ```bash
 # Specific test with verbose output
 pytest tests/test_file.py::test_name -v --tb=short
@@ -208,6 +220,7 @@ pytest -vvv --tb=long
 ```
 
 **When Stuck:**
+
 1. Is verbose output enabled? (`-v`)
 2. What's the actual error message? (not just exit code)
 3. Can you reproduce in isolation? (minimal test case)
@@ -219,6 +232,7 @@ pytest -vvv --tb=long
 Projects should document their specific testing patterns in copilot-instructions.md while referencing this skill for general debugging methodology.
 
 Example from zabob-memgraph:
+
 - Test architecture: Isolated servers with temp databases
 - Common issues: FTS5 quirks, async event loops, CSS selectors
 - Project-specific commands: `zabob-memgraph test`, `pytest -v`

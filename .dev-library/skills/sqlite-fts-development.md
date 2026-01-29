@@ -33,6 +33,7 @@ VALUES (1, 'Search this text', 'My Document');
 ```
 
 **Key points:**
+
 - `rowid` is the primary key (always present)
 - Indexed columns are for search only
 - Use joins to get full data from main tables
@@ -50,6 +51,7 @@ ORDER BY rank;
 ```
 
 **Critical limitations:**
+
 1. **Must use table name, not alias**: `bm25(documents_fts)` not `bm25(fts)`
 2. **Cannot be used in LEFT JOIN**: Fails with "no such column" error
 3. **Requires MATCH clause**: Won't work without WHERE...MATCH
@@ -83,6 +85,7 @@ ORDER BY e.name;
 ### Pattern 3: Marking Matches Without LEFT JOIN
 
 **Wrong approach** (fails with FTS5):
+
 ```sql
 -- This FAILS: bm25() incompatible with LEFT JOIN
 SELECT o.content,
@@ -93,6 +96,7 @@ WHERE o.entity_id = ?;
 ```
 
 **Correct approach** (use subquery):
+
 ```sql
 -- This works: Use subquery to mark matches
 SELECT o.content,
@@ -129,6 +133,7 @@ ORDER BY rank;
 **Problem**: Query observations, showing matches first but including all.
 
 **Failed Attempt 1**: LEFT JOIN with bm25()
+
 ```sql
 -- ERROR: no such column: fts
 SELECT o.content, bm25(fts) as score
@@ -138,6 +143,7 @@ WHERE o.entity_id = ?;
 ```
 
 **Failed Attempt 2**: LEFT JOIN with table name
+
 ```sql
 -- ERROR: no such column: observations_fts
 -- (bm25 doesn't work in LEFT JOIN context at all)
@@ -148,6 +154,7 @@ WHERE o.entity_id = ?;
 ```
 
 **Working Solution**: Subquery approach
+
 ```sql
 -- Success: Mark matches inline
 SELECT o.content,
@@ -162,6 +169,7 @@ ORDER BY is_match DESC, o.created_at ASC;
 ```
 
 **Benefits:**
+
 - Single query instead of two separate queries
 - All observations returned, matches prioritized
 - No FTS5 limitations violated
@@ -171,6 +179,7 @@ ORDER BY is_match DESC, o.created_at ASC;
 ### 1. Table Name vs Alias in bm25()
 
 ❌ **Wrong:**
+
 ```sql
 SELECT bm25(fts)  -- Alias doesn't work
 FROM documents_fts fts
@@ -178,6 +187,7 @@ WHERE documents_fts MATCH 'search';
 ```
 
 ✅ **Correct:**
+
 ```sql
 SELECT bm25(documents_fts)  -- Use full table name
 FROM documents_fts fts
@@ -187,6 +197,7 @@ WHERE documents_fts MATCH 'search';
 ### 2. bm25() Requires MATCH
 
 ❌ **Wrong:**
+
 ```sql
 -- This fails: bm25() needs MATCH clause
 SELECT *, bm25(documents_fts)
@@ -195,6 +206,7 @@ WHERE rowid = 1;
 ```
 
 ✅ **Correct:**
+
 ```sql
 -- Use MATCH for relevance scoring
 SELECT *, bm25(documents_fts)
@@ -205,6 +217,7 @@ WHERE documents_fts MATCH 'search terms';
 ### 3. LEFT JOIN Incompatibility
 
 ❌ **Wrong:**
+
 ```sql
 -- bm25() doesn't work in LEFT JOIN
 SELECT o.*, bm25(obs_fts)
@@ -213,6 +226,7 @@ LEFT JOIN observations_fts obs_fts ON o.id = obs_fts.rowid;
 ```
 
 ✅ **Correct:**
+
 ```sql
 -- Use INNER JOIN for matches, or subquery for marking
 SELECT o.*
@@ -258,12 +272,12 @@ import sqlite3
 
 def test_fts_search():
     conn = sqlite3.connect(':memory:')
-    
+
     # Setup
     conn.execute('CREATE VIRTUAL TABLE test_fts USING fts5(content)')
     conn.execute('INSERT INTO test_fts VALUES (?)', ('searchable text',))
     conn.execute('INSERT INTO test_fts VALUES (?)', ('other content',))
-    
+
     # Test query
     results = conn.execute('''
         SELECT rowid, content, bm25(test_fts) as rank
@@ -271,7 +285,7 @@ def test_fts_search():
         WHERE test_fts MATCH 'searchable'
         ORDER BY rank
     ''').fetchall()
-    
+
     assert len(results) == 1
     assert 'searchable' in results[0][1]
     conn.close()
@@ -280,15 +294,17 @@ def test_fts_search():
 ## Performance Tips
 
 1. **Use FTS for text search, indexes for exact matches**
+
    ```sql
    -- Fast: Exact match with index
    SELECT * FROM entities WHERE name = 'exact name';
-   
+
    -- Fast: Full-text search
    SELECT * FROM entities_fts WHERE entities_fts MATCH 'partial text';
    ```
 
 2. **Limit FTS scans with additional WHERE clauses**
+
    ```sql
    -- Faster: Narrow scope before FTS
    SELECT e.*
@@ -299,10 +315,11 @@ def test_fts_search():
    ```
 
 3. **Use prefix search sparingly**
+
    ```sql
    -- Slower: Prefix wildcard
    WHERE documents_fts MATCH 'term*'
-   
+
    -- Faster: Exact term
    WHERE documents_fts MATCH 'term'
    ```
@@ -310,6 +327,7 @@ def test_fts_search():
 ## Quick Reference
 
 **Creating FTS5 table:**
+
 ```sql
 CREATE VIRTUAL TABLE name_fts USING fts5(
     column1, column2,
@@ -318,11 +336,13 @@ CREATE VIRTUAL TABLE name_fts USING fts5(
 ```
 
 **Basic search:**
+
 ```sql
 SELECT * FROM table_fts WHERE table_fts MATCH 'search terms';
 ```
 
 **With relevance ranking:**
+
 ```sql
 SELECT *, bm25(table_fts) as rank
 FROM table_fts
@@ -331,6 +351,7 @@ ORDER BY rank;
 ```
 
 **Mark matches in full dataset:**
+
 ```sql
 SELECT *, CASE WHEN id IN (
     SELECT rowid FROM table_fts WHERE table_fts MATCH 'term'

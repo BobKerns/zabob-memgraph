@@ -1,6 +1,9 @@
+
+![Zabob Banner](../docs-assets/images/zabob-banner-library.jpg)
+
 # Configuration Files
 
-Common configuration files for Zabob projects. These provide consistent tooling across the ecosystem.
+Common configuration files for Zabob projects. These will provide consistent tooling across the ecosystem.
 
 ## Available Configs
 
@@ -72,11 +75,13 @@ These configs provide sensible defaults but should be customized per project:
 ## Philosophy
 
 Configuration files here represent:
+
 - **Proven practices** across multiple projects
 - **Reasonable defaults** that work for most cases
 - **Consistency** across the Zabob ecosystem
 
 They should NOT:
+
 - Be overly restrictive
 - Enforce personal preferences
 - Prevent valid patterns

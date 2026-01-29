@@ -1,3 +1,5 @@
+![Zabob Banner](docs-assets/images/zabob-banner-library.jpg)
+
 # Zabob Development Library
 
 Shared development resources for the Zabob AI assistant ecosystem. This library provides standardized skills, test fixtures, configurations, and documentation assets for use across all Zabob projects.
@@ -29,7 +31,7 @@ git subtree push --prefix=.dev-library \
 
 ## Repository Structure
 
-```
+```text
 zabob-dev-library/
 ├── skills/              # Agent skill definitions
 ├── test-fixtures/       # Reusable test utilities
@@ -67,6 +69,7 @@ See `.dev-library/skills/` for detailed skill definitions:
 ## Contributing
 
 Skills and fixtures should be:
+
 1. **Generic**: Applicable across multiple projects
 2. **Concrete**: Include real examples and code
 3. **Tested**: Based on actual project experience

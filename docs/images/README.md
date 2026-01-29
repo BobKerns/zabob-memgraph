@@ -1,21 +1,25 @@
-![zabob-banner,  AI Memory](zabob-banner.jpg)
+![zabob-banner,  AI Memory](zabob-banner-memory.jpg)
 
 # Zabob Memgraph Banner Images
 
-This directory contains banner images for the Zabob Memgraph project.
+This directory contains miscellaneous banner images for the Zabob Memgraph project.
+
+Most image assets are in [.dev/library/docs-assets/images](.dev/library/docs-assets/images), to facilitate sharing with other Zabob projects.
 
 ## Required Images
 
 Based on the Zabob project structure, we need:
 
-1. **zabob-holodeck-banner.jpg** - Main banner for README files
-   - Should follow the visual style of `/Users/rwk/p/zabob/docs/images/zabob-banner.jpg`
+1. **zabob-banner-memory.jpg** - Main banner for README files
+
+   - Should follow the visual style of [.dev-library/docs-assets/images/zabob-holodeck.jpg](.dev-library/docs-assets/images/zabob-holodeck.jpg)
    - Incorporate knowledge graph/network visualization themes
    - Include "Zabob Memgraph" branding
    - Recommended size: Similar to zabob-banner.jpg (~600KB)
 
 2. **zabob-banner.jpg** - Compact banner for documentation pages
-   - Should follow the visual style of `/Users/rwk/p/zabob/docs/images/zabob-holodeck-text.jpg`
+
+   - Should follow the visual style of [.dev-library/docs-assets/images/zabob-banner.jpg](.dev-library/docs-assets/images/zabob-banner.jpg)
    - More compact layout suitable for doc pages
    - Include "Zabob Memgraph" text overlay
    - Knowledge graph visualization theme
@@ -55,4 +59,4 @@ The backgrounds in each are variations of the same alien city scene with dramati
 
 ### Zabob Banner with AI Memory
 
-![zabob-banner.jpg](zabob-banner.jpg)
+![zabob-banner.jpg](zabob-banner-memory.jpg)

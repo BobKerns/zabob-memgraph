@@ -57,24 +57,24 @@ def test_server():
     """Start isolated test server on free port"""
     port = find_free_port()
     db_path = tempfile.mktemp(suffix='.db')
-    
+
     # Set environment for test server
     os.environ['MEMGRAPH_PORT'] = str(port)
     os.environ['MEMGRAPH_DATABASE_PATH'] = db_path
     os.environ['MEMGRAPH_LOG_LEVEL'] = 'WARNING'
-    
+
     # Start server in background
     process = subprocess.Popen([
         sys.executable, '-m', 'memgraph',
         '--port', str(port),
         '--database', db_path
     ])
-    
+
     # Wait for server to be ready
     wait_for_server(f'http://localhost:{port}/health')
-    
+
     yield f'http://localhost:{port}'
-    
+
     # Cleanup
     process.terminate()
     process.wait()
@@ -82,6 +82,7 @@ def test_server():
 ```
 
 **Benefits:**
+
 - Tests don't interfere with running servers
 - Can run multiple test sessions simultaneously
 - Clean state for each test run
@@ -158,6 +159,7 @@ async def test_async_operation():
 ```
 
 **Common pitfall:**
+
 ```python
 # Wrong: Missing @pytest.mark.asyncio
 async def test_async_operation():
@@ -207,17 +209,18 @@ from playwright.sync_api import Page, expect
 def test_ui_feature(page: Page, base_url: str):
     """Test UI functionality"""
     page.goto(base_url)
-    
+
     # Interact with page
     page.fill("#search-input", "test query")
     page.click("#search-button")
-    
+
     # Assert results
     expect(page.locator(".search-result")).to_be_visible()
     expect(page.locator(".result-title")).to_contain_text("test query")
 ```
 
 **CSS Selector Tips:**
+
 - Use specific classes: `.search-result` not just `.result`
 - Avoid overly specific selectors that break easily
 - Use data attributes for test hooks: `[data-testid="search-button"]`
@@ -234,14 +237,14 @@ async def test_entity_name_prioritization():
     # Setup: Create test entities
     backend = SqliteBackend(":memory:")
     await backend.initialize()
-    
+
     await backend.create_entity("target-entity", "test")
     await backend.create_entity("other-entity", "test")
     await backend.add_observation("other-entity", "contains target keyword")
-    
+
     # Execute: Search for "target"
     results = await backend.search_nodes("target")
-    
+
     # Verify: Name match comes first
     assert len(results) == 2
     assert results[0]["name"] == "target-entity"  # Name match first
@@ -252,15 +255,15 @@ async def test_observation_sorting_with_many_observations():
     """Matching observations should be sorted before non-matching"""
     backend = SqliteBackend(":memory:")
     await backend.initialize()
-    
+
     await backend.create_entity("entity", "test")
     # Add observations in specific order
     await backend.add_observation("entity", "First without keyword")
     await backend.add_observation("entity", "Second with TARGET")
     await backend.add_observation("entity", "Third without keyword")
-    
+
     results = await backend.search_nodes("TARGET")
-    
+
     # Verify: Matching observation appears first
     assert len(results) == 1
     entity = results[0]
@@ -275,6 +278,7 @@ async def test_observation_sorting_with_many_observations():
 ### Sharing State Between Tests
 
 ❌ **Wrong:**
+
 ```python
 # Global state causes tests to interfere
 shared_db = create_database()
@@ -289,6 +293,7 @@ def test_b():
 ```
 
 ✅ **Correct:**
+
 ```python
 @pytest.fixture
 def isolated_db():
@@ -308,6 +313,7 @@ def test_b(isolated_db):
 ### Not Testing Edge Cases
 
 ❌ **Wrong:**
+
 ```python
 def test_search():
     # Only tests happy path
@@ -316,6 +322,7 @@ def test_search():
 ```
 
 ✅ **Correct:**
+
 ```python
 def test_search_valid_query():
     result = search("valid query")
@@ -337,12 +344,14 @@ def test_search_unicode():
 ### Brittle Selectors in UI Tests
 
 ❌ **Wrong:**
+
 ```python
 # Breaks if styling changes
 page.click("div > div > button:nth-child(3)")
 ```
 
 ✅ **Correct:**
+
 ```python
 # Semantic selector using test IDs
 page.click("[data-testid='search-button']")
@@ -353,7 +362,7 @@ page.click(".search-button")
 
 ## Test Organization
 
-```
+```text
 tests/
 ├── conftest.py              # Shared fixtures
 ├── test_backend.py          # Backend unit tests
@@ -363,6 +372,7 @@ tests/
 ```
 
 **Fixture hierarchy:**
+
 ```python
 # conftest.py - Session-scoped fixtures
 @pytest.fixture(scope="session")
@@ -380,6 +390,7 @@ def clean_database():
 ## Quick Reference
 
 **Run tests:**
+
 ```bash
 pytest tests/test_file.py -v              # Single file
 pytest tests/test_file.py::test_name -v   # Specific test
@@ -389,6 +400,7 @@ pytest -vvv --tb=long                      # Maximum verbosity
 ```
 
 **Async tests:**
+
 ```python
 @pytest.mark.asyncio
 async def test_async_function():
@@ -397,6 +409,7 @@ async def test_async_function():
 ```
 
 **Parametrized tests:**
+
 ```python
 @pytest.mark.parametrize("input,expected", [
     (case1, result1),
@@ -407,6 +420,7 @@ def test_cases(input, expected):
 ```
 
 **Fixtures:**
+
 ```python
 @pytest.fixture
 def resource():
@@ -416,6 +430,7 @@ def resource():
 ```
 
 **UI tests:**
+
 ```python
 def test_ui(page: Page, base_url: str):
     page.goto(base_url)
