@@ -1,4 +1,12 @@
-# Simplified runtime Dockerfile - uses pre-built base-deps image
+# Building and testing these images uses the following Dockerfiles:
+#   - Dockerfile.base-deps (system packages)
+#   - Dockerfile.base-playwright (+ Playwright)
+#   - Dockerfile.base-test (+ dev deps)
+#   - Dockerfile.test (test image using base-test)
+#
+# See docs/BASE_IMAGES.md for the new architecture.
+# This file builds the final zabob-memgraph runtime image.
+
 ARG BASE_IMAGE_REGISTRY=ghcr.io
 ARG BASE_IMAGE_NAME=bobkerns/zabob-memgraph
 ARG BASE_IMAGE_VERSION=v1

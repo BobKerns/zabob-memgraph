@@ -3,7 +3,7 @@
 #   - Dockerfile.base-playwright (+ Playwright)
 #   - Dockerfile.base-test (+ dev deps)
 #   - Dockerfile.test (test image using base-test)
-#   - Dockerfile.runtime (runtime image using base-deps)
+#   - Dockerfile (runtime image using base-deps)
 #
 # See docs/BASE_IMAGES.md for the new architecture.
 # This file is kept for reference only.

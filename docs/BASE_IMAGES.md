@@ -82,7 +82,7 @@ Base images are built from dedicated Dockerfiles:
 Main application Dockerfiles:
 
 - `Dockerfile.test` - Test image using base-test
-- `Dockerfile.runtime` - Final runtime image using base-deps
+- `Dockerfile` - Final runtime image using base-deps
 
 ## When to Rebuild Base Images
 
@@ -116,14 +116,14 @@ All subsequent builds will use the new base images.
 
 ```text
 .github/workflows/
-  base-images.yml           # Manual workflow to build base images
-  docker-build.yml          # PR/release workflow using base images
+  base-images.yml          # Manual workflow to build base images
+  docker-build.yml         # PR/release workflow using base images
 
 Dockerfile.base-deps        # System packages (Python, Node.js, uv, pnpm)
 Dockerfile.base-playwright  # Adds Python/Node deps + Playwright browsers
 Dockerfile.base-test        # Adds dev dependencies (mypy, ruff, pytest)
 Dockerfile.test             # Test image using base-test
-Dockerfile.runtime          # Final runtime image using base-deps
+Dockerfile.                 # Final runtime image using base-deps
 ```
 
 ## Trade-offs

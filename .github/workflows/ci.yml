@@ -53,7 +53,7 @@ jobs:
       uses: docker/build-push-action@v6.18.0
       with:
         context: .
-        file: Dockerfile.runtime
+        file: Dockerfile
         tags: zabob-memgraph:latest
         cache-from: type=gha
         load: true

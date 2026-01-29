@@ -174,7 +174,7 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          file: Dockerfile.runtime
+          file: Dockerfile
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |

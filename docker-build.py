@@ -164,7 +164,7 @@ def runtime(
 
     cmd = [
         "docker", "build",
-        "-f", "Dockerfile.runtime",
+        "-f", "Dockerfile",
         "-t", f"{image_name}:{tag}",
     ]
 
