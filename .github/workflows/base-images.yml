@@ -6,7 +6,7 @@ on:
       version:
         description: 'Base image version tag (e.g., v1, v2)'
         required: true
-        default: 'v1'
+        default: 'v4'
       push_latest:
         description: 'Also tag as latest'
         type: boolean
@@ -33,13 +33,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@v3.12.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@v3.7.0
         with:
           registry: ${{ env.REGISTRY_GHCR }}
           username: ${{ github.actor }}
@@ -62,11 +62,10 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          target: base-deps
+          file: Dockerfile.base-deps
           platforms: ${{ matrix.platform }}
+          push: true
           outputs: type=image,name=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps,push-by-digest=true,name-canonical=true
-          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:cache-${{ steps.platform.outputs.pair }}
-          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:cache-${{ steps.platform.outputs.pair }},mode=max
 
       - name: Export digest
         run: |
@@ -75,7 +74,7 @@ jobs:
           touch "/tmp/digests-base-deps/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: digests-base-deps-${{ steps.platform.outputs.pair }}
           path: /tmp/digests-base-deps/*
@@ -91,17 +90,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7.0.0
         with:
           path: /tmp/digests-base-deps
           pattern: digests-base-deps-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@v3.12.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@v3.7.0
         with:
           registry: ${{ env.REGISTRY_GHCR }}
           username: ${{ github.actor }}
@@ -138,13 +137,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@v3.12.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@v3.7.0
         with:
           registry: ${{ env.REGISTRY_GHCR }}
           username: ${{ github.actor }}
@@ -156,62 +155,20 @@ jobs:
           image_name=${{ env.IMAGE_NAME }}
           echo "name=${image_name,,}" >> $GITHUB_OUTPUT
 
-      - name: Create Dockerfile for base-playwright
-        run: |
-          cat > Dockerfile.base-playwright << 'EOF'
-          FROM ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-deps:${{ inputs.version }}
-
-          WORKDIR /app
-
-          # Copy dependency files
-          COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
-
-          # Install Python dependencies
-          ENV PIP_INDEX_URL=https://download.pytorch.org/whl/cpu
-          ENV PIP_EXTRA_INDEX_URL=https://pypi.org/simple
-          RUN uv sync --frozen --no-editable
-          ENV PIP_INDEX_URL=
-          ENV PIP_EXTRA_INDEX_URL=
-
-          # Install Node dependencies
-          RUN pnpm install
-
-          # Install Playwright and browsers
-          RUN uv pip install playwright && \
-              uv run playwright install chromium && \
-              apt-get clean && \
-              rm -rf /var/lib/apt/lists/* /tmp/* && \
-              find /data/.cache/ms-playwright -name '*.zip' -delete 2>/dev/null || true && \
-              rm -rf /data/.cache/ms-playwright/firefox* /data/.cache/ms-playwright/webkit* 2>/dev/null || true && \
-              rm -rf /var/cache/apt/archives/*.deb && \
-              rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* && \
-              find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' -exec rm -rf {} + 2>/dev/null || true
-
-          # Set environment variables
-          ENV PATH=/app/.venv/bin:$PATH
-          ENV VIRTUAL_ENV=/app/.venv
-          ENV DOCKER_CONTAINER=1
-          ENV MEMGRAPH_HOST=0.0.0.0
-          ENV MEMGRAPH_PORT=6789
-          ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
-          ENV HOME=/data
-
-          # Create data directory
-          RUN mkdir -p /data/.zabob/memgraph/data
-          EOF
-
       - name: Build and push base-playwright
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
           file: Dockerfile.base-playwright
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ steps.image.outputs.name }}
+            BASE_IMAGE_VERSION=${{ inputs.version }}
           platforms: linux/amd64
           push: true
           tags: |
             ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}
             ${{ inputs.push_latest && format('{0}/{1}/base-playwright:latest', env.REGISTRY_GHCR, steps.image.outputs.name) || '' }}
-          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache
-          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:cache,mode=max
 
   build-base-test:
     name: Build base-test (amd64)
@@ -222,13 +179,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@v3.12.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@v3.7.0
         with:
           registry: ${{ env.REGISTRY_GHCR }}
           username: ${{ github.actor }}
@@ -240,32 +197,51 @@ jobs:
           image_name=${{ env.IMAGE_NAME }}
           echo "name=${image_name,,}" >> $GITHUB_OUTPUT
 
-      - name: Create Dockerfile for base-test
+      - name: Free up disk space
         run: |
-          cat > Dockerfile.base-test << 'EOF'
-          FROM ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}
+          echo "Initial disk space:"
+          df -h
+          # Remove large packages we don't need
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "Disk space after package removal:"
+          df -h
+          # Clean up Docker images
+          sudo docker image prune --all --force
+          echo "Disk space after Docker image prune:"
+          df -h
 
-          WORKDIR /app
-
-          # Install dev dependencies (mypy, ruff, pytest, etc.)
-          RUN uv sync --extra dev
-
-          # Set up environment for test execution
-          ENV PYTHONPATH=/app
-          EOF
+      - name: Wait for base-playwright image to be available
+        run: |
+          IMAGE="${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-playwright:${{ inputs.version }}"
+          echo "Waiting for ${IMAGE} to be available..."
+          for i in {1..30}; do
+            if docker pull "${IMAGE}" 2>/dev/null; then
+              echo "✓ Image is available"
+              exit 0
+            fi
+            echo "  Attempt $i/30: Image not yet available, waiting 10 seconds..."
+            sleep 10
+          done
+          echo "✗ Image still not available after 5 minutes"
+          exit 1
 
       - name: Build and push base-test
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
           file: Dockerfile.base-test
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ steps.image.outputs.name }}
+            BASE_IMAGE_VERSION=${{ inputs.version }}
           platforms: linux/amd64
           push: true
           tags: |
             ${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:${{ inputs.version }}
             ${{ inputs.push_latest && format('{0}/{1}/base-test:latest', env.REGISTRY_GHCR, steps.image.outputs.name) || '' }}
-          cache-from: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:cache
-          cache-to: type=registry,ref=${{ env.REGISTRY_GHCR }}/${{ steps.image.outputs.name }}/base-test:cache,mode=max
 
   summary:
     name: Build Summary

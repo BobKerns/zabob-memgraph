@@ -7,7 +7,113 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.28]
+
+- Further build optimization.
+
+## [0.1.27]
+
+- Further build optimization.
+
+## [0.1.26]
+
+- Finish Dockerfile organization.
+
+## [0.1.25]
+
+## [0.1.24]
+
+### Infrastructure
+
+- Updated Dockerfile organization (split Dockerfiles, manual base builds)
+
+## [0.1.23]
+
+### Infrastructure
+
+- **Docker Build Optimization:** Multi-stage Dockerfile with intelligent layer caching
+  - 4.5-stage build: base-deps, python-node-deps, builder, test, runtime
+  - Architecture-specific cache tags prevent amd64/arm64 collisions in GHCR
+  - Content-based cache keys: base (Dockerfile hash), deps (lockfiles hash)
+  - Build times reduced from 12-20 minutes to 2-3 minutes for source-only changes
+  - Stage 2 includes environment setup for consistent test/runtime environments
+- **Node.js Security:** Pinned to version 20.x with GPG key verification
+  - Replaced insecure `curl | bash` with signed APT repository
+  - Reproducible builds with explicit version control
+- **CI/CD Improvements:**
+  - Unified test execution via `run-all-tests.sh` built into Docker image
+  - Single source of truth for test sequence (local, CI, manual Docker runs)
+  - GitHub Actions disk cleanup frees 16GB before builds
+  - CPU-only PyTorch installation avoids 5GB+ CUDA libraries
+  - All testing via Docker for environment consistency
+- **Test Stage Optimization:**
+  - Aggressive cleanup after Playwright install reduces layer size by 1-2GB
+  - Removes documentation, man pages, non-English locales, unused browser variants
+  - Test logic versioned with code, not embedded in CI workflows
+
+## [0.1.22] - 2026-01-23
+
+### Added - Vector Search (Phase 1)
+
+- **NEW TOOL:** `search_entities_semantic` - Semantic search using vector embeddings to find entities by meaning rather than keywords
+  - Finds entities with similar observations even without exact keyword matches
+  - Configurable similarity threshold and result count
+  - Returns entities with similarity scores
+- **NEW TOOL:** `search_hybrid` - Hybrid search combining keyword (BM25) and semantic (vector) similarity
+  - Merges results from both search methods with configurable weighting
+  - Default 70% semantic, 30% keyword for balanced results
+  - Gracefully falls back to keyword-only if semantic search fails
+  - Returns entities with hybrid scores showing contribution from each method
+- **NEW TOOL:** `configure_embeddings` - Configure embedding provider for semantic search
+  - Supports sentence-transformers (local, free) and OpenAI (API, higher quality)
+  - Default: all-MiniLM-L6-v2 (384 dimensions, fast, good quality)
+  - OpenAI options: text-embedding-3-small (1536 dims) or text-embedding-3-large (3072 dims)
+  - Returns provider details including model name and embedding dimensions
+- **NEW TOOL:** `generate_embeddings` - Generate vector embeddings for entities
+  - Batch processes entities without embeddings
+  - Creates embeddings from entity observations
+  - Configurable batch size for memory management
+  - Tracks progress and reports statistics
+
+### Infrastructure
+
+- **Vector Storage:** SQLite-based vector store using cosine similarity
+  - Thread-safe storage alongside knowledge graph
+  - Supports multiple embedding models simultaneously
+  - Efficient batch operations for large datasets
+- **Embedding Providers:** Pluggable provider architecture
+  - SentenceTransformerProvider for local models (no API costs)
+  - OpenAIEmbeddingProvider for cloud-based embeddings
+  - Abstract interface allows adding new providers
+- **Dependencies:** Added sentence-transformers (≥5.2.0) and numpy (≥2.4.1)
+
+### Performance
+
+- Lazy embedding generation (on-demand, then cached)
+- Batch processing for efficient bulk embedding generation
+- Cosine similarity search optimized for SQLite
+- Designed for thousands of entities (tested up to 10K)
+
+### Testing
+
+- Comprehensive test suite for vector search functionality
+- Tests for embedding generation, storage, and retrieval
+- End-to-end semantic search tests with real models
+- Hybrid search integration tests
+- Provider configuration and error handling tests
+
+### Documentation
+
+- Added VECTOR_SEARCH_PLAN.md with architecture decisions
+- Updated MCP tool documentation with semantic search examples
+- Type hints and docstrings for all new APIs
+
+### Notes
+
+- Vector search complements existing BM25 keyword search (from v0.1.21)
+- Hybrid search is recommended for best results (combines keyword precision with semantic understanding)
+- Sentence transformers download models on first use (~90MB for default model)
+- OpenAI embeddings require API key and incur usage costs
 
 ## [0.1.21] - 2026-01-19
 
@@ -278,6 +384,5 @@ Rebuild
 - Multi-line Docker metadata handling in workflows
 - PyPI trusted publishing compatibility with GitHub Actions
 
-[Unreleased]: https://github.com/BobKerns/zabob-memgraph/compare/v0.1.8...HEAD
 [0.1.8]: https://github.com/BobKerns/zabob-memgraph/compare/v0.1.0...v0.1.8
 [0.1.0]: https://github.com/BobKerns/zabob-memgraph/releases/tag/v0.1.0

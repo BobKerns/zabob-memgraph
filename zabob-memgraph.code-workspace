@@ -53,14 +53,20 @@
             "memgraph",
             "net-history"
         ],
+		"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+		"python.terminal.activateEnvironment": true,
 		"python.testing.autoTestDiscoverOnSavePattern": "test/**/*.py",
 		"python.testing.pytestEnabled": true,
+		"python.testing.unittestEnabled": false,
 		"python.testing.pytestArgs": [
 			"tests",
 			"-v",
 			"--tb=short"
 		],
 		"python.analysis.typeCheckingMode": "standard",
+		"python.analysis.extraPaths": [
+			"${workspaceFolder}"
+		],
 		"files.exclude": {
             "**/__pycache__": true,
             "**/.*_cache": true,
@@ -78,10 +84,14 @@
 		"explorer.fileNesting.enabled": true,
 		"explorer.fileNesting.expand": true,
 		"explorer.fileNesting.patterns": {
-            "TODO.md": "SCHEMA_MIGRATION_STATUS.md,NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json",
+            "TODO.md": "NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json,*_STATUS.md,restore_relations.py",
             "LICENSE.md": "LICENSE",
             "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,.memgraph.dic,.flake8,playwright.config.py",
-            "install.sh": "install-uv.sh"
+            "install.sh": "install-uv.sh",
+            "README.md": "DEPLOYMENT.md,CONTRIBUTING.md",
+            "dev_utils.py": "check_*.py",
+            "Dockerfile": "Dockerfile.*,docker-compose*.yml,docker-*.sh,Dockerfile.*,docker-build.py",
+            "run-all-tests.sh": "run_ui_tests.*"
         },
         "explorer.enableUndo": false,
         "chat.useAgentSkills": true,
@@ -119,6 +129,22 @@
                 "matchCommandLine": true
             },
             "/^uv run pytest tests/test_observation_sorting\\.py::test_matching_observations_sorted_first -v --tb=short$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^\\.venv/bin/python -m pytest --version$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^\\.venv/bin/python -m pytest tests/test_ui_playwright\\.py::test_graph_loads_data -v --tb=short$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run mypy memgraph/vector_store\\.py memgraph/vector_sqlite\\.py memgraph/mcp_service\\.py$/": {
+                "approve": true,
+                "matchCommandLine": true
+            },
+            "/^uv run pytest tests/test_vector_search\\.py -v$/": {
                 "approve": true,
                 "matchCommandLine": true
             }

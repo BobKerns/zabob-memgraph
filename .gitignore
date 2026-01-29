@@ -73,7 +73,7 @@ backup/
 *.backup
 
 # Docker
-.dockerignore
+# (removed .dockerignore - it should be tracked in git)
 
 node_modules/
 

@@ -244,12 +244,20 @@ def load_config(config_dir: Path, /, *, docker: bool = False, **settings: None |
             database_path.mkdir(parents=True, exist_ok=True)
         if IN_DOCKER:
             host_info_file = PosixPath("/host/host_info.json")
-            with host_info_file.open("r") as f:
-                host_info = cast(HostInfo, json.load(f))
-                config["real_port"] = host_info["port"]
-                config["real_host"] = host_info["host"]
-                config["real_data_dir"] = host_info["data_dir"]
-                config["real_database_path"] = host_info["database_path"]
+            # Host info file is optional - only present when running via launcher
+            if host_info_file.exists():
+                with host_info_file.open("r") as f:
+                    host_info = cast(HostInfo, json.load(f))
+                    config["real_port"] = host_info["port"]
+                    config["real_host"] = host_info["host"]
+                    config["real_data_dir"] = host_info["data_dir"]
+                    config["real_database_path"] = host_info["database_path"]
+            else:
+                # No host info file (e.g., in tests or manual docker run)
+                config["real_port"] = port
+                config["real_host"] = host
+                config["real_data_dir"] = data_dir
+                config["real_database_path"] = database_path
         else:
             config["real_port"] = port
             config["real_host"] = host
