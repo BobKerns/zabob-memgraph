@@ -35,7 +35,11 @@ jobs:
       uses: docker/build-push-action@v6.18.0
       with:
         context: .
-        target: test
+        file: Dockerfile.test
+        build-args: |
+          BASE_IMAGE_REGISTRY=ghcr.io
+          BASE_IMAGE_NAME=bobkerns/zabob-memgraph
+          BASE_IMAGE_VERSION=v2
         tags: zabob-memgraph-test:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -54,6 +58,10 @@ jobs:
       with:
         context: .
         file: Dockerfile
+        build-args: |
+          BASE_IMAGE_REGISTRY=ghcr.io
+          BASE_IMAGE_NAME=bobkerns/zabob-memgraph
+          BASE_IMAGE_VERSION=v2
         tags: zabob-memgraph:latest
         cache-from: type=gha
         load: true
