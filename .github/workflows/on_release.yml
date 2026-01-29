@@ -13,10 +13,41 @@ permissions:
 
 jobs:
   build_python_package:
-    uses: ./.github/workflows/ci.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.2.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6.1.0
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Build web bundle
+        run: |
+          pnpm install
+          pnpm run build:web
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7.1.6
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Build Python package
+        run: uv build
+
+      - name: Upload python artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: python-package-distributions
+          path: dist/
+          retention-days: 7
 
   build_docker:
-    needs: build_python_package
     uses: ./.github/workflows/docker-build.yml
     secrets: inherit
 
