@@ -34,7 +34,9 @@ jobs:
 
     - name: Pull from GHCR
       run: |
-        docker pull ${{ inputs.image-tag }}
+        IMAGE_NAME_LOWER="${{ env.IMAGE_NAME }}"
+        IMAGE_NAME_LOWER="${IMAGE_NAME_LOWER,,}"
+        docker pull ghcr.io/${IMAGE_NAME_LOWER}:${{ inputs.image-tag }}
 
     - name: Log in to DockerHub Test
       uses: docker/login-action@v3.7.0
@@ -44,8 +46,10 @@ jobs:
 
     - name: Tag and push to DockerHub Test
       run: |
+        IMAGE_NAME_LOWER="${{ env.IMAGE_NAME }}"
+        IMAGE_NAME_LOWER="${IMAGE_NAME_LOWER,,}"
         # Tag for test repository (no :latest)
-        docker tag ${{ inputs.image-tag }} \
+        docker tag ghcr.io/${IMAGE_NAME_LOWER}:${{ inputs.image-tag }} \
           ${{ secrets.DOCKERHUB_TEST_USERNAME }}/zabob-memgraph-test:${{ github.ref_name }}
 
         # Push to test repository
@@ -78,7 +82,9 @@ jobs:
 
     - name: Pull from GHCR
       run: |
-        docker pull ${{ inputs.image-tag }}
+        IMAGE_NAME_LOWER="${{ env.IMAGE_NAME }}"
+        IMAGE_NAME_LOWER="${IMAGE_NAME_LOWER,,}"
+        docker pull ghcr.io/${IMAGE_NAME_LOWER}:${{ inputs.image-tag }}
 
     - name: Log in to DockerHub
       uses: docker/login-action@v3.7.0
@@ -88,6 +94,10 @@ jobs:
 
     - name: Tag and push to DockerHub
       run: |
+        IMAGE_NAME_LOWER="${{ env.IMAGE_NAME }}"
+        IMAGE_NAME_LOWER="${IMAGE_NAME_LOWER,,}"
+        GHCR_IMAGE="ghcr.io/${IMAGE_NAME_LOWER}:${{ inputs.image-tag }}"
+
         # Extract version components
         VERSION="${{ github.ref_name }}"
         VERSION="${VERSION#v}"  # Remove 'v' prefix
@@ -96,11 +106,11 @@ jobs:
         MINOR="${MINOR%%.*}"
 
         # Tag for production repository
-        docker tag ${{ inputs.image-tag }} \
+        docker tag "$GHCR_IMAGE" \
           ${{ secrets.DOCKERHUB_USERNAME }}/zabob-memgraph:${VERSION}
-        docker tag ${{ inputs.image-tag }} \
+        docker tag "$GHCR_IMAGE" \
           ${{ secrets.DOCKERHUB_USERNAME }}/zabob-memgraph:${MAJOR}.${MINOR}
-        docker tag ${{ inputs.image-tag }} \
+        docker tag "$GHCR_IMAGE" \
           ${{ secrets.DOCKERHUB_USERNAME }}/zabob-memgraph:latest
 
         # Push all tags
