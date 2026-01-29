@@ -113,7 +113,7 @@ CREATE INDEX idx_relations_type ON relations(relation_type);
 ## Impact Summary
 
 | Metric | Before | After | Change |
-|--------|--------|-------|--------|
+| -------- | -------- | ------- | -------- |
 | **Observations indexes** | 2 | 1 | -50% |
 | **Entities indexes** | 2 | 1 | -50% |
 | **Total user indexes** | 7 | 5 | -29% |
