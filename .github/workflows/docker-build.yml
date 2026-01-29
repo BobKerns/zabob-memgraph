@@ -192,9 +192,6 @@ jobs:
             BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
             BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
             BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
-          # Tag with tree SHA for stable reference across commits
-          tags: |
-            ghcr.io/${{ needs.setup.outputs.image-name }}:tree-${{ needs.setup.outputs.tree-sha }}-${{ steps.set-platform-pair.outputs.platform-pair }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true
           provenance: false
@@ -275,14 +272,17 @@ jobs:
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          # Tags come from metadata-action
+          # Tags come from metadata-action, plus tree SHA for stable reference
           TAGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          TREE_TAG="-t ghcr.io/${{ needs.setup.outputs.image-name }}:tree-${{ needs.setup.outputs.tree-sha }}"
 
           # Source digests from GHCR (where build pushed them)
           SOURCE_DIGESTS=$(printf 'ghcr.io/${{ needs.setup.outputs.image-name }}@sha256:%s ' *)
 
           # Create manifest and push to GHCR
-          docker buildx imagetools create $TAGS $SOURCE_DIGESTS
+          docker buildx imagetools create $TAGS $TREE_TAG $SOURCE_DIGESTS
+
+          echo "✓ Created tags: $TAGS $TREE_TAG"
 
       - name: Inspect image
         run: |

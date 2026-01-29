@@ -79,24 +79,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.12.0
 
-      - name: Pull images by tree SHA and create release manifest
+      - name: Pull image by tree SHA and create release tags
         run: |
           TREE_SHA="${{ steps.setup.outputs.tree-sha }}"
           IMAGE="ghcr.io/${{ steps.setup.outputs.image-name }}"
           RELEASE_TAG="${{ github.ref_name }}"
 
-          # Pull both architectures by tree SHA
-          docker pull "$IMAGE:tree-${TREE_SHA}-linux-amd64"
-          docker pull "$IMAGE:tree-${TREE_SHA}-linux-arm64"
-
-          # Create multi-arch manifest with release tag
+          # The multi-arch manifest was already created with tree SHA in docker-build.yml
+          # Just re-tag it with the release version
           docker buildx imagetools create \
             -t "$IMAGE:$RELEASE_TAG" \
             -t "$IMAGE:latest" \
-            "$IMAGE:tree-${TREE_SHA}-linux-amd64" \
-            "$IMAGE:tree-${TREE_SHA}-linux-arm64"
+            "$IMAGE:tree-${TREE_SHA}"
 
-          echo "✓ Created release manifest: $IMAGE:$RELEASE_TAG"
+          echo "✓ Created release tags: $IMAGE:$RELEASE_TAG and $IMAGE:latest"
 
       - name: Verify manifest
         run: |
