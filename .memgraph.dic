@@ -106,6 +106,7 @@ PYPI
 pyproject
 pyrightconfig
 pytest
+Pythonic
 PYTHONPATH
 pyupgrade
 Qdrant

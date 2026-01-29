@@ -614,73 +614,71 @@ def setup_mcp(config: Config) -> FastMCP:
             }
 
         # Initialize vector store
-        vector_store = VectorSQLiteStore(db_path=db_path)
+        with VectorSQLiteStore(db_path=db_path) as vector_store:
 
-        try:
-            # Get all entities
-            graph = await DB.read_graph()
-            entities = graph.get("entities", [])
+            try:
+                # Get all entities
+                graph = await DB.read_graph()
+                entities = graph.get("entities", [])
 
-            # Filter entities that need embeddings
-            existing_count = vector_store.count(model_name=provider.model_name)
-            logger.info(f"Found {len(entities)} total entities, {existing_count} already have embeddings")
+                # Filter entities that need embeddings
+                existing_count = vector_store.count(model_name=provider.model_name)
+                logger.info(f"Found {len(entities)} total entities, {existing_count} already have embeddings")
 
-            # Get entities without embeddings for this model
-            entities_to_process = []
-            for entity in entities:
-                entity_id = entity.get("name", "")
-                if not vector_store.exists(entity_id, model_name=provider.model_name):
-                    entities_to_process.append(entity)
+                # Get entities without embeddings for this model
+                entities_to_process = []
+                for entity in entities:
+                    entity_id = entity.get("name", "")
+                    if not vector_store.exists(entity_id, model_name=provider.model_name):
+                        entities_to_process.append(entity)
 
-            if not entities_to_process:
+                if not entities_to_process:
+                    return {
+                        "message": "All entities already have embeddings",
+                        "total_entities": len(entities),
+                        "existing_embeddings": existing_count,
+                        "generated": 0,
+                    }
+
+                # Process in batches
+                generated = 0
+                for i in range(0, len(entities_to_process), batch_size):
+                    batch = entities_to_process[i:i + batch_size]
+
+                    # Create text from observations
+                    texts = []
+                    entity_ids = []
+                    for entity in batch:
+                        entity_id = entity.get("name", "")
+                        observations = entity.get("observations", [])
+                        text = " ".join(observations) if observations else entity_id
+                        texts.append(text)
+                        entity_ids.append(entity_id)
+
+                    # Generate embeddings
+                    embeddings = provider.batch_generate(texts)
+
+                    # Store embeddings
+                    vector_store.batch_add(
+                        entity_ids=entity_ids,
+                        embeddings=embeddings,
+                        model_name=provider.model_name,
+                    )
+
+                    generated += len(batch)
+                    logger.info(f"Generated {generated}/{len(entities_to_process)} embeddings")
+
                 return {
-                    "message": "All entities already have embeddings",
+                    "message": f"Generated {generated} embeddings",
                     "total_entities": len(entities),
                     "existing_embeddings": existing_count,
-                    "generated": 0,
+                    "generated": generated,
+                    "model": provider.model_name,
                 }
 
-            # Process in batches
-            generated = 0
-            for i in range(0, len(entities_to_process), batch_size):
-                batch = entities_to_process[i:i + batch_size]
-
-                # Create text from observations
-                texts = []
-                entity_ids = []
-                for entity in batch:
-                    entity_id = entity.get("name", "")
-                    observations = entity.get("observations", [])
-                    text = " ".join(observations) if observations else entity_id
-                    texts.append(text)
-                    entity_ids.append(entity_id)
-
-                # Generate embeddings
-                embeddings = provider.batch_generate(texts)
-
-                # Store embeddings
-                vector_store.batch_add(
-                    entity_ids=entity_ids,
-                    embeddings=embeddings,
-                    model_name=provider.model_name,
-                )
-
-                generated += len(batch)
-                logger.info(f"Generated {generated}/{len(entities_to_process)} embeddings")
-
-            return {
-                "message": f"Generated {generated} embeddings",
-                "total_entities": len(entities),
-                "existing_embeddings": existing_count,
-                "generated": generated,
-                "model": provider.model_name,
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to generate embeddings: {e}")
-            return {"error": str(e)}
-        finally:
-            vector_store.close()
+            except Exception as e:
+                logger.error(f"Failed to generate embeddings: {e}")
+                return {"error": str(e)}
 
     @mcp.tool
     async def configure_embeddings(

@@ -71,7 +71,7 @@ All images are pushed to GHCR: `ghcr.io/bobkerns/zabob-memgraph/base-*:vN`
 - ✅ Reliable - no more timeout failures
 - ✅ Dependencies only rebuilt when they actually change
 
-## File Structure
+## Dockerfiles
 
 Base images are built from dedicated Dockerfiles:
 
