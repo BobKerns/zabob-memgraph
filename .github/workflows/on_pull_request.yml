@@ -8,41 +8,80 @@ permissions:
     packages: write
 
 jobs:
-  python_build_and_test:
-    uses: ./.github/workflows/ci.yml
   build_docker:
-    needs: python_build_and_test
+    # Build both architectures in parallel, test on amd64
     uses: ./.github/workflows/docker-build.yml
     secrets: inherit
   label-success:
     needs:
-        - python_build_and_test
         - build_docker
     if: |
             (github.event.action == 'synchronize' ||
             github.event.action == 'opened') &&
-
-            needs.python_build_and_test.result == 'success' &&
             needs.build_docker.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
         - name: Label Success
-          run: |
-            echo "TODO: Label ${{ github.event.pull_request.number }} as BUILD_SUCCESSFUL"
+          uses: actions/github-script@v8
+          with:
+            script: |
+              // Remove failure label if present
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  name: 'build-failed'
+                });
+              } catch (error) {
+                // Label might not exist, that's fine
+              }
+
+              // Add success label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['build-successful']
+              });
 
   label-failure:
     needs:
-        - python_build_and_test
         - build_docker
     if: |
             (github.event.action == 'synchronize' ||
             github.event.action == 'opened') &&
-            (needs.python_build_and_test.result != 'success' ||
-             needs.build_docker.result != 'success')
+            needs.build_docker.result != 'success'
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
         - name: Label Failure
-          run: |
-            echo "TODO: Label ${{ github.event.pull_request.number }} as BUILD_FAILED"
+          uses: actions/github-script@v8
+          with:
+            script: |
+              // Remove success label if present
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  name: 'build-successful'
+                });
+              } catch (error) {
+                // Label might not exist, that's fine
+              }
+
+              // Add failure label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['build-failed']
+              });
 
 

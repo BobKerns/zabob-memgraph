@@ -10,13 +10,25 @@ on:
 env:
   REGISTRY_GHCR: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  BASE_IMAGE_VERSION: v4  # Update this when base images are rebuilt
 
 jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
       image-name: ${{ steps.set-image-name.outputs.image-name }}
+      tree-sha: ${{ steps.get-tree-sha.outputs.tree-sha }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.1
+
+      - name: Get tree SHA
+        id: get-tree-sha
+        run: |
+          TREE_SHA=$(git rev-parse HEAD^{tree})
+          echo "tree-sha=$TREE_SHA" >> $GITHUB_OUTPUT
+          echo "Tree SHA: $TREE_SHA"
+
       - name: Set downcased image name
         id: set-image-name
         run: |
@@ -26,6 +38,8 @@ jobs:
   build:
     needs:
         - setup
+    timeout-minutes: 45
+    # Don't wait for CI - build in parallel
     permissions:
       contents: read
       packages: write
@@ -35,8 +49,10 @@ jobs:
         include:
         - platform: linux/amd64
           runner: ubuntu-latest
+          run-tests: true
         - platform: linux/arm64
           runner: ubuntu-24.04-arm
+          run-tests: false
     runs-on: ${{ matrix.runner }}
     outputs:
       image-tag: ${{ steps.test-tag.outputs.tag }}
@@ -54,39 +70,34 @@ jobs:
             echo "Platform matrix entry: ${{ matrix.platform }}"
             echo "Platform-pair: ${{ steps.set-platform-pair.outputs.platform-pair }}"
 
-      - name: Download Dockerfile
-        uses: actions/download-artifact@v7
-        with:
-            name: dockerfile
-
-      - name: Download Context
-        uses: actions/download-artifact@v7
-        with:
-            name: docker-context
+      - name: Checkout code
+        uses: actions/checkout@v6.0.1
 
       - name: Set up Docker
-        uses: docker/setup-docker-action@v4
-        with:
-          daemon-config: |
-            {
-              "debug": true,
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
+        uses: docker/setup-docker-action@v4.7.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@v3.7.0
         with:
           registry: ${{ env.REGISTRY_GHCR }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@v3.12.0
         with:
-          driver: docker-container
+          driver-opts: |
+            network=host
+            image=moby/buildkit:latest
+
           platforms: linux/amd64,linux/arm64
+
+      # Note: This workflow uses pre-built base images to avoid rebuilding heavy dependencies:
+      # - base-deps (multi-arch): System packages, built via base-images.yml workflow
+      # - base-playwright (amd64): base-deps + Playwright browsers (~500MB)
+      # - base-test (amd64): base-playwright + dev dependencies (mypy, ruff, pytest)
+      # Update BASE_IMAGE_VERSION when base images are rebuilt
+      # This dramatically reduces build time and disk space usage during normal PR/release builds
 
       - name: Extract metadata
         id: meta
@@ -113,17 +124,77 @@ jobs:
           name: docker-metadata-${{ steps.set-platform-pair.outputs.platform-pair }}
           path: ${{ steps.set-platform-pair.outputs.platform-pair }}-metadata.json
 
-      - name: Build and push by digest
-        id: build
+      # Build test image first (validates code)
+      # Uses pre-built base-test image with Playwright and dev dependencies already installed
+      # No caching needed - just adds source code to pre-built base (~2-3 min)
+      - name: Build test image
+        id: build-test
+        if: matrix.run-tests
+        timeout-minutes: 15
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
+          file: Dockerfile.test
+          outputs: type=docker,dest=/tmp/test-image.tar
+          tags: zabob-memgraph-test:latest
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
+            BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
+
+      - name: Load test image
+        if: matrix.run-tests
+        run: docker load -i /tmp/test-image.tar
+
+      # Run tests only on amd64
+      - name: Run all quality checks and tests
+        if: matrix.run-tests
+        run: docker run --rm zabob-memgraph-test:latest
+
+      - name: Debug build environment
+        run: |
+          echo "=== System Information ==="
+          uname -a
+          echo "=== Disk Space ==="
+          df -h
+          echo "=== Local Disk Usage ==="
+          du -sh $(find . -type d -maxdepth 1 -print)
+          echo "=== Memory ==="
+          free -h || vm_stat || echo "Memory info not available"
+          echo "=== Docker Info ==="
+          docker info
+          echo "=== Docker Version ==="
+          docker version
+          echo "=== Buildx Version ==="
+          docker buildx version
+          echo "=== Available Space ==="
+          df -h
+          echo "=== Memory ==="
+          free -h
+          echo "=== Docker Info ==="
+          docker info
+
+      - name: Prune unneeded Docker images
+        run: |
+          docker image prune -af || echo "Docker image prune failed, continuing anyway"
+          docker image ls
+
+      - name: Build and push by digest
+        id: build
+        timeout-minutes: 30
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: Dockerfile
           push: true
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.REGISTRY_GHCR }}
+            BASE_IMAGE_NAME=${{ needs.setup.outputs.image-name }}
+            BASE_IMAGE_VERSION=${{ env.BASE_IMAGE_VERSION }}
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/${{ needs.setup.outputs.image-name }},push-by-digest=true,name-canonical=true
+          provenance: false
 
       - name: Save Build Info
         run: |
@@ -137,7 +208,6 @@ jobs:
           name: docker-build-info-${{ steps.set-platform-pair.outputs.platform-pair }}
           path: ${{ steps.set-platform-pair.outputs.platform-pair }}-build-info.json
 
-
       - name: Export digest
         run: |
           mkdir -p ${{ runner.temp }}/digests
@@ -145,7 +215,7 @@ jobs:
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: digests-${{ steps.set-platform-pair.outputs.platform-pair }}
           path: ${{ runner.temp }}/digests/*
@@ -154,6 +224,8 @@ jobs:
 
       - name: Determine test tag
         id: test-tag
+        env:
+          DOCKER_METADATA_OUTPUT_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           # Extract first tag from multi-line output
           FIRST_TAG=$(echo "$DOCKER_METADATA_OUTPUT_TAGS" | head -n1)
@@ -169,14 +241,14 @@ jobs:
       - build
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7.0.0
         with:
           path: ${{ runner.temp }}/digests
           pattern: digests-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@v3.12.0
 
       - name: Docker meta
         id: meta
@@ -191,7 +263,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -200,14 +272,17 @@ jobs:
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          # Tags come from metadata-action
+          # Tags come from metadata-action, plus tree SHA for stable reference
           TAGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          TREE_TAG="-t ghcr.io/${{ needs.setup.outputs.image-name }}:tree-${{ needs.setup.outputs.tree-sha }}"
 
           # Source digests from GHCR (where build pushed them)
           SOURCE_DIGESTS=$(printf 'ghcr.io/${{ needs.setup.outputs.image-name }}@sha256:%s ' *)
 
           # Create manifest and push to GHCR
-          docker buildx imagetools create $TAGS $SOURCE_DIGESTS
+          docker buildx imagetools create $TAGS $TREE_TAG $SOURCE_DIGESTS
+
+          echo "✓ Created tags: $TAGS $TREE_TAG"
 
       - name: Inspect image
         run: |
@@ -217,6 +292,7 @@ jobs:
       - setup
       - merge
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10  # timeout for this specific step
     strategy:
       matrix:
         include:
@@ -227,6 +303,13 @@ jobs:
             runner: ubuntu-24.04-arm
             arch: arm64
     steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Determine image tag
         id: image-tag
         run: |
@@ -244,12 +327,24 @@ jobs:
           echo "Using tag: $TAG"
 
       - name: Pull and inspect image
+        timeout-minutes: 5  # timeout for this specific step
         run: |
           IMAGE="ghcr.io/${{ needs.setup.outputs.image-name }}:${{ steps.image-tag.outputs.tag }}"
           echo "Pulling: $IMAGE"
 
-          # Pull from GHCR
-          docker pull "$IMAGE"
+          # Pull from GHCR with retries
+          for i in {1..3}; do
+            if docker pull "$IMAGE"; then
+              echo "Successfully pulled image"
+              break
+            fi
+            if [ $i -eq 3 ]; then
+              echo "Failed to pull image after 3 attempts"
+              exit 1
+            fi
+            echo "Pull attempt $i failed, retrying..."
+            sleep 5
+          done
 
           # Verify architecture
           ACTUAL_ARCH=$(docker inspect "$IMAGE" --format '{{.Architecture}}')
@@ -357,7 +452,7 @@ jobs:
           echo "All tests passed successfully!"
 
       - name: Upload configuration output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: config-output.txt
           path: config-output.txt

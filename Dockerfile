@@ -1,61 +1,62 @@
-# Build stage
-FROM python:3.14-slim AS builder
-#FROM python:3.12-bookworm AS builder
+# Building and testing these images uses the following Dockerfiles:
+#   - Dockerfile.base-deps (system packages)
+#   - Dockerfile.base-playwright (+ Playwright)
+#   - Dockerfile.base-test (+ dev deps)
+#   - Dockerfile.test (test image using base-test)
+#
+# See docs/BASE_IMAGES.md for the new architecture.
+# This file builds the final zabob-memgraph runtime image.
 
-# Install build dependencies
-RUN apt-get update && \
-    apt-get install -y curl libffi-dev build-essential && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g pnpm && \
-    pip install uv && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+ARG BASE_IMAGE_REGISTRY=ghcr.io
+ARG BASE_IMAGE_NAME=bobkerns/zabob-memgraph
+ARG BASE_IMAGE_VERSION=v1
+
+FROM ${BASE_IMAGE_REGISTRY}/${BASE_IMAGE_NAME}/base-deps:${BASE_IMAGE_VERSION}
 
 WORKDIR /app
 
-# Copy project files
-COPY pyproject.toml uv.lock package.json pnpm-lock.yaml index.js ./
-COPY memgraph/ ./memgraph/
+# Copy dependency files
+COPY pyproject.toml uv.lock package.json pnpm-lock.yaml ./
 
 # Install Python dependencies (non-editable)
+ENV PIP_INDEX_URL=https://download.pytorch.org/whl/cpu
+ENV PIP_EXTRA_INDEX_URL=https://pypi.org/simple
 RUN uv sync --frozen --no-editable
+ENV PIP_INDEX_URL=
+ENV PIP_EXTRA_INDEX_URL=
+
+# Install Node dependencies
+RUN pnpm install
+
+# Copy source code
+COPY memgraph/ ./memgraph/
 
 # Build web bundle
-RUN pnpm install && pnpm run build:web
+RUN pnpm run build:web
 
-# Runtime stage
-FROM python:3.14-slim
-# FROM python:3.12-bookworm
+# Install the zabob-memgraph package itself
+RUN uv pip install --no-deps -e .
 
-WORKDIR /app
-
-# Copy only the virtual environment and built web assets
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/memgraph/web /app/memgraph/web
-COPY --from=builder /app/pyproject.toml /app/pyproject.toml
-
-# Create data directory for database
-RUN mkdir -p /data/.zabob/memgraph/data
-
-# Set environment variables for virtual environment and define our entrypoint
+# Set environment variables
 ENV PATH=/app/.venv/bin:$PATH
 ENV VIRTUAL_ENV=/app/.venv
-ENTRYPOINT ["/app/.venv/bin/zabob-memgraph"]
-
-# Set environment variables to indicate Docker container
 ENV DOCKER_CONTAINER=1
 ENV MEMGRAPH_HOST=0.0.0.0
 ENV MEMGRAPH_PORT=6789
 ENV MEMGRAPH_DATABASE_PATH=/data/knowledge_graph.db
 ENV HOME=/data
 
+# Create data directory
+RUN mkdir -p /data/.zabob/memgraph/data
+
 # Expose default port
 EXPOSE 6789
 
-# Use startup script as entrypoint
+# Set entrypoint and default command
+ENTRYPOINT ["/app/.venv/bin/zabob-memgraph"]
 CMD []
 
+# Metadata labels
 LABEL org.opencontainers.image.source=https://github.com/BobKerns/zabob-memgraph
 LABEL org.opencontainers.image.title="Zabob Memgraph"
 LABEL org.opencontainers.image.description="Zabob Memgraph MCP memory service with web interface\nZabob remembers the future so you don't have to."

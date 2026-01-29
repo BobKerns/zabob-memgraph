@@ -13,17 +13,95 @@ permissions:
 
 jobs:
   build_python_package:
-    uses: ./.github/workflows/ci.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.1
 
-  build_docker:
-    needs: build_python_package
-    uses: ./.github/workflows/docker-build.yml
-    secrets: inherit
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.2.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6.2.0
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Build web bundle
+        run: |
+          pnpm install
+          pnpm run build:web
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7.2.0
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Build Python package
+        run: uv build
+
+      - name: Upload python artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: python-package-distributions
+          path: dist/
+          retention-days: 7
+
+  retag_docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-name: ${{ steps.setup.outputs.image-name }}
+    steps:
+      - uses: actions/checkout@v6.0.1
+
+      - name: Set up image name and tree SHA
+        id: setup
+        run: |
+          IMAGE_NAME="${{ github.repository }}"
+          IMAGE_NAME_LOWER="${IMAGE_NAME,,}"
+          TREE_SHA=$(git rev-parse HEAD^{tree})
+          echo "image-name=$IMAGE_NAME_LOWER" >> $GITHUB_OUTPUT
+          echo "tree-sha=$TREE_SHA" >> $GITHUB_OUTPUT
+          echo "Image: ghcr.io/$IMAGE_NAME_LOWER"
+          echo "Tree SHA: $TREE_SHA"
+          echo "Release tag: ${{ github.ref_name }}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.12.0
+
+      - name: Pull image by tree SHA and create release tags
+        run: |
+          TREE_SHA="${{ steps.setup.outputs.tree-sha }}"
+          IMAGE="ghcr.io/${{ steps.setup.outputs.image-name }}"
+          RELEASE_TAG="${{ github.ref_name }}"
+
+          # The multi-arch manifest was already created with tree SHA in docker-build.yml
+          # Just re-tag it with the release version
+          docker buildx imagetools create \
+            -t "$IMAGE:$RELEASE_TAG" \
+            -t "$IMAGE:latest" \
+            "$IMAGE:tree-${TREE_SHA}"
+
+          echo "✓ Created release tags: $IMAGE:$RELEASE_TAG and $IMAGE:latest"
+
+      - name: Verify manifest
+        run: |
+          docker buildx imagetools inspect ghcr.io/${{ steps.setup.outputs.image-name }}:${{ github.ref_name }}
 
   publish_pypi_test:
     needs:
       - build_python_package
-      - build_docker
+      - retag_docker
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/test-v')
 
@@ -51,7 +129,7 @@ jobs:
   publish_pypi_prod:
     needs:
       - build_python_package
-      - build_docker
+      - retag_docker
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/test-v')
 
@@ -76,10 +154,10 @@ jobs:
         print-hash: true
 
   publish_dockerhub:
-    needs: build_docker
+    needs: retag_docker
     uses: ./.github/workflows/dockerhub.yml
     with:
-      image-tag: ${{ needs.build_docker.outputs.image-tag }}
+      image-tag: ${{ github.ref_name }}
     secrets: inherit
 
   create-release:

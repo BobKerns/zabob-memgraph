@@ -1,5 +1,3 @@
-![Zabob Banner](../.dev-library/docs-assets/images/zabob-banner-memgraph.jpg)
-<!-- markdownlint-disable-file MD036 -->
 # UI Controls Documentation
 
 ## Graph Navigation

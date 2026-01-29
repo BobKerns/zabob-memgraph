@@ -1,5 +1,3 @@
-![Zabob Banner](../.dev-library/docs-assets/images/zabob-banner-memgraph.jpg)
-<!-- markdownlint-disable-file MD036 -->
 # MCP Configuration for Zabob Memgraph
 
 > **⚠️ NOTE**: This document is partially outdated. REST API endpoints have been removed. See [USAGE_PATTERNS.md](./USAGE_PATTERNS.md) for current deployment options.

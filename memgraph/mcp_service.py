@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
+# pyright: reportCallIssue=false
 """
 A FastAPI application for Memgraph with a web interface.
+
+Note: FastMCP 3.x decorated functions are callable at runtime but Pylance
+type inference may show them as FunctionTool. The pyright directive above
+suppresses these false positives.
 """
 
 from collections.abc import AsyncGenerator
@@ -21,6 +26,26 @@ from memgraph.sqlite_backend import SQLiteKnowledgeGraphDB
 from memgraph.launcher import save_server_info
 
 logger = logging.getLogger(__name__)
+
+# Module-level mcp instance for testing and imports
+# Initialized with default config, can be overridden
+_default_mcp: FastMCP | None = None
+
+
+def get_mcp(config: Config | None = None) -> FastMCP:
+    """
+    Get or create the MCP instance.
+
+    Args:
+        config: Optional configuration to use. If None, uses default config.
+
+    Returns:
+        FastMCP instance
+    """
+    global _default_mcp
+    if _default_mcp is None or config is not None:
+        _default_mcp = setup_mcp(config or load_config(default_config_dir()))
+    return _default_mcp
 
 
 def setup_mcp(config: Config) -> FastMCP:
@@ -389,6 +414,322 @@ def setup_mcp(config: Config) -> FastMCP:
             logger.error(f"Failed to open browser: {e}")
             return {"success": False, "error": str(e), "url": None}
 
+    # Vector search tools
+    db_path = str(config["database_path"])
+
+    @mcp.tool
+    async def search_entities_semantic(
+        query: str,
+        k: int = 10,
+        threshold: float = 0.0,
+        model_name: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Search for entities using semantic similarity via vector embeddings.
+
+        Finds entities whose observations are semantically similar to the query,
+        even if they don't share exact keywords. Requires embeddings to be
+        generated first.
+
+        Args:
+            query (str): Natural language search query
+            k (int): Maximum number of results to return (default: 10)
+            threshold (float): Minimum similarity score (0-1, default: 0.0)
+            model_name (str, optional): Filter by embedding model
+
+        Returns:
+            dict: Search results with entity_id, similarity score, and entity data
+        """
+        from memgraph.embeddings import get_embedding_provider
+        from memgraph.vector_sqlite import VectorSQLiteStore
+
+        logger.info(f"Semantic search: {query} (k={k}, threshold={threshold})")
+
+        # Get embedding provider
+        provider = get_embedding_provider()
+        if provider is None:
+            return {
+                "error": "No embedding provider configured",
+                "hint": "Call configure_embeddings first or set environment variables"
+            }
+
+        try:
+            # Use context manager for vector store
+            with VectorSQLiteStore(db_path=db_path) as vector_store:
+                # Generate query embedding
+                query_embedding = provider.generate(query)
+
+                # Search vector store
+                results = vector_store.search(
+                    query_embedding=query_embedding,
+                    k=k,
+                    threshold=threshold,
+                    model_name=model_name,
+                )
+
+                # Fetch entity data for results
+                entities = []
+                for entity_id, score in results:
+                    # Use existing search to get entity data
+                    entity_data = await DB.search_nodes(entity_id)
+                    entities_list = entity_data.get("entities") or []
+                    if not entities_list:
+                        continue
+
+                    # Prefer an exact name match to the entity_id; fall back to first
+                    exact_match = next(
+                        (e for e in entities_list if e.get("name") == entity_id),
+                        None,
+                    )
+                    entity_info = dict(exact_match or entities_list[0])
+                    entity_info["similarity_score"] = score
+                    entities.append(entity_info)
+
+                return {
+                    "query": query,
+                    "count": len(entities),
+                    "results": entities,
+                }
+
+        except Exception as e:
+            logger.error(f"Semantic search failed: {e}")
+            return {"error": str(e)}
+
+    @mcp.tool
+    async def search_hybrid(
+        query: str,
+        k: int = 10,
+        semantic_weight: float = 0.7,
+        threshold: float = 0.0,
+    ) -> dict[str, Any]:
+        """
+        Hybrid search combining keyword and semantic similarity.
+
+        Merges results from traditional keyword search and vector similarity
+        search, with configurable weighting between the two approaches.
+
+        Args:
+            query (str): Search query
+            k (int): Maximum results to return (default: 10)
+            semantic_weight (float): Weight for semantic results (0-1, default: 0.7)
+            threshold (float): Minimum similarity threshold (default: 0.0)
+
+        Returns:
+            dict: Combined search results ranked by hybrid score
+        """
+        logger.info(f"Hybrid search: {query} (semantic_weight={semantic_weight})")
+
+        # Get both keyword and semantic results
+        keyword_results: dict[str, Any] = await search_nodes(query)  # type: ignore[operator]
+        semantic_results: dict[str, Any] = await search_entities_semantic(  # type: ignore[operator]
+            query, k=k * 2, threshold=threshold
+        )
+
+        # Handle errors
+        if "error" in semantic_results:
+            logger.warning(f"Semantic search failed, falling back to keyword only: {semantic_results['error']}")
+            return keyword_results
+
+        # Build entity scores
+        entity_scores: dict[str, dict[str, Any]] = {}
+
+        # Process keyword results (give them keyword_weight score)
+        keyword_weight = 1.0 - semantic_weight
+        for entity in keyword_results.get("entities", []):
+            entity_id = entity.get("name", "")
+            entity_scores[entity_id] = {
+                "entity": entity,
+                "keyword_score": keyword_weight,
+                "semantic_score": 0.0,
+            }
+
+        # Process semantic results
+        for entity in semantic_results.get("results", []):
+            entity_id = entity.get("name", "")
+            sim_score = entity.pop("similarity_score", 0.0)
+
+            if entity_id in entity_scores:
+                # Entity found by both methods
+                entity_scores[entity_id]["semantic_score"] = sim_score * semantic_weight
+            else:
+                # Entity only found by semantic search
+                entity_scores[entity_id] = {
+                    "entity": entity,
+                    "keyword_score": 0.0,
+                    "semantic_score": sim_score * semantic_weight,
+                }
+
+        # Calculate hybrid scores and sort
+        ranked_results = []
+        for _entity_id, scores in entity_scores.items():
+            hybrid_score = scores["keyword_score"] + scores["semantic_score"]
+            result = scores["entity"].copy()
+            result["hybrid_score"] = hybrid_score
+            result["keyword_score"] = scores["keyword_score"]
+            result["semantic_score"] = scores["semantic_score"]
+            ranked_results.append(result)
+
+        # Sort by hybrid score descending
+        ranked_results.sort(key=lambda x: x["hybrid_score"], reverse=True)
+
+        # Limit to k results
+        ranked_results = ranked_results[:k]
+
+        return {
+            "query": query,
+            "count": len(ranked_results),
+            "semantic_weight": semantic_weight,
+            "results": ranked_results,
+        }
+
+    @mcp.tool
+    async def generate_embeddings(
+        batch_size: int = 100,
+        model_name: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Generate vector embeddings for all entities that don't have them yet.
+
+        Processes entities in batches to create embeddings from their observations.
+        Embeddings enable semantic search capabilities.
+
+        Args:
+            batch_size (int): Number of entities to process per batch (default: 100)
+            model_name (str, optional): Specific embedding model to use
+
+        Returns:
+            dict: Statistics about embeddings generated
+        """
+        from memgraph.embeddings import get_embedding_provider
+        from memgraph.vector_sqlite import VectorSQLiteStore
+
+        logger.info(f"Generating embeddings (batch_size={batch_size})")
+
+        # Get embedding provider
+        provider = get_embedding_provider()
+        if provider is None:
+            return {
+                "error": "No embedding provider configured",
+                "hint": "Call configure_embeddings first or set environment variables"
+            }
+
+        # Initialize vector store
+        with VectorSQLiteStore(db_path=db_path) as vector_store:
+
+            try:
+                # Get all entities
+                graph = await DB.read_graph()
+                entities = graph.get("entities", [])
+
+                # Filter entities that need embeddings
+                existing_count = vector_store.count(model_name=provider.model_name)
+                logger.info(f"Found {len(entities)} total entities, {existing_count} already have embeddings")
+
+                # Get entities without embeddings for this model
+                entities_to_process = []
+                for entity in entities:
+                    entity_id = entity.get("name", "")
+                    if not vector_store.exists(entity_id, model_name=provider.model_name):
+                        entities_to_process.append(entity)
+
+                if not entities_to_process:
+                    return {
+                        "message": "All entities already have embeddings",
+                        "total_entities": len(entities),
+                        "existing_embeddings": existing_count,
+                        "generated": 0,
+                    }
+
+                # Process in batches
+                generated = 0
+                for i in range(0, len(entities_to_process), batch_size):
+                    batch = entities_to_process[i:i + batch_size]
+
+                    # Create text from observations
+                    texts = []
+                    entity_ids = []
+                    for entity in batch:
+                        entity_id = entity.get("name", "")
+                        observations = entity.get("observations", [])
+                        text = " ".join(observations) if observations else entity_id
+                        texts.append(text)
+                        entity_ids.append(entity_id)
+
+                    # Generate embeddings
+                    embeddings = provider.batch_generate(texts)
+
+                    # Store embeddings
+                    vector_store.batch_add(
+                        entity_ids=entity_ids,
+                        embeddings=embeddings,
+                        model_name=provider.model_name,
+                    )
+
+                    generated += len(batch)
+                    logger.info(f"Generated {generated}/{len(entities_to_process)} embeddings")
+
+                return {
+                    "message": f"Generated {generated} embeddings",
+                    "total_entities": len(entities),
+                    "existing_embeddings": existing_count,
+                    "generated": generated,
+                    "model": provider.model_name,
+                }
+
+            except Exception as e:
+                logger.error(f"Failed to generate embeddings: {e}")
+                return {"error": str(e)}
+
+    @mcp.tool
+    async def configure_embeddings(
+        provider: str = "sentence-transformers",
+        model: str | None = None,
+        api_key: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Configure the embedding provider for semantic search.
+
+        Supports local sentence-transformers models or OpenAI's API.
+
+        Args:
+            provider (str): "sentence-transformers" or "openai" (default: sentence-transformers)
+            model (str, optional): Model name. Defaults:
+                - sentence-transformers: "all-MiniLM-L6-v2"
+                - openai: "text-embedding-3-small"
+            api_key (str, optional): OpenAI API key (for OpenAI provider)
+
+        Returns:
+            dict: Configuration status and provider details
+        """
+        from memgraph.embeddings import configure_from_dict, get_embedding_provider
+
+        logger.info(f"Configuring embeddings: provider={provider}, model={model}")
+
+        try:
+            config_dict = {
+                "provider": provider,
+                "model": model,
+                "api_key": api_key,
+            }
+
+            configure_from_dict(config_dict)
+
+            # Verify configuration
+            active_provider = get_embedding_provider()
+            if active_provider is None:
+                return {"error": "Failed to configure provider"}
+
+            return {
+                "message": "Embedding provider configured successfully",
+                "provider": provider,
+                "model": active_provider.model_name,
+                "dimensions": active_provider.dimensions,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to configure embeddings: {e}")
+            return {"error": str(e)}
+
     return mcp
 
 
@@ -435,3 +776,56 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Server error: {e}")
         sys.exit(1)
+
+
+# Export tool functions for testing
+# These are wrappers that delegate to the module-level mcp instance
+async def configure_embeddings(
+    provider: str = "sentence-transformers",
+    model: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Wrapper for testing - calls the mcp tool."""
+    mcp = get_mcp()
+    result = await mcp.call_tool("configure_embeddings", {"provider": provider, "model": model, "api_key": api_key})
+    return result.structured_content  # type: ignore[return-value]
+
+
+async def generate_embeddings(
+    batch_size: int = 100,
+    model_name: str | None = None,
+) -> dict[str, Any]:
+    """Wrapper for testing - calls the mcp tool."""
+    mcp = get_mcp()
+    result = await mcp.call_tool("generate_embeddings", {"batch_size": batch_size, "model_name": model_name})
+    return result.structured_content  # type: ignore[return-value]
+
+
+async def search_entities_semantic(
+    query: str,
+    k: int = 10,
+    threshold: float = 0.0,
+    model_name: str | None = None,
+) -> dict[str, Any]:
+    """Wrapper for testing - calls the mcp tool."""
+    mcp = get_mcp()
+    result = await mcp.call_tool(
+        "search_entities_semantic",
+        {"query": query, "k": k, "threshold": threshold, "model_name": model_name},
+    )
+    return result.structured_content  # type: ignore[return-value]
+
+
+async def search_hybrid(
+    query: str,
+    k: int = 10,
+    semantic_weight: float = 0.7,
+    threshold: float = 0.0,
+) -> dict[str, Any]:
+    """Wrapper for testing - calls the mcp tool."""
+    mcp = get_mcp()
+    result = await mcp.call_tool(
+        "search_hybrid",
+        {"query": query, "k": k, "semantic_weight": semantic_weight, "threshold": threshold},
+    )
+    return result.structured_content  # type: ignore[return-value]

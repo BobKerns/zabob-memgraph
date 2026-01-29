@@ -138,6 +138,15 @@ uv run pytest tests/test_ui_playwright.py::test_page_loads -v
 - Use `uv run pytest tests/test_file.py -v --tb=short` to see error messages
 - For specific tests: `uv run pytest tests/test_file.py::test_name -v`
 - For test suites: `uv run pytest tests/test_observation_sorting.py tests/test_search_nodes.py -v`
+- **CRITICAL**: Actually read the test output - don't assume success from exit codes alone
+- Look for "FAILED" and assertion errors in output, not just "PASSED" counts
+- Verify exit code is 0 explicitly when claiming tests pass
+
+**Prerequisites before running tests:**
+
+- UI tests require web bundle: `pnpm install && pnpm run build:web`
+- Check that `memgraph/web/graph.bundle.js` exists before running Playwright tests
+- Verify `.venv` contains all dependencies: `uv sync --extra dev`
 
 **Test Architecture:**
 - Tests use isolated test servers with temporary databases
