@@ -50,7 +50,7 @@ def cli():
 )
 @click.option(
     "--base-version",
-    default="v3",
+    default="v4",
     help="Base image version to use",
     show_default=True,
 )
@@ -120,7 +120,7 @@ def test(
 )
 @click.option(
     "--base-version",
-    default="v3",
+    default="v4",
     help="Base image version to use",
     show_default=True,
 )
@@ -201,7 +201,7 @@ def runtime(
 )
 @click.option(
     "--version",
-    default="v3",
+    default="v4",
     help="Version tag for base images",
     show_default=True,
 )
