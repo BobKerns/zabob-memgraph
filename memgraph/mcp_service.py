@@ -144,6 +144,11 @@ def setup_mcp(config: Config) -> FastMCP:
         """
         Create new entities in the knowledge graph.
 
+        **IMPORTANT**: Always search first to avoid duplicates!
+        - Use search_nodes() before creating to check if entity already exists
+        - Creating duplicates causes relation dilution (relationships scattered across copies)
+        - Search by name, type, or related concepts before creating new entities
+
         Each entity should have:
         - name (str): Entity identifier
         - entityType (str): Type of entity
@@ -231,6 +236,12 @@ def setup_mcp(config: Config) -> FastMCP:
     ) -> dict[str, Any]:
         """
         Create a subgraph atomically with entities, relations, and observations.
+
+        **IMPORTANT**: Always search first to avoid duplicates!
+        - Use search_nodes() before creating to check if entities already exist
+        - Creating duplicates causes relation dilution (relationships scattered across copies)
+        - Search for similar concepts and add to existing entities instead of creating new ones
+        - Use external_refs to link to existing entities rather than duplicating them
 
         This is a high-level operation that combines entity creation, observation
         addition, and relation creation in a single atomic transaction. Use this

@@ -1,4 +1,4 @@
-![zabob banner, AI Memory](docs/images/zabob-banner.jpg)
+![zabob banner, AI Memory](docs/images/zabob-banner-memory.jpg)
 
 # Next Steps for Knowledge Graph MCP Integration
 

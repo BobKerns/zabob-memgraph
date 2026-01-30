@@ -1,0 +1,41 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "click>=8.3.1",
+#     "gitpython>=3.1.46",
+#     "ruff>=0.8.0",
+#     "mypy>=1.13.0",
+# ]
+# ///
+"""
+Zabob Development Library - Development Tool.
+
+Manages the dev-library repository itself.
+Maintains standard command structure with 'tools' subgroup.
+"""
+
+import sys
+from pathlib import Path
+
+from click import Group
+
+# Add zabob package to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from zabob.tools.libtools import cli  # noqa: E402
+
+# Hide commands that don't apply to dev-library itself
+# (dev-library can't add/pull/push itself as a subtree)
+# Access the tools subgroup and hide specific commands
+if "tools" in cli.commands:
+    tools_group = cli.commands["tools"]
+    assert isinstance(tools_group, Group)
+    commands = tools_group.commands
+    for cmd_name in ["add", "pull", "push"]:
+        if cmd_name in tools_group.commands:
+            tools_group.commands[cmd_name].hidden = True
+
+
+if __name__ == "__main__":
+    cli()

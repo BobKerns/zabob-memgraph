@@ -1,3 +1,5 @@
+![Zabob Memory Holodeck](docs/images/zabob-banner-memory.jpg)
+
 # Copilot Review Fixes - Release 0.1.23
 
 **Date**: January 28, 2026

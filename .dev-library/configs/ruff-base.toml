@@ -1,0 +1,15 @@
+# Ruff Base Configuration for Zabob Projects
+
+# Line length - 120 is reasonable for modern displays
+# (88 is Black's default but overly restrictive)
+line-length = 120
+
+[lint]
+# F541 - f-string without placeholders (often intentional for consistency)
+ignore = ["F541"]
+
+[format]
+# Use Black-compatible formatting
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

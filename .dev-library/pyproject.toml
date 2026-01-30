@@ -1,0 +1,50 @@
+[project]
+name = "zabob-dev-library"
+version = "0.1.0"
+description = "Shared development resources for Zabob AI assistant ecosystem"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.1.7",
+    "gitpython>=3.1.43",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_backend"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+]
+ignore = [
+    "UP036",
+    "I001",  # Allow custom import ordering (system, third-party, local)
+    "F541",  # f-string without placeholders (often intentional for consistency)
+    "UP015", "UP043",
+    ]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+# GitPython has incomplete type stubs
+[[tool.mypy.overrides]]
+module = "git.*"
+ignore_missing_imports = true
