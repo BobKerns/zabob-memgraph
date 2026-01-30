@@ -1,0 +1,36 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "click>=8.3.1",
+#     "gitpython>=3.1.46",
+#     "ruff>=0.8.0",
+#     "mypy>=1.13.0",
+# ]
+# ///
+"""
+Zabob Memgraph - Development Tool.
+
+Manages development tasks including dev-library integration.
+"""
+
+import sys
+from pathlib import Path
+
+# Add .dev-library to path
+sys.path.insert(0, str(Path(__file__).parent / ".dev-library"))
+
+from zabob.tools.libtools import cli, CONFIG  # noqa: E402
+
+# Configure paths for check commands
+project_root = Path(__file__).parent
+CONFIG["paths"] = [
+    project_root / "memgraph",
+    project_root / "tests",
+    *CONFIG["paths"]
+]
+CONFIG["config"] = str(project_root / "pyproject.toml")
+
+
+if __name__ == "__main__":
+    cli()

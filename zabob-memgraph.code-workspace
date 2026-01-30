@@ -96,7 +96,7 @@
             "LICENSE.md": "LICENSE",
             "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,.memgraph.dic,.flake8,playwright.config.py",
             "install.sh": "install-uv.sh",
-            ".gitignore": ".gitattributes,.mailmap",,
+            ".gitignore": ".gitattributes,.mailmap,.dockerignore",
             "README.md": "DEPLOYMENT.md,CONTRIBUTING.md",
             "dev_utils.py": "check_*.py",
             "Dockerfile": "Dockerfile.*,docker-compose*.yml,docker-*.sh,Dockerfile.*,docker-build.py",
@@ -157,7 +157,11 @@
                 "approve": true,
                 "matchCommandLine": true
             }
-        }
+        },
+        "flake8.args": [
+            "--max-line-length=120",
+            "--disable=F541"
+        ]
 	},
 	"mcp": {
 		"servers": {

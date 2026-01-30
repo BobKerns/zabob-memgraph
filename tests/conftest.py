@@ -125,7 +125,7 @@ def ensure_web_bundle_built(project_dir: Path) -> None:
     if source_files:
         newest_source = max(f.stat().st_mtime for f in source_files)
         if newest_source > bundle_mtime:
-            print(f"\nWeb bundle is out of date (source files modified)")
+            print("\nWeb bundle is out of date (source files modified)")
             print("Rebuilding web UI bundle...")
             _build_web_bundle(project_dir)
 
@@ -184,7 +184,7 @@ def _build_web_bundle(project_dir: Path) -> None:
         raise RuntimeError(
             "pnpm command not found. Install it with: npm install -g pnpm\n"
             "Or build manually: cd project_dir && npm install && npm run build:web"
-        )
+        ) from None
 
 
 @pytest.fixture(scope="session")

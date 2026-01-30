@@ -66,6 +66,23 @@ See `.dev-library/skills/` for detailed skill definitions:
 - [Web Security Patterns](.dev-library/skills/web-security-patterns.md)
 ```
 
+# Dictionary
+
+The library dictionary is named [.zabob.dic](.zabob.dic), and holds entries that apply across the various projects. It should be added to the _project_`.code-workspace` file like this:
+
+```json
+        "cSpell.dictionaryDefinitions": [
+            {
+                "name": "zabob-library",
+                "path": ".dev-library/.zabob.dic",
+                "scope": "workspace",
+                "description": "Zabob Library custom dictionary",
+                "addWords": true
+            },
+            ...
+        ]
+```
+
 ## Contributing
 
 Skills and fixtures should be:
@@ -79,4 +96,4 @@ Project-specific details belong in individual project documentation, not here.
 
 ## License
 
-[Same as Zabob projects]
+[MIT, Same as Zabob projects]

@@ -320,7 +320,7 @@ Do you need to share KB across multiple systems?
 ## Configuration Comparison
 
 | Feature | stdio (Docker) | stdio (pipx/uvx) | HTTP (Docker) | HTTP (Local) |
-|---------|----------------|-------------------|---------------|--------------|
+| --------- | ---------------- | ------------------- | --------------- | -------------- |
 | Python Required | ❌ | ❌* | ❌ | ✅ |
 | Docker Required | ✅ | ❌ | ✅ | ❌ |
 | Web UI | ✅ | ✅ | ✅ | ✅ |
@@ -391,7 +391,7 @@ zabob-memgraph open
 ## Environment Variables Reference
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `MEMGRAPH_HOST` | Bind address | `localhost` |
 | `MEMGRAPH_PORT` | Server port | `6789` |
 | `MEMGRAPH_MODE` | `stdio` or `server` | `server` |
