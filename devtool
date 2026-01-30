@@ -6,6 +6,8 @@
 #     "gitpython>=3.1.46",
 #     "ruff>=0.8.0",
 #     "mypy>=1.13.0",
+#     "requests>=2.31.0",
+#     "rich>=13.0.0",
 # ]
 # ///
 """
@@ -15,7 +17,10 @@ Manages development tasks including dev-library integration.
 """
 
 import sys
+import time
 from pathlib import Path
+
+import click
 
 # Add .dev-library to path
 sys.path.insert(0, str(Path(__file__).parent / ".dev-library"))
@@ -30,6 +35,170 @@ CONFIG["paths"] = [
     *CONFIG["paths"]
 ]
 CONFIG["config"] = str(project_root / "pyproject.toml")
+
+
+# Server management commands
+@cli.group()
+def server() -> None:
+    """Manage and test the memgraph server."""
+    pass
+
+
+@server.command()
+@click.option("--url", default="http://localhost:6789", help="Server URL")
+def test(url: str) -> None:
+    """Test server endpoints and functionality."""
+    import requests
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(Panel(f"Testing Memgraph Server at {url}", title="🧪 Server Test"))
+
+    # Test health endpoint
+    try:
+        response = requests.get(f"{url}/health", timeout=5)
+        if response.status_code == 200:
+            health_data = response.json()
+            console.print("✅ Health check passed")
+            console.print(f"   Version: {health_data.get('version', 'unknown')}")
+            console.print(f"   Features: {', '.join(health_data.get('features', []))}")
+        else:
+            console.print(f"❌ Health check failed: {response.status_code}")
+            return
+    except requests.RequestException as e:
+        console.print(f"❌ Could not connect to server: {e}")
+        return
+
+    # Test knowledge graph endpoint
+    try:
+        response = requests.get(f"{url}/api/knowledge-graph", timeout=10)
+        if response.status_code == 200:
+            graph_data = response.json()
+            console.print("✅ Knowledge graph endpoint working")
+            console.print(f"   Entities: {len(graph_data.get('nodes', []))}")
+            console.print(f"   Relations: {len(graph_data.get('links', []))}")
+        else:
+            console.print(f"❌ Knowledge graph failed: {response.status_code}")
+    except requests.RequestException as e:
+        console.print(f"❌ Knowledge graph error: {e}")
+
+    # Test search endpoint
+    try:
+        response = requests.get(f"{url}/api/search?q=test", timeout=5)
+        if response.status_code == 200:
+            search_results = response.json()
+            console.print("✅ Search endpoint working")
+            console.print(f"   Results for 'test': {len(search_results)}")
+        else:
+            console.print(f"❌ Search failed: {response.status_code}")
+    except requests.RequestException as e:
+        console.print(f"❌ Search error: {e}")
+
+    # Test entity creation
+    test_entity = {
+        "name": f"Test Entity {int(time.time())}",
+        "entityType": "test",
+        "observations": ["This is a test observation", "Created by dev script"],
+    }
+
+    try:
+        response = requests.post(f"{url}/api/entities", json=[test_entity], timeout=5)
+        if response.status_code == 200:
+            console.print("✅ Entity creation working")
+        else:
+            console.print(f"❌ Entity creation failed: {response.status_code}")
+    except requests.RequestException as e:
+        console.print(f"❌ Entity creation error: {e}")
+
+    console.print("\n🎉 Server test complete!")
+
+
+@server.command()
+@click.option("--url", default="http://localhost:6789", help="Server URL")
+def stats(url: str) -> None:
+    """Display server statistics."""
+    import requests
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        response = requests.get(f"{url}/api/database-stats", timeout=5)
+        if response.status_code == 200:
+            stats_data = response.json()
+
+            table = Table(title="📊 Database Statistics")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="green")
+
+            table.add_row("Total Entities", str(stats_data.get("total_entities", "N/A")))
+            table.add_row("Total Relations", str(stats_data.get("total_relations", "N/A")))
+            table.add_row(
+                "Database Size", f"{stats_data.get('database_size_mb', 0):.2f} MB"
+            )
+            table.add_row("Backend Type", stats_data.get("backend_type", "Unknown"))
+
+            console.print(table)
+        else:
+            console.print(f"❌ Could not get stats: {response.status_code}")
+
+    except requests.RequestException as e:
+        console.print(f"❌ Stats error: {e}")
+
+
+@server.command()
+@click.option("--url", default="http://localhost:6789", help="Server URL")
+@click.option("--interval", default=5, help="Check interval in seconds")
+def monitor(url: str, interval: int) -> None:
+    """Monitor server health continuously."""
+    import requests
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    console = Console()
+    console.print(
+        Panel(f"Monitoring server at {url} (Ctrl+C to stop)", title="📡 Server Monitor")
+    )
+
+    try:
+        while True:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+                transient=True,
+            ) as progress:
+                task = progress.add_task("Checking server...", total=None)
+
+                try:
+                    response = requests.get(f"{url}/health", timeout=3)
+                    if response.status_code == 200:
+                        timestamp = time.strftime("%H:%M:%S")
+                        health = response.json()
+                        console.print(
+                            f"[green]{timestamp}[/green] ✅ Server healthy "
+                            f"- {health.get('status', 'unknown')}"
+                        )
+                    else:
+                        timestamp = time.strftime("%H:%M:%S")
+                        console.print(
+                            f"[red]{timestamp}[/red] ❌ Server unhealthy "
+                            f"- HTTP {response.status_code}"
+                        )
+
+                except requests.RequestException:
+                    timestamp = time.strftime("%H:%M:%S")
+                    console.print(f"[red]{timestamp}[/red] ❌ Server unreachable")
+
+                progress.remove_task(task)
+
+            time.sleep(interval)
+
+    except KeyboardInterrupt:
+        console.print("\n👋 Monitoring stopped")
 
 
 if __name__ == "__main__":

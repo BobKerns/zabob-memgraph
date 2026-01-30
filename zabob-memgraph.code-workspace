@@ -97,7 +97,7 @@
             "pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,.memgraph.dic,.flake8,playwright.config.py",
             ".gitignore": ".gitattributes,.mailmap,.dockerignore",
             "README.md": "DEPLOYMENT.md,CONTRIBUTING.md",
-            "dev_utils.py": "install*.sh",
+            "install.sh": "install-*.sh",
             "Dockerfile": "Dockerfile.*,docker-compose*.yml,docker-*.sh,Dockerfile.*,docker-build.py"
         },
         "explorer.enableUndo": false,
