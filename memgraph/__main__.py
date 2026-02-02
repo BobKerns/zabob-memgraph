@@ -14,11 +14,9 @@ Zabob Memgraph CLI
 Command-line interface for the Zabob Memgraph knowledge graph server.
 """
 
-from pydoc import doc
 import subprocess
 import sys
 import time
-from turtle import st, title
 from typing import NoReturn
 import webbrowser
 from pathlib import Path
@@ -445,16 +443,16 @@ def status(ctx: click.Context, port: int | None, name: str | None, pid: int | No
             status = server_status(info)
             match status:
                 case ServerStatus.RUNNING:
-                    status = Text("RUNNING", style=S.running)
+                    status_txt = Text("RUNNING", style=S.running)
                 case ServerStatus.NOT_RESPONDING | ServerStatus.ERROR:
-                    status = Text("NOT RESPONDING", style=S.not_responding)
+                    status_txt = Text("NOT RESPONDING", style=S.not_responding)
                 case ServerStatus.STOPPED:
-                    status = Text("STOPPED", style=S.stopped)
+                    status_txt = Text("STOPPED", style=S.stopped)
                 case ServerStatus.GONE | ServerStatus.NOT_RUNNING:
-                    status = Text("NOT RUNNING", style=S.gone)
+                    status_txt = Text("NOT RUNNING", style=S.gone)
                 case _:
-                    status = Text(f"{status}", style=S.bad_status)
-            table.add_row("Status", status)
+                    status_txt = Text(f"{status}", style=S.bad_status)
+            table.add_row("Status", status_txt)
             table.add_row("Launched by", info.get("launched_by", "N/A"))
 
             if info.get("docker_container"):

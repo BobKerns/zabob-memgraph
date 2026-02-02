@@ -27,6 +27,7 @@ Usage:
     from zabob.tools.libtools import DevLibraryManager
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import NotRequired, TypedDict
 import subprocess
@@ -37,6 +38,7 @@ import click
 from git import GitCommandError, Repo
 
 from rich.console import Console
+from rich.panel import Panel
 
 console = Console()
 # Types
@@ -52,6 +54,13 @@ class DevLibraryStatus(TypedDict):
     untracked_files: NotRequired[list[str]]  # Only present if exists=True
 
 
+class Config(TypedDict):
+    """Global configuration for check commands."""
+    paths: list[Path]
+    checks: list[click.Command]
+    config: Path | None  # Path to config file (optional)
+
+
 # Constants
 DEV_LIBRARY = Path(__file__).parent.parent.parent.resolve()
 DEFAULT_REMOTE = "git@github.com:BobKerns/zabob-dev-library.git"
@@ -60,10 +69,11 @@ DEFAULT_BRANCH = "main"
 
 # Global configuration for check commands
 # Projects can override these before using the CLI
-CONFIG = {
+CONFIG: Config = {
     "paths": [
         DEV_LIBRARY / 'zabob'
     ],
+    "checks": [],
     "config": None,  # Path to config file (optional)
 }
 
@@ -96,7 +106,7 @@ class DevLibraryManager:
         try:
             match operation:
                 case "add" | "pull" | "push":
-                    result = self.repo.git.subtree(
+                    result: str = self.repo.git.subtree(
                         operation,
                         f"--prefix={self.prefix}",
                         self.remote_url,
@@ -284,13 +294,13 @@ def code():
 @click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
 @click.option("--config", type=click.Path(exists=True), help="Path to config file")
 @click.option("--fix", is_flag=True, help="Automatically fix issues where possible")
-def ruff(paths: tuple[str | Path, ...], verbose: bool, config: str | None, fix: bool):
+def ruff(paths: Sequence[str | Path], verbose: bool, config: Path | None, fix: bool):
     """Run ruff linter on specified paths."""
     import subprocess
 
     # Use global config if no paths provided
     if not paths:
-        paths = CONFIG["paths"]
+        paths = CONFIG["paths"] or []
         if not config:
             config = CONFIG.get("config")
 
@@ -298,8 +308,8 @@ def ruff(paths: tuple[str | Path, ...], verbose: bool, config: str | None, fix: 
         click.secho("✗ No paths specified and no global config set", fg="red")
         raise SystemExit(1)
 
-    click.echo(f"\n🔍 Running ruff...")
-    cmd = ["ruff", "check",
+    console.print(Panel("Linting with ruff"))
+    cmd = ["uv", "run", "--active", "ruff", "check",
            * (["--fix"] if fix else []),
            * (["--config", config] if config else []),
            * (("--verbose",) if verbose else ()),
@@ -320,7 +330,7 @@ def ruff(paths: tuple[str | Path, ...], verbose: bool, config: str | None, fix: 
 @click.argument("paths", nargs=-1, type=click.Path(exists=True))
 @click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
 @click.option("--config", type=click.Path(exists=True), help="Path to config file")
-def mypy(paths: tuple[str | Path, ...], verbose: bool, config: str | None):
+def mypy(paths: Sequence[str | Path], verbose: bool, config: Path | None):
     """Run mypy type checker on specified paths."""
     import subprocess
 
@@ -334,8 +344,9 @@ def mypy(paths: tuple[str | Path, ...], verbose: bool, config: str | None):
         click.secho("✗ No paths specified and no global config set", fg="red")
         raise SystemExit(1)
 
-    click.echo(f"\n🔍 Running mypy...")
-    cmd = ["mypy",
+    console.print(Panel("Type Checking with mypy"))
+    
+    cmd = ["uv", "run", "--active", "mypy",
            * (["--config-file", config] if config else []),
            * (("--verbose",) if verbose else ()),
            * (str(p) for p in paths)
@@ -344,9 +355,9 @@ def mypy(paths: tuple[str | Path, ...], verbose: bool, config: str | None):
     result = subprocess.run(cmd)
 
     if result.returncode == 0:
-        click.secho("✓ No type errors", fg="green")
+        console.print("✓ No type errors", style="green")
     else:
-        click.secho(f"✗ Type errors found (exit code {result.returncode})", fg="yellow")
+        console.print(f"✗ Type errors found (exit code {result.returncode})", style="yellow")
 
     raise SystemExit(result.returncode)
 
@@ -396,19 +407,33 @@ def clean() -> None:
     console.print(f"✅ Cleaned {count} items")
 
 
-@code.command()
+CONFIG["checks"].extend([ruff, mypy])
+
+
+@code.command("all")
 @click.argument("paths", nargs=-1, type=click.Path(exists=True))
 @click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
 @click.option("--config", type=click.Path(exists=True), help="Path to config file")
 @click.option("--fix", is_flag=True, help="Automatically fix issues where possible")
 @click.pass_context
-def all(ctx: click.Context, paths: tuple[str | Path, ...], verbose: bool, config: str | None, fix: bool):
+def all_checks(ctx: click.Context,
+               paths: Sequence[str | Path]=(),
+               verbose: bool = False, config: str | None = None,
+               fix: bool = False):
     """Run all checks (ruff + mypy) on specified paths."""
-    # Run ruff
-    ctx.invoke(ruff, paths=paths, verbose=verbose, config=config, fix=fix)
-    # Run mypy
-    ctx.invoke(mypy, paths=paths, verbose=verbose, config=config)
+    exitcode: str | int = 0
+    for check in CONFIG["checks"]:
+        try:
+            ctx.invoke(
+                check,
+                config=config,
+                **(dict(fix=fix) if check == ruff else {}),
+            )
+        except SystemExit as e:
+            if e.code is not None and e.code != 0:
+                exitcode = e.code
 
+    raise SystemExit(exitcode)
 
 
 if __name__ == "__main__":

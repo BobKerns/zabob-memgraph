@@ -41,7 +41,7 @@ CONFIG["paths"] = [
     project_root / "tests",
     *CONFIG["paths"]
 ]
-CONFIG["config"] = str(project_root / "pyproject.toml")
+CONFIG["config"] = project_root / "pyproject.toml"
 
 
 # Add your project-specific commands here

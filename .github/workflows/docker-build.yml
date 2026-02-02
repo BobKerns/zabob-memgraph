@@ -10,7 +10,7 @@ on:
 env:
   REGISTRY_GHCR: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  BASE_IMAGE_VERSION: v4  # Update this when base images are rebuilt
+  BASE_IMAGE_VERSION: v6  # Update this when base images are rebuilt
 
 jobs:
   setup:
@@ -149,7 +149,7 @@ jobs:
       # Run tests only on amd64
       - name: Run all quality checks and tests
         if: matrix.run-tests
-        run: docker run --rm zabob-memgraph-test:latest
+        run: docker run --rm zabob-memgraph-test:latest --verbose
 
       - name: Debug build environment
         run: |

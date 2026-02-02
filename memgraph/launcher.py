@@ -50,12 +50,8 @@ class ServerStatus(StrEnum):
 def find_free_port(start_port: int = DEFAULT_PORT) -> int:
     """Find a free port starting from start_port"""
     for port in range(start_port, start_port + 100):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(("localhost", port))
-                return port
-        except OSError:
-            continue
+        if is_port_available(port):
+            return port
     raise RuntimeError(f"Could not find a free port in range {start_port}-{start_port + 100}")
 
 

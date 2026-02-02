@@ -195,22 +195,21 @@ def port(request):
     # Handle parallel test execution with pytest-xdist
     worker_id = getattr(request.config, 'workerinput', {}).get('workerid', 'master')
 
-    # Use different port ranges for different workers to avoid conflicts
+    # Use non-overlapping port ranges for workers (100 ports per worker)
+    # This prevents race conditions when multiple workers check ports simultaneously
     if worker_id == 'master':
-        start_port = 50000
-    elif worker_id == 'gw0':
-        start_port = 50100
-    elif worker_id == 'gw1':
-        start_port = 50200
+        start_port = 40000
     else:
-        # For additional workers, parse the number
+        # Parse worker number from 'gw0', 'gw1', etc.
         import re
         match = re.match(r'gw(\d+)', worker_id)
         if match:
             worker_num = int(match.group(1))
+            # Give each worker a 100-port range
+            start_port = 40100 + (worker_num * 100)
         else:
-            worker_num = 0
-        start_port = 50000 + (worker_num * 100)
+            # Fallback for unexpected worker IDs
+            start_port = 40000
 
     # Use the existing find_free_port function with worker-specific start port
     return find_free_port(start_port)
@@ -576,7 +575,7 @@ def open_service(request,
                 log.info(f"Response text (truncated): {response.text[:100]}...")
                 if response.status_code != 200:
                     log.error(f"Web client error: {response.text}")
-                return response.text
+                return str(response.text)
             except Exception as e:
                 log.error(f"Web client request error: {e}")
                 raise e

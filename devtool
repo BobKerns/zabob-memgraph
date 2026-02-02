@@ -20,7 +20,7 @@
 #     "pytest-asyncio>=1.3.0",
 #     "anyio>=4.12.1",
 #     "playwright>=1.58.0",
-#    "pytest-playwright>=0.7.2",
+#     "pytest-playwright>=0.7.2",
 # ]
 # ///
 """
@@ -39,7 +39,7 @@ project_root = Path(__file__).parent
 # Add .dev-library to path
 sys.path.insert(0, str(project_root / ".dev-library"))
 
-from zabob.tools.libtools import cli, CONFIG  # noqa: E402
+from zabob.tools.libtools import cli, all_checks, CONFIG  # noqa: E402
 from memgraph.__main__ import cli as server   # noqa: E402
 
 cli.add_command(server, name="server")
@@ -50,7 +50,7 @@ CONFIG["paths"] = [
     project_root / "tests",
     *CONFIG["paths"]
 ]
-CONFIG["config"] = str(project_root / "pyproject.toml")
+CONFIG["config"] = project_root / "pyproject.toml"
 
 
 @server.command()
@@ -208,6 +208,103 @@ def monitor(url: str, interval: int) -> None:
 
     except KeyboardInterrupt:
         console.print("\n👋 Monitoring stopped")
+
+
+@cli.command()
+def version() -> None:
+    """Display Memgraph version information."""
+    from memgraph.__version__ import __version__, __distribution__
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(
+        Panel(f"Memgraph Version: {__version__}\nDistribution: {__distribution__}", title="ℹ️ Version Info")
+    )
+
+
+code: click.Group = cli.commands["code"]
+
+
+@code.group("test")
+def tests() -> None:
+    """Run Memgraph server tests."""
+    pass
+
+@tests.command("ui")
+@click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
+@click.option("--config", type=click.Path(exists=True), help="Path to config file")
+def ui_tests(verbose: bool = False, config: Path | None = None) -> None:
+    """Run Memgraph UI tests using Playwright."""
+    import subprocess
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(Panel("Running Memgraph UI Tests", title="🧪 UI Tests"))
+
+    try:
+        result = subprocess.run(
+
+            ["pytest", "-m", "(ui_basic or ui_interactive)", "-n", "auto",
+             "-v" if verbose else ""],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        console.print(result.stdout)
+        if result.returncode == 0:
+            console.print("✅ All UI tests passed")
+        else:
+            console.print("❌ Some UI tests failed")
+            console.print(result.stderr)
+
+    except Exception as e:
+        console.print(f"❌ Error running UI tests: {e}")
+
+
+@tests.command("api")
+@click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
+@click.option("--config", type=click.Path(exists=True), help="Path to config file")
+def api_tests(verbose: bool = False, config: Path | None = None) -> None:
+    """Run Memgraph API tests."""
+    import subprocess
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(Panel("Running Memgraph API Tests",
+                        title="🧪 API Tests"))
+
+    try:
+        result = subprocess.run(
+            ["pytest", "-m", "not (ui_basic or ui_interactive)", "-n", "auto",
+            "-v" if verbose else ""],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        console.print(result.stdout)
+        if result.returncode == 0:
+            console.print("✅ All API tests passed")
+        else:
+            console.print("❌ Some API tests failed")
+            console.print(result.stderr)
+
+    except Exception as e:
+        console.print(f"❌ Error running API tests: {e}")
+
+
+CONFIG["checks"].extend([api_tests, ui_tests])
+
+@tests.command("all")
+@click.pass_context
+def all_tests(ctx: click.Context, verbose: bool = False, config: Path | None = None) -> None:
+    """Run all Memgraph tests."""
+    ctx.invoke(api_tests, verbose=verbose)
+    ctx.invoke(ui_tests)
 
 
 if __name__ == "__main__":
