@@ -6,7 +6,7 @@ on:
       version:
         description: 'Base image version tag (e.g., v1, v2)'
         required: true
-        default: 'v6'
+        default: 'v7'
       push_latest:
         description: 'Also tag as latest'
         type: boolean

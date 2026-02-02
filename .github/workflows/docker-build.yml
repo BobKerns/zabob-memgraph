@@ -10,7 +10,7 @@ on:
 env:
   REGISTRY_GHCR: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  BASE_IMAGE_VERSION: v6  # Update this when base images are rebuilt
+  BASE_IMAGE_VERSION: v7  # Update this when base images are rebuilt
 
 jobs:
   setup:
