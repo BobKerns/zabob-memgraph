@@ -7,6 +7,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.29]
+
+### Fixes
+
+- Fixed incorrect path to config dir in docker environment.
+
+## Enhancements
+
+- Made the various process management and configuration commands available from devtool.
+  - One-stop shopping for dev, so we don't have to remember what lives where.
+- Nicer output formats for process mgt/config commands.
+
 ## [0.1.28]
 
 - Further build optimization.

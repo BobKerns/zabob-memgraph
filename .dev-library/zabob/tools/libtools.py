@@ -4,7 +4,7 @@
 # dependencies = [
 #     "click>=8.3.1",
 #     "gitpython>=3.1.46",
-#     "rich>=14.3.1",
+#     "rich>=14.3.2",
 # ]
 # ///
 """
