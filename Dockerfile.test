@@ -1,7 +1,7 @@
 # Simplified test Dockerfile - uses pre-built base-test image
 ARG BASE_IMAGE_REGISTRY=ghcr.io
 ARG BASE_IMAGE_NAME=bobkerns/zabob-memgraph
-ARG BASE_IMAGE_VERSION=v1
+ARG BASE_IMAGE_VERSION=v9
 
 FROM ${BASE_IMAGE_REGISTRY}/${BASE_IMAGE_NAME}/base-test:${BASE_IMAGE_VERSION}
 
@@ -26,4 +26,4 @@ RUN chmod +x ./devtool
 ENV PYTHONPATH=/app
 
 # Default command runs all quality checks and tests
-ENTRYPOINT ["/app/devtool", "check", "all"]
+ENTRYPOINT ["/app/devtool", "code", "all"]

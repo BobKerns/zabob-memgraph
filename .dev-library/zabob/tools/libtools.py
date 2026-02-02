@@ -345,7 +345,7 @@ def mypy(paths: Sequence[str | Path], verbose: bool, config: Path | None):
         raise SystemExit(1)
 
     console.print(Panel("Type Checking with mypy"))
-    
+
     cmd = ["uv", "run", "--active", "mypy",
            * (["--config-file", config] if config else []),
            * (("--verbose",) if verbose else ()),
