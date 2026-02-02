@@ -337,6 +337,12 @@ def start_local_server(config: Config, /, *, console: Console, explicit_port: in
         sys.exit(1)
 
 
+class PathEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, Path):
+            return str(obj)
+        return super().default(obj)
+
 def start_docker_server(
     config: Config,
     /,
@@ -406,7 +412,7 @@ def start_docker_server(
         "-p",
         f"{port}:{DEFAULT_PORT}",
         "-v",
-        f"{config_dir}:/app/.zabob/memgraph",
+        f"{config_dir}:/data/.zabob/memgraph",
         "-v",
         f"{data_dir}:/data",
         "-v",
@@ -422,11 +428,16 @@ def start_docker_server(
         log_level,
     ]
 
+    print(f"Starting Docker container with command: {' '.join(cmd)}", file=sys.stderr)
+
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         container_id = result.stdout.strip()
         with host_info_file.open("w") as f:
-            json.dump(host_info, f, indent=2)
+            json.dump(host_info,
+                      f,
+                      indent=2,
+                      cls=PathEncoder)
         server_info = save_server_info(
             config_dir,
             launched_by="docker",
