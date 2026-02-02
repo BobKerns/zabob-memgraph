@@ -3,9 +3,9 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "click>=8.3.1",
-#     "psutil>=7.1.3",
+#     "psutil>=7.2.2",
 #     "requests>=2.32.5",
-#     "rich>=14.2.0",
+#     "rich>=14.3.1",
 # ]
 # ///
 """
@@ -14,10 +14,11 @@ Zabob Memgraph CLI
 Command-line interface for the Zabob Memgraph knowledge graph server.
 """
 
-import shutil
+from pydoc import doc
 import subprocess
 import sys
 import time
+from turtle import st, title
 from typing import NoReturn
 import webbrowser
 from pathlib import Path
@@ -29,6 +30,9 @@ import requests
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich.style import Style
 
 from memgraph.config import (
     CONFIG_DIR,
@@ -52,7 +56,23 @@ from memgraph.launcher import (
 from memgraph.service import run_server as run_server
 
 console = Console()
-
+class S:
+    '''
+    Text style definitions.
+    '''
+    spec = Style(color="white", dim=True, italic=True)
+    title = Style(color="deep_sky_blue1", bold=True)
+    key = Style(color="cyan")
+    value = Style(color="green")
+    pid = Style(color="magenta")
+    port = Style(color="green")
+    status = Style(color="yellow")
+    docker = Style(color="red")
+    running = Style(color="green", bold=True)
+    stopped = Style(color="yellow", bold=True)
+    not_responding = Style(color="red", italic=True)
+    gone = Style(color="dark_red", bold=True)
+    bad_status = Style(color="red", dim=True)
 
 @click.group()
 @click.version_option()
@@ -89,7 +109,7 @@ def start(
     host: str | None,
     log_level: str | None,
     access_log: bool | None,
-    container_name: str,
+    container_name: str | None,
     image: str | None,
     database_path: Path | None,
     docker: bool = False,
@@ -101,6 +121,9 @@ def start(
     if IN_DOCKER:
         ctx.invoke(run, port=port, host=host, reload=False, config_dir=config_dir, database_path=database_path)
         return
+
+    if docker:
+        image = image or "bobkerns/zabob-memgraph:latest"
 
     if database_path is not None and not database_path.is_absolute():
         database_path = database_path.resolve()
@@ -321,9 +344,12 @@ def restart(
     )
 
 
-@click.command()
+@cli.command(name="list")
 @click.pass_context
-def open_browser(ctx: click.Context) -> None:
+@click.option("--port", type=int, default=None, help="Port server is listening on")
+@click.option("--pid", type=int, default=None, help="Server main process PID")
+@click.option("--name", type=str, default=None, help="Server instance name")
+def list_servers(ctx: click.Context, port: int | None, pid: int | None, name: str | None) -> None:
     """Open browser to the knowledge graph interface"""
     if IN_DOCKER:
         console.print("❌ Browser opening not available in Docker container")
@@ -331,7 +357,53 @@ def open_browser(ctx: click.Context) -> None:
         sys.exit(1)
 
     config_dir: Path = ctx.obj["config_dir"]
-    servers = get_server_info(config_dir)
+    servers = get_server_info(config_dir, port=port, pid=pid, name=name)
+    if not servers:
+        console.print("❌ No servers found")
+        sys.exit(1)
+    table = Table(title="Zabob Memgraph Servers")
+    table.add_column("Name", style=S.key, no_wrap=True)
+    table.add_column("PID", style=S.pid)
+    table.add_column("Port", style=S.port)
+    table.add_column("Status", style=S.status)
+    table.add_column("Docker Container", style=S.docker)
+    for server in servers:
+        status = server_status(server)
+        match status:
+            case ServerStatus.RUNNING:
+                status_str = "[green]RUNNING[/green]"
+            case ServerStatus.NOT_RESPONDING | ServerStatus.ERROR:
+                status_str = "[red]NOT RESPONDING[/red]"
+            case ServerStatus.STOPPED:
+                status_str = "[yellow]STOPPED[/yellow]"
+            case ServerStatus.GONE | ServerStatus.NOT_RUNNING:
+                status_str = "[bold][dark_blue]NOT RUNNING[/dark_blue][/bold]"
+            case _:
+                status_str = f"[red]{status}[/red]"
+
+        table.add_row(
+            server.get("name", "N/A"),
+            str(server.get("pid", "N/A")),
+            str(server.get("port", "N/A")),
+            status_str,
+            server.get("docker_container", "N/A") or "N/A",
+        )
+    console.print(table)
+
+@click.command()
+@click.pass_context
+@click.option("--port", type=int, default=None, help="Port server is listening on")
+@click.option("--pid", type=int, default=None, help="Server main process PID")
+@click.option("--name", type=str, default=None, help="Server instance name")
+def open_browser(ctx: click.Context, port: int | None, pid: int | None, name: str | None) -> None:
+    """Open browser to the knowledge graph interface"""
+    if IN_DOCKER:
+        console.print("❌ Browser opening not available in Docker container")
+        console.print("Access the web UI from your host machine")
+        sys.exit(1)
+
+    config_dir: Path = ctx.obj["config_dir"]
+    servers = get_server_info(config_dir, port=port, pid=pid, name=name)
 
     match len(servers):
         case 0:
@@ -355,41 +427,49 @@ def open_browser(ctx: click.Context) -> None:
 
 
 @click.command()
+@click.option("--port", type=int, default=None, help="Port listening on")
+@click.option("--name", type=str, default=None, help="Server instance name")
+@click.option("--pid", type=int, default=None, help="Server main process PID")
 @click.pass_context
-def status(ctx: click.Context) -> None:
+def status(ctx: click.Context, port: int | None, name: str | None, pid: int | None) -> None:
     """Check server status"""
     config_dir: Path = ctx.obj["config_dir"]
 
-    servers = get_server_info(config_dir)
+    servers = get_server_info(config_dir, port=port, name=name, pid=pid)
     if servers:
+        table = Table(title="Zabob Memgraph Server Status", style=S.title)
+        table.add_column("Name", style=S.key)
+        table.add_column("Value", style=S.value)
         for info in servers:
+            table.add_section()
             status = server_status(info)
             match status:
                 case ServerStatus.RUNNING:
-                    status_lines = ["Server Status: [green]RUNNING[/green]"]
+                    status = Text("RUNNING", style=S.running)
                 case ServerStatus.NOT_RESPONDING | ServerStatus.ERROR:
-                    status_lines = ["Server Status: [red]NOT RESPONDING[/red]"]
+                    status = Text("NOT RESPONDING", style=S.not_responding)
                 case ServerStatus.STOPPED:
-                    status_lines = ["Server Status: [yellow]STOPPED[/yellow]"]
+                    status = Text("STOPPED", style=S.stopped)
                 case ServerStatus.GONE | ServerStatus.NOT_RUNNING:
-                    status_lines = ["Server Status: [bold][dark_blue]NOT RUNNING[/dark_blue][/bold]"]
+                    status = Text("NOT RUNNING", style=S.gone)
                 case _:
-                    status_lines = [f"Server Status: [red]{status}[/red]"]
-            status_lines.append(f"Launched by: {info.get('launched_by', 'N/A')}")
+                    status = Text(f"{status}", style=S.bad_status)
+            table.add_row("Status", status)
+            table.add_row("Launched by", info.get("launched_by", "N/A"))
 
             if info.get("docker_container"):
-                status_lines.append(f"Container: {info['docker_container']}")
+                table.add_row("Container", info.get("docker_container", "N/A"))
                 container_id = info.get("container_id")
                 if container_id:
-                    status_lines.append(f"Container ID: {container_id[:12]}")
+                    table.add_row("Container ID", container_id[:12])
             else:
-                status_lines.append(f"PID: {info.get('pid', 'N/A')}")
+                table.add_row("PID", str(info.get("pid", "N/A")))
 
-            status_lines.append(f"Port: {info.get('port', 'N/A')}")
-            status_lines.append(f"Host: {info.get('host', 'localhost')}")
-            status_lines.append(f"Web Interface: http://{info.get('host', 'localhost')}:{info['port']}")
+            table.add_row("Port", str(info.get("port", "N/A")))
+            table.add_row("Host", info.get("host", "localhost"))
+            table.add_row("Web Interface", f"http://{info.get('host', 'localhost')}:{info['port']}")
 
-            console.print(Panel("\n".join(status_lines), title="Zabob Memgraph Server"))
+        console.print(table)
     else:
         console.print(
             Panel(
@@ -401,13 +481,16 @@ def status(ctx: click.Context) -> None:
 
 @click.command()
 @click.option("--interval", default=5, help="Check interval in seconds")
+@click.option("--port", type=int, default=None, help="Port listening on")
+@click.option("--pid", type=int, default=None, help="Server main process PID")
+@click.option("--name", type=str, default=None, help="Server instance name")
 @click.pass_context
-def monitor(ctx: click.Context, interval: int) -> None:
+def monitor(ctx: click.Context, interval: int, port: int | None, pid: int | None, name: str | None) -> None:
     """Monitor server health"""
     config_dir: Path = ctx.obj["config_dir"]
     header = True
     while True:
-        servers = get_server_info(config_dir)
+        servers = get_server_info(config_dir, port=port, pid=pid, name=name)
         match len(servers):
             case 0:
                 console.print("❌ No server running")
@@ -450,12 +533,13 @@ def monitor(ctx: click.Context, interval: int) -> None:
 @click.option("--port", type=int, default=None, help="Port listening on")
 @click.option("--pid", type=int, default=None, help="Server main process PID")
 @click.option("--container-name", type=str, default=None, help="Docker container name")
+@click.option("--name", type=str, default=None, help="Server instance name")
 @click.pass_context
-def test(ctx: click.Context, port: int | None, pid: int | None, container_name: str | None) -> None:
+def test(ctx: click.Context, port: int | None, pid: int | None, container_name: str | None, name: str | None) -> None:
     """Test server endpoints"""
     config_dir: Path = ctx.obj["config_dir"]
 
-    info = get_one_server_info(config_dir, port=port, pid=pid, container_name=container_name)
+    info = get_one_server_info(config_dir, port=port, pid=pid, container_name=container_name, name=name)
     if info is None:
         console.print("❌ No server running")
         console.print("Start the server first with: zabob-memgraph start")
@@ -614,71 +698,6 @@ def build(tag: str, no_cache: bool) -> None:
         sys.exit(1)
 
 
-@click.command()
-def lint() -> None:
-    """Run linting checks (ruff, mypy)"""
-    project_root = Path(__file__).parent.parent
-    console.print("🔍 Running linters...")
-
-    # Run ruff
-    console.print("\n📝 Checking with ruff...")
-    result = subprocess.run(["uv", "run", "ruff", "check", "memgraph/"], cwd=project_root)
-
-    # Run mypy
-    console.print("\n🔬 Checking with mypy...")
-    result2 = subprocess.run(["uv", "run", "mypy", "--strict", "memgraph/"], cwd=project_root)
-
-    if result.returncode == 0 and result2.returncode == 0:
-        console.print("✅ All checks passed!")
-    else:
-        sys.exit(1)
-
-
-@click.command(name="format")
-def format_code() -> None:
-    """Format code with ruff"""
-    project_root = Path(__file__).parent.parent
-    console.print("✨ Formatting code with ruff...")
-
-    result = subprocess.run(["uv", "run", "ruff", "format", "."], cwd=project_root, check=False)
-
-    if result.returncode == 0:
-        console.print("✅ Code formatted successfully!")
-    else:
-        console.print("❌ Formatting failed")
-        sys.exit(1)
-
-
-@click.command()
-def clean() -> None:
-    """Clean build artifacts and cache"""
-    project_root = Path(__file__).parent.parent
-    console.print("🧹 Cleaning build artifacts...")
-
-    patterns = [
-        "**/__pycache__",
-        "**/*.pyc",
-        "**/*.pyo",
-        "**/*.egg-info",
-        "dist",
-        "build",
-        ".pytest_cache",
-        ".mypy_cache",
-        ".ruff_cache",
-    ]
-
-    count = 0
-    for pattern in patterns:
-        for path in project_root.glob(pattern):
-            if path.is_dir():
-                shutil.rmtree(path)
-            else:
-                path.unlink()
-            count += 1
-
-    console.print(f"✅ Cleaned {count} items")
-
-
 @click.command("config")
 @click.option("--name", type=str, default=None, help="Server instance name")
 @click.option("--port", type=int, default=None, help="Port the server is running on")
@@ -711,21 +730,32 @@ def show_config(
     with those options.
     """
     config_dir: Path = ctx.obj["config_dir"]
-    config = load_config(
-        config_dir,
+    specs = dict(
         name=name,
         port=port,
-        host=host,
         container_name=container_name,
+    )
+    config = load_config(
+        config_dir,
+        **specs,
+        host=host,
         docker_image=image,
         database_path=database_path,
         log_level=log_level,
         access_log=access_log,
         docker=docker,
     )
-    lines = [f"[bold]{key}:[/bold] {value}" for key, value in config.items()]
-    panel = Panel("\n".join(lines), title="🛠️ Current Configuration")
-    console.print(panel)
+    spec = " ".join(f"{key}={value}"
+                            for key, value in specs.items()
+                            if value is not None
+                            if key in ('name', 'port', 'container_name')) or "(default)"
+    table = Table(title=Text(f"🛠️ Zabob Memgraph Configuration ", style=S.title)
+                  + Text(spec, S.spec))
+    table.add_column("Key", style=S.key, no_wrap=True, justify="right")
+    table.add_column("Value", style=S.value)
+    for key, value in config.items():
+        table.add_row(key, str(value))
+    console.print(table)
     if update:
         if docker:
             raise click.ClickException("Cannot update configuration file in Docker mode")
@@ -751,9 +781,6 @@ if not IN_DOCKER:
 # (Not in Docker - no source code to operate on)
 if is_dev_environment() and not IN_DOCKER:
     cli.add_command(build)
-    cli.add_command(lint)
-    cli.add_command(format_code)
-    cli.add_command(clean)
 
 
 if __name__ == "__main__":

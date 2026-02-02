@@ -4,6 +4,7 @@
 # dependencies = [
 #     "click>=8.3.1",
 #     "gitpython>=3.1.46",
+#     "rich>=14.3.1",
 # ]
 # ///
 """
@@ -28,11 +29,16 @@ Usage:
 
 from pathlib import Path
 from typing import NotRequired, TypedDict
+import subprocess
+import shutil
+import sys
 
 import click
 from git import GitCommandError, Repo
 
+from rich.console import Console
 
+console = Console()
 # Types
 class DevLibraryStatus(TypedDict):
     """Status information for dev-library integration."""
@@ -268,12 +274,12 @@ def status(ctx):
 
 # Check commands group (separate from library management)
 @cli.group()
-def check():
-    """Run code quality checks."""
+def code():
+    """Run code quality and maintenance checks."""
     pass
 
 
-@check.command()
+@code.command()
 @click.argument("paths", nargs=-1, type=click.Path(exists=True))
 @click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
 @click.option("--config", type=click.Path(exists=True), help="Path to config file")
@@ -310,7 +316,7 @@ def ruff(paths: tuple[str | Path, ...], verbose: bool, config: str | None, fix: 
     raise SystemExit(result.returncode)
 
 
-@check.command()
+@code.command()
 @click.argument("paths", nargs=-1, type=click.Path(exists=True))
 @click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
 @click.option("--config", type=click.Path(exists=True), help="Path to config file")
@@ -345,7 +351,52 @@ def mypy(paths: tuple[str | Path, ...], verbose: bool, config: str | None):
     raise SystemExit(result.returncode)
 
 
-@check.command()
+@click.command(name="format")
+def format_code() -> None:
+    """Format code with ruff"""
+    project_root = Path(__file__).parent.parent
+    console.print("✨ Formatting code with ruff...")
+
+    result = subprocess.run(["uv", "run", "ruff", "format", "."], cwd=project_root, check=False)
+
+    if result.returncode == 0:
+        console.print("✅ Code formatted successfully!")
+    else:
+        console.print("❌ Formatting failed")
+        sys.exit(1)
+
+
+@click.command()
+def clean() -> None:
+    """Clean build artifacts and cache"""
+    project_root = Path(__file__).parent.parent
+    console.print("🧹 Cleaning build artifacts...")
+
+    patterns = [
+        "**/__pycache__",
+        "**/*.pyc",
+        "**/*.pyo",
+        "**/*.egg-info",
+        "dist",
+        "build",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+    ]
+
+    count = 0
+    for pattern in patterns:
+        for path in project_root.glob(pattern):
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+            count += 1
+
+    console.print(f"✅ Cleaned {count} items")
+
+
+@code.command()
 @click.argument("paths", nargs=-1, type=click.Path(exists=True))
 @click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
 @click.option("--config", type=click.Path(exists=True), help="Path to config file")
@@ -357,6 +408,7 @@ def all(ctx: click.Context, paths: tuple[str | Path, ...], verbose: bool, config
     ctx.invoke(ruff, paths=paths, verbose=verbose, config=config, fix=fix)
     # Run mypy
     ctx.invoke(mypy, paths=paths, verbose=verbose, config=config)
+
 
 
 if __name__ == "__main__":
