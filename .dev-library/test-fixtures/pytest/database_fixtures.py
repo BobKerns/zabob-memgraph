@@ -2,7 +2,12 @@
 Reusable database fixtures for SQLite testing.
 
 Import in conftest.py:
-    from .dev_library.test_fixtures.pytest.database_fixtures import *
+
+    project_root = Path(__file__).parent
+    # Add .dev-library to path
+    sys.path.insert(0, str(project_root / ".dev-library"))
+
+    from test_fixtures.pytest.database_fixtures import *  # noqa: E402
 """
 
 import pytest

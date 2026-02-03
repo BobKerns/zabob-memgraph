@@ -2,7 +2,7 @@
 
 # WORK/ folder
 
-This directory holds is for temporary files that should not be added to the repository.
+This directory is for temporary files that should not be added to the repository.
 
 - transitory working documents
 - tracking documents for AI tasks underway

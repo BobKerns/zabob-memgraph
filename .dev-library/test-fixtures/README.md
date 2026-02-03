@@ -102,7 +102,14 @@ from test_fixtures.playwright.page_fixtures import *
 ```python
 # project-specific conftest.py
 import pytest
-from .dev_library.test_fixtures.pytest.database_fixtures import temp_sqlite_db
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).parent
+# Add .dev-library to path
+sys.path.insert(0, str(project_root / ".dev-library"))
+
+from test_fixtures.pytest.database_fixtures import temp_sqlite_db   # noqa: E402
 
 @pytest.fixture
 def app_with_db(temp_sqlite_db):

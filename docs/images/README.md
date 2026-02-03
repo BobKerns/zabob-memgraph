@@ -4,7 +4,7 @@
 
 This directory contains miscellaneous banner images for the Zabob Memgraph project.
 
-Most image assets are in [.dev/library/docs-assets/images](.dev/library/docs-assets/images), to facilitate sharing with other Zabob projects.
+Most image assets are in [.dev-library/docs-assets/images](.dev-library/docs-assets/images), to facilitate sharing with other Zabob projects.
 
 ## Required Images
 

@@ -16,7 +16,6 @@
 *.tar.bz2 filter=lfs diff=lfs merge=lfs -text
 # Photoshop
 *.psd filter=lfs diff=lfs merge=lfs -text
-*.db filter=lfs diff=lfs merge=lfs -text
 *.py filter=fix-eol-eof
 *.js filter=fix-eol-eof
 *.css filter=fix-eol-eof
