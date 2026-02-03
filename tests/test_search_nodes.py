@@ -222,7 +222,7 @@ def test_single_word_search(sample_data):
         assert any(
             "python" in name.lower()
             or "python" in str(entity.get("observations", [])).lower()
-            for name, entity in zip(entity_names, entities)
+            for name, entity in zip(entity_names, entities, strict=True)
         ), "Should find entities related to Python"
 
     # Run async test

@@ -1,7 +1,7 @@
 # Simplified test Dockerfile - uses pre-built base-test image
 ARG BASE_IMAGE_REGISTRY=ghcr.io
 ARG BASE_IMAGE_NAME=bobkerns/zabob-memgraph
-ARG BASE_IMAGE_VERSION=v1
+ARG BASE_IMAGE_VERSION=v9
 
 FROM ${BASE_IMAGE_REGISTRY}/${BASE_IMAGE_NAME}/base-test:${BASE_IMAGE_VERSION}
 
@@ -15,15 +15,15 @@ RUN pnpm run build:web
 
 # Copy test files and configuration
 COPY tests/ ./tests/
-COPY pyproject.toml check_types.py dev_utils.py ./
+COPY pyproject.toml ./
 
 # Copy test runner script
-COPY run-all-tests.sh /app/run-all-tests.sh
-RUN chmod +x /app/run-all-tests.sh
+COPY devtool ./devtool
+COPY .dev-library/zabob/tools/ ./.dev-library/zabob/tools/
+RUN chmod +x ./devtool
 
 # Set up environment for test execution
 ENV PYTHONPATH=/app
-WORKDIR /app
 
 # Default command runs all quality checks and tests
-CMD ["/app/run-all-tests.sh"]
+ENTRYPOINT ["/app/devtool", "code", "all"]

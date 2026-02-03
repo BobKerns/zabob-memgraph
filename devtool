@@ -1,0 +1,311 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "click>=8.3.1",
+#     "gitpython>=3.1.46",
+#     "ruff>=0.14.14",
+#     "mypy>=1.19.1",
+#     "requests>=2.32.5",
+#     "rich>=14.3.2",
+#     "fastapi",
+#     "uvicorn>=0.40.0",
+#     "mcp>=1.26.0",
+#     "fastmcp>=3.0.0b1",
+#     "pydantic>=2.12.5",
+#     "jinja2>=3.1.6",
+#     "psutil>=7.2.2",
+#     "pytest>=9.0.2",
+#     "pytest-xdist>=3.8.0",
+#     "pytest-asyncio>=1.3.0",
+#     "anyio>=4.12.1",
+#     "playwright>=1.58.0",
+#     "pytest-playwright>=0.7.2",
+# ]
+# ///
+"""
+Zabob Memgraph - Development Tool.
+
+Manages development tasks including dev-library integration.
+"""
+
+import sys
+import time
+from pathlib import Path
+
+import click
+
+project_root = Path(__file__).parent
+# Add .dev-library to path
+sys.path.insert(0, str(project_root / ".dev-library"))
+
+from zabob.tools.libtools import cli, all_checks, CONFIG  # noqa: E402
+from memgraph.__main__ import cli as server   # noqa: E402
+
+cli.add_command(server, name="server")
+
+# Configure paths for check commands
+CONFIG["paths"] = [
+    project_root / "memgraph",
+    project_root / "tests",
+    *CONFIG["paths"]
+]
+CONFIG["config"] = project_root / "pyproject.toml"
+
+
+@server.command()
+@click.option("--url", default="http://localhost:6789", help="Server URL")
+def test(url: str) -> None:
+    """Test server endpoints and functionality."""
+    import requests
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(Panel(f"Testing Memgraph Server at {url}", title="🧪 Server Test"))
+
+    # Test health endpoint
+    try:
+        response = requests.get(f"{url}/health", timeout=5)
+        if response.status_code == 200:
+            health_data = response.json()
+            console.print("✅ Health check passed")
+            console.print(f"   Version: {health_data.get('version', 'unknown')}")
+            console.print(f"   Features: {', '.join(health_data.get('features', []))}")
+        else:
+            console.print(f"❌ Health check failed: {response.status_code}")
+            return
+    except requests.RequestException as e:
+        console.print(f"❌ Could not connect to server: {e}")
+        return
+
+    # Test knowledge graph endpoint
+    try:
+        response = requests.get(f"{url}/api/knowledge-graph", timeout=10)
+        if response.status_code == 200:
+            graph_data = response.json()
+            console.print("✅ Knowledge graph endpoint working")
+            console.print(f"   Entities: {len(graph_data.get('nodes', []))}")
+            console.print(f"   Relations: {len(graph_data.get('links', []))}")
+        else:
+            console.print(f"❌ Knowledge graph failed: {response.status_code}")
+    except requests.RequestException as e:
+        console.print(f"❌ Knowledge graph error: {e}")
+
+    # Test search endpoint
+    try:
+        response = requests.get(f"{url}/api/search?q=test", timeout=5)
+        if response.status_code == 200:
+            search_results = response.json()
+            console.print("✅ Search endpoint working")
+            console.print(f"   Results for 'test': {len(search_results)}")
+        else:
+            console.print(f"❌ Search failed: {response.status_code}")
+    except requests.RequestException as e:
+        console.print(f"❌ Search error: {e}")
+
+    # Test entity creation
+    test_entity = {
+        "name": f"Test Entity {int(time.time())}",
+        "entityType": "test",
+        "observations": ["This is a test observation", "Created by dev script"],
+    }
+
+    try:
+        response = requests.post(f"{url}/api/entities", json=[test_entity], timeout=5)
+        if response.status_code == 200:
+            console.print("✅ Entity creation working")
+        else:
+            console.print(f"❌ Entity creation failed: {response.status_code}")
+    except requests.RequestException as e:
+        console.print(f"❌ Entity creation error: {e}")
+
+    console.print("\n🎉 Server test complete!")
+
+
+@server.command()
+@click.option("--url", default="http://localhost:6789", help="Server URL")
+def stats(url: str) -> None:
+    """Display server statistics."""
+    import requests
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        response = requests.get(f"{url}/api/database-stats", timeout=5)
+        if response.status_code == 200:
+            stats_data = response.json()
+
+            table = Table(title="📊 Database Statistics")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="green")
+
+            table.add_row("Total Entities", str(stats_data.get("total_entities", "N/A")))
+            table.add_row("Total Relations", str(stats_data.get("total_relations", "N/A")))
+            table.add_row(
+                "Database Size", f"{stats_data.get('database_size_mb', 0):.2f} MB"
+            )
+            table.add_row("Backend Type", stats_data.get("backend_type", "Unknown"))
+
+            console.print(table)
+        else:
+            console.print(f"❌ Could not get stats: {response.status_code}")
+
+    except requests.RequestException as e:
+        console.print(f"❌ Stats error: {e}")
+
+
+@server.command()
+@click.option("--url", default="http://localhost:6789", help="Server URL")
+@click.option("--interval", default=5, help="Check interval in seconds")
+def monitor(url: str, interval: int) -> None:
+    """Monitor server health continuously."""
+    import requests
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    console = Console()
+    console.print(
+        Panel(f"Monitoring server at {url} (Ctrl+C to stop)", title="📡 Server Monitor")
+    )
+
+    try:
+        while True:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+                transient=True,
+            ) as progress:
+                task = progress.add_task("Checking server...", total=None)
+
+                try:
+                    response = requests.get(f"{url}/health", timeout=3)
+                    if response.status_code == 200:
+                        timestamp = time.strftime("%H:%M:%S")
+                        health = response.json()
+                        console.print(
+                            f"[green]{timestamp}[/green] ✅ Server healthy "
+                            f"- {health.get('status', 'unknown')}"
+                        )
+                    else:
+                        timestamp = time.strftime("%H:%M:%S")
+                        console.print(
+                            f"[red]{timestamp}[/red] ❌ Server unhealthy "
+                            f"- HTTP {response.status_code}"
+                        )
+
+                except requests.RequestException:
+                    timestamp = time.strftime("%H:%M:%S")
+                    console.print(f"[red]{timestamp}[/red] ❌ Server unreachable")
+
+                progress.remove_task(task)
+
+            time.sleep(interval)
+
+    except KeyboardInterrupt:
+        console.print("\n👋 Monitoring stopped")
+
+
+@cli.command()
+def version() -> None:
+    """Display Memgraph version information."""
+    from memgraph.__version__ import __version__, __distribution__
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(
+        Panel(f"Memgraph Version: {__version__}\nDistribution: {__distribution__}", title="ℹ️ Version Info")
+    )
+
+
+code: click.Group = cli.commands["code"]
+
+
+@code.group("test")
+def tests() -> None:
+    """Run Memgraph server tests."""
+    pass
+
+@tests.command("ui")
+@click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
+@click.option("--config", type=click.Path(exists=True), help="Path to config file")
+def ui_tests(verbose: bool = False, config: Path | None = None) -> None:
+    """Run Memgraph UI tests using Playwright."""
+    import subprocess
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(Panel("Running Memgraph UI Tests", title="🧪 UI Tests"))
+
+    try:
+        result = subprocess.run(
+
+            ["pytest", "-m", "(ui_basic or ui_interactive)", "-n", "auto",
+             "-v" if verbose else ""],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        console.print(result.stdout)
+        if result.returncode == 0:
+            console.print("✅ All UI tests passed")
+        else:
+            console.print("❌ Some UI tests failed")
+            console.print(result.stderr)
+
+    except Exception as e:
+        console.print(f"❌ Error running UI tests: {e}")
+
+
+@tests.command("api")
+@click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
+@click.option("--config", type=click.Path(exists=True), help="Path to config file")
+def api_tests(verbose: bool = False, config: Path | None = None) -> None:
+    """Run Memgraph API tests."""
+    import subprocess
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    console.print(Panel("Running Memgraph API Tests",
+                        title="🧪 API Tests"))
+
+    try:
+        result = subprocess.run(
+            ["pytest", "-m", "not (ui_basic or ui_interactive)", "-n", "auto",
+            "-v" if verbose else ""],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        console.print(result.stdout)
+        if result.returncode == 0:
+            console.print("✅ All API tests passed")
+        else:
+            console.print("❌ Some API tests failed")
+            console.print(result.stderr)
+
+    except Exception as e:
+        console.print(f"❌ Error running API tests: {e}")
+
+
+CONFIG["checks"].extend([api_tests, ui_tests])
+
+@tests.command("all")
+@click.pass_context
+def all_tests(ctx: click.Context, verbose: bool = False, config: Path | None = None) -> None:
+    """Run all Memgraph tests."""
+    ctx.invoke(api_tests, verbose=verbose)
+    ctx.invoke(ui_tests)
+
+
+if __name__ == "__main__":
+    cli()

@@ -352,3 +352,15 @@ If you need clarification on any aspect of the codebase that isn't covered here:
 2. Look for similar existing implementations in the codebase
 3. Ask for clarification via issue comments
 4. Review related test files for usage examples
+
+
+## Agent Skills
+
+This project uses standardized skills from the Zabob development library.
+See `.dev-library/skills/` for detailed skill definitions:
+
+- [Systematic Debugging](../.dev-library/skills/systematic-debugging.md)
+- [SQLite FTS Development](../.dev-library/skills/sqlite-fts-development.md)
+- [Test-Driven Development](../.dev-library/skills/test-driven-development.md)
+- [FastAPI Async Development](../.dev-library/skills/fastapi-async-development.md)
+- [Web Security Patterns](../.dev-library/skills/web-security-patterns.md)
