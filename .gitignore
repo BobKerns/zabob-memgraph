@@ -34,7 +34,10 @@ venv.bak/
 
 # IDE
 .vscode/**
+!.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/*.template
+*.code-workspace
 .idea/
 *.swp
 *.swo
@@ -90,3 +93,5 @@ tests/out
 *-convo.md
 
 *.bak
+
+.worktrees/

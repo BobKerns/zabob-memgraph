@@ -7,7 +7,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
 ## [0.1.29]
+
+### Changed
+
+- **Developer Experience:** Reorganized VSCode configuration for better workspace customization
+  - Moved team settings from workspace file to `.vscode/settings.json` (committed)
+  - Workspace file (`zabob-memgraph.code-workspace`) now in `.gitignore` for personal customizations
+  - Added default workspace file with helpful examples for visual differentiation:
+    - Window title customization with emoji tags (🟢 🔵 🟣 🟠 🔴 etc.)
+    - Color theme customization examples
+    - Workspace name options for different worktrees/branches
+  - Enables per-worktree visual customization without polluting git history
+  - Team settings remain consistent while allowing personal preferences
 
 ### Fixes
 

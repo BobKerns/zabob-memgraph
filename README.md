@@ -227,6 +227,35 @@ zabob-memgraph run --reload
 
 ## Configuration
 
+### Workspace Customization
+
+The repository includes a `zabob-memgraph.code-workspace` file that you can customize for your personal preferences. This file is in `.gitignore`, so your changes won't be committed.
+
+**Customize your workspace:**
+
+1. Open the workspace file and uncomment/edit the settings you want
+2. Set a custom workspace name with an emoji tag for easy identification:
+   - `"name": "🟢 Main"` - Main branch
+   - `"name": "🔵 Release 0.1"` - Release branch
+   - `"name": "🟣 Development"` - Development work
+3. Customize window title and color theme in the `settings` section
+4. The default window title shows: `🧠 Memgraph <workspace-name> · <folder> · <file>`
+
+**Example customizations:**
+
+```jsonc
+"settings": {
+    "workbench.colorTheme": "Default Dark+",
+    "window.title": "🟣 DEV ${separator} ${activeEditorShort}",
+    "workbench.colorCustomizations": {
+        "titleBar.activeBackground": "#1a0033",
+        "statusBar.background": "#1a0033"
+    }
+}
+```
+
+This allows you to visually distinguish different worktrees or branches without affecting other developers.
+
 ### Data Directory
 
 Configuration and data are stored in `~/.zabob/memgraph/`:
