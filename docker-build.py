@@ -14,7 +14,6 @@ are already baked into base images.
 
 import subprocess
 import sys
-from typing import Optional
 
 import click
 
@@ -145,7 +144,7 @@ def runtime(
     image_name: str,
     base_version: str,
     tag: str,
-    platform: Optional[str],
+    platform: str | None,
     push: bool,
 ):
     """Build the runtime image (multi-arch capable)."""
@@ -248,7 +247,8 @@ def base(
 
     # Only build playwright and test for amd64
     if "amd64" not in platform:
-        click.echo("⚠ Skipping base-playwright and base-test (amd64 only)", err=True)
+        click.echo("⚠ Skipping base-playwright and base-test (amd64 only)",
+                   err=True)
         return
 
     # Build base-playwright using Dockerfile.base-playwright

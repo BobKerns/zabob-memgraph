@@ -1,0 +1,157 @@
+{
+	"markdownlint.config": {
+		"MD041": false,
+		"MD013": false,
+		"MD026": false,
+		"MD036": false,
+		"MD034": false
+	},
+	"makefile.configureOnOpen": false,
+	"cSpell.ignorePaths": [
+		"package-lock.json",
+		"node_modules",
+		"vscode-extension",
+		".git/{info,lfs,logs,refs,objects}/**",
+		".git/{index,*refs,*HEAD}",
+		".vscode",
+		".vscode-insiders",
+		".venv",
+		"**/*.bundle.js",
+		"**/*.bundle.js.map",
+		"pnpm-lock.yaml",
+		"uv.lock",
+		"__pycache__",
+		"*.egg-info"
+	],
+	"cSpell.dictionaryDefinitions": [
+		{
+			"name": "zabob-library",
+			"path": ".dev-library/.zabob.dic",
+			"scope": "workspace",
+			"description": "Zabob Library custom dictionary",
+			"addWords": true
+		},
+		{
+			"name": "memgraph",
+			"path": "./.memgraph.dic",
+			"scope": "workspace",
+			"description": "Zabob memgraph custom dictionary",
+			"addWords": true
+		},
+		{
+			"name": "net-history",
+			"path": "./docs/historical/.net-history.dic",
+			"scope": "workspace",
+			"description": ".NET historical terms",
+			"addWords": true
+		}
+	],
+	"cSpell.dictionaries": [
+		"zabob-library",
+		"memgraph",
+		"net-history"
+	],
+	"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+	"python.terminal.activateEnvironment": true,
+	"python.testing.autoTestDiscoverOnSavePattern": "test/**/*.py",
+	"python.testing.pytestEnabled": true,
+	"python.testing.unittestEnabled": false,
+	"python.testing.pytestArgs": [
+		"tests",
+		"-v",
+		"--tb=short"
+	],
+	"files.exclude": {
+        "**/.ruby-lsp": true,
+        "**/__pycache__": true,
+        "**/.*_cache": true,
+        "**/*.egg-info": true,
+        "dist/": true,
+        "node_modules": true
+    },
+	"files.watcherExclude": {
+		"**/.venv/**": true
+	},
+	"explorer.autoRevealExclude": {
+		"**/.venv": true,
+		"**/tests/out": true
+	},
+	"explorer.fileNesting.enabled": true,
+	"explorer.fileNesting.expand": true,
+	"explorer.fileNesting.patterns": {
+		"TODO.md": "NEXT_STEPS.md,MIGRATION_V2.md,migrate_to_v2.py,ISSUE*.md,RUN_*.md,lost_relations_*.json,*_STATUS.md,restore_relations.py",
+		"LICENSE.md": "LICENSE",
+		"pyproject.toml": "uv.lock,pyrightconfig.json,.markdownlint.json,.memgraph.dic,.flake8,playwright.config.py",
+		".gitignore": ".gitattributes,.mailmap,.dockerignore",
+		"README.md": "DEPLOYMENT.md,CONTRIBUTING.md",
+		"install.sh": "install-*.sh",
+		"Dockerfile": "Dockerfile.*,docker-compose*.yml,docker-*.sh,Dockerfile.*,docker-build.py"
+	},
+	"explorer.enableUndo": false,
+	"chat.useAgentSkills": true,
+	"chat.tools.terminal.autoApprove": {
+		"/^uv run mypy --strict memgraph/sqlite_backend\\.py$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv sync --extra dev && \\./check_types\\.py$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run ruff format memgraph/sqlite_backend\\.py && \\./check_types\\.py$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run pytest tests/test_search_nodes\\.py -v$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run pytest tests/test_observation_sorting\\.py -v$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run pytest tests/test_search_nodes\\.py tests/test_observation_sorting\\.py -v$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run pytest tests/test_observation_sorting\\.py tests/test_search_nodes\\.py -v$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run pytest tests/test_search_nodes\\.py::test_entity_deduplication -v$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run pytest tests/test_observation_sorting\\.py::test_matching_observations_sorted_first -v --tb=short$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^\\.venv/bin/python -m pytest --version$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^\\.venv/bin/python -m pytest tests/test_ui_playwright\\.py::test_graph_loads_data -v --tb=short$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run mypy memgraph/vector_store\\.py memgraph/vector_sqlite\\.py memgraph/mcp_service\\.py$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^uv run pytest tests/test_vector_search\\.py -v$/": {
+			"approve": true,
+			"matchCommandLine": true
+		}
+	},
+	"flake8.args": [
+		"--max-line-length=120",
+		"--disable=F541"
+    ],
+    "python-envs.pythonProjects": [
+        {
+            "path": "",
+            "envManager": "ms-python.python:system",
+            "packageManager": "ms-python.python:pip"
+        }
+    ]
+}

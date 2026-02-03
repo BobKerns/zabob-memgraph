@@ -110,7 +110,7 @@ async def test_hybrid_search_fallback():
     """Test that hybrid search falls back to keyword search if semantic fails."""
     # Reset configuration to make semantic search fail
     from memgraph.embeddings import set_embedding_provider
-    set_embedding_provider(None)  # type: ignore[arg-type]
+    set_embedding_provider(None)
 
     result = await search_hybrid(query="test")
 

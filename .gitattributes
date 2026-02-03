@@ -16,9 +16,6 @@
 *.tar.bz2 filter=lfs diff=lfs merge=lfs -text
 # Photoshop
 *.psd filter=lfs diff=lfs merge=lfs -text
-*.db filter=lfs diff=lfs merge=lfs -text
-
-
 *.py filter=fix-eol-eof
 *.js filter=fix-eol-eof
 *.css filter=fix-eol-eof
@@ -32,3 +29,9 @@
 *.cmd filter=fix-eol-eof eol=crlf
 *.ps1 filter=fix-eol-eof eol=crlf
 *.txt filter=fix-eol-eof
+docs/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+docs/**/*.png filter=lfs diff=lfs merge=lfs -text
+docs/**/*.psd filter=lfs diff=lfs merge=lfs -text
+.dev-library/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+.dev-library/**/*.png filter=lfs diff=lfs merge=lfs -text
+.dev-library/**/*.psd filter=lfs diff=lfs merge=lfs -text
