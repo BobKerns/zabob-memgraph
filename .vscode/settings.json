@@ -62,12 +62,13 @@
 		"--tb=short"
 	],
 	"files.exclude": {
-		"**/__pycache__": true,
-		"**/.*_cache": true,
-		"**/*.egg-info": true,
-		"dist/": true,
-		"node_modules": true
-	},
+        "**/.ruby-lsp": true,
+        "**/__pycache__": true,
+        "**/.*_cache": true,
+        "**/*.egg-info": true,
+        "dist/": true,
+        "node_modules": true
+    },
 	"files.watcherExclude": {
 		"**/.venv/**": true
 	},

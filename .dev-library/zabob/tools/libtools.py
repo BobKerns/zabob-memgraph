@@ -296,7 +296,6 @@ def code():
 @click.option("--fix", is_flag=True, help="Automatically fix issues where possible")
 def ruff(paths: Sequence[str | Path], verbose: bool, config: Path | None, fix: bool):
     """Run ruff linter on specified paths."""
-    import subprocess
 
     # Use global config if no paths provided
     if not paths:
@@ -332,7 +331,6 @@ def ruff(paths: Sequence[str | Path], verbose: bool, config: Path | None, fix: b
 @click.option("--config", type=click.Path(exists=True), help="Path to config file")
 def mypy(paths: Sequence[str | Path], verbose: bool, config: Path | None):
     """Run mypy type checker on specified paths."""
-    import subprocess
 
     # Use global config if no paths provided
     if not paths:

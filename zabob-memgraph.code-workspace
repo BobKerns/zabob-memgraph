@@ -3,7 +3,7 @@
 		{
 			"path": ".",
             // The name field is optional. Uncomment one of the lines below to set a custom workspace name.
-            // This will appear in the window title, workspace switcher, and as the folde name
+            // This will appear in the window title, workspace switcher, and as the folder name
             // in the explorer.
             // "name": "🟢 Main"
             // "name": "🔵 Release 0.1"
@@ -21,7 +21,7 @@
             // "name": "🟤 Maintenance"
             // "name": "🟤 Personal"
             // "name": "🟠 Zabob Memgraph"
-            // "name": "🔴 Zabob Memgraph
+            // "name": "🔴 Zabob Memgraph"
             // "name": "⚫ Zabob Memgraph"
             // "name": "⚪ Zabob Memgraph"
             // "name": "🟡 Zabob Memgraph"
@@ -39,9 +39,10 @@
         // "workbench.colorTheme": "Default Dark+",
         // "window.title": "🟣 RELEASE ${separator} ${activeEditorShort}"
         // "window.title": "🔵 Memgraph ${folderName} ${separator} ${activeEditorShort}",
-        // "window.title": "🔵 Memgraph ${folderName} ${separator} ${activeEditorShort}",
+        // "window.title": "🟢 Memgraph ${folderName} ${separator} ${activeEditorShort}",
+        // "window.title": "🟠 Memgraph ${folderName} ${separator} ${activeEditorShort}",
 
-        // The default title format bellow uses the workspace name if set, otherwise the folder name.
+        // The default title format below uses the workspace name if set, otherwise the folder name.
         // In most cases it's sufficient distinction between workspaces.
         "window.title": "🧠 Memgraph ${name} ${separator} ${folderName} ${separator} ${activeEditorShort}",
         "workbench.colorCustomizations": {

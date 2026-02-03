@@ -2,9 +2,7 @@
 #line-length = 120
 #max-line-length = 120
 
-[lint]
-ignore = [
-    "F541",  # f-string without placeholders (often intentional for consistency)
-]
+[flake8]
+ignore = "F541"  # f-string without placeholders (often intentional for consistency)
 #line-length = 120
 #max-line-length = 120
